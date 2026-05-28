@@ -18,6 +18,8 @@ export interface AppointmentApiRow {
   assigned_first_name?: string | null;
   assigned_last_name?: string | null;
   customer_id?: number | null;
+  has_signed_contract?: boolean | null;
+  created_at?: string | null;
 }
 
 export interface AppointmentFinancials {
@@ -45,7 +47,26 @@ export interface Appointment {
   assignedUsername: string;
   assignedLabel: string;
   customerId: number | null;
+  hasSignedContract: boolean;
+  createdAt: string | null;
   financials: AppointmentFinancials;
+}
+
+export interface AppointmentPayment {
+  id: number;
+  appointmentId: number;
+  amount: number;
+  note: string | null;
+  paidOn: string | null;
+  createdAt: string | null;
+}
+
+export interface AppointmentReceipt {
+  id: number;
+  appointmentId: number;
+  kind: string;
+  amount: number;
+  createdAt: string | null;
 }
 
 export interface AppointmentFilters {
