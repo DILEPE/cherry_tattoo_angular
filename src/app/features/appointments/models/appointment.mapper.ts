@@ -5,13 +5,14 @@ import {
   AppointmentStatus,
   AppointmentFilters,
 } from './appointment.model';
+import { appointmentRowDate } from './calendar.mapper';
 
 function toFloat(v: unknown, fallback = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
 
-function formatCop(value: number): string {
+export function formatCop(value: number): string {
   const amount = Math.round(value);
   return `COP $${amount.toLocaleString('es-CO').replace(/,/g, '.')}`;
 }
@@ -76,20 +77,34 @@ export function serviceToBadgeVariant(
   return 'other';
 }
 
+function assignedStaffLabel(raw: AppointmentApiRow): string {
+  const fn = (raw.assigned_first_name ?? '').trim();
+  const ln = (raw.assigned_last_name ?? '').trim();
+  if (fn || ln) return `${fn} ${ln}`.trim();
+  const un = (raw.assigned_username ?? '').trim();
+  return un || '—';
+}
+
 export function mapAppointment(raw: AppointmentApiRow): Appointment {
   const fin = mapFinancials(raw);
   const status = normalizeStatus(raw.status);
+  const rawDate = raw.appointment_date ?? null;
+  const apptDate = rawDate ? appointmentRowDate(rawDate) : null;
+  const cid = raw.customer_id;
   return {
     id: raw.id,
     customerName: (raw.customer_name ?? '').trim() || '—',
     phone: (raw.phone ?? '').trim(),
     serviceType: (raw.service_type ?? '').trim() || '—',
     detail: (raw.detail ?? '').trim(),
-    appointmentDate: raw.appointment_date ? new Date(raw.appointment_date) : null,
+    appointmentDate: apptDate,
+    appointmentDateRaw: rawDate != null ? String(rawDate) : null,
     status,
     statusLabel: raw.status?.trim() || 'Agendada',
     isPriority: Boolean(raw.is_priority),
     assignedUsername: (raw.assigned_username ?? '').trim(),
+    assignedLabel: assignedStaffLabel(raw),
+    customerId: cid != null && cid > 0 ? Number(cid) : null,
     financials: fin,
   };
 }

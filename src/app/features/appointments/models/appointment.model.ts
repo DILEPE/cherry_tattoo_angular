@@ -15,6 +15,9 @@ export interface AppointmentApiRow {
   is_priority?: boolean | null;
   assigned_panel_user_id?: number | null;
   assigned_username?: string | null;
+  assigned_first_name?: string | null;
+  assigned_last_name?: string | null;
+  customer_id?: number | null;
 }
 
 export interface AppointmentFinancials {
@@ -34,10 +37,14 @@ export interface Appointment {
   serviceType: string;
   detail: string;
   appointmentDate: Date | null;
+  /** ISO original de la API para extraer HH:MM. */
+  appointmentDateRaw: string | null;
   status: AppointmentStatus;
   statusLabel: string;
   isPriority: boolean;
   assignedUsername: string;
+  assignedLabel: string;
+  customerId: number | null;
   financials: AppointmentFinancials;
 }
 

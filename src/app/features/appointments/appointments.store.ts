@@ -1,9 +1,8 @@
-import { computed } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
 import { pipe, switchMap, tap } from 'rxjs';
-import { inject } from '@angular/core';
 import { AppointmentsApiService } from './services/appointments-api.service';
 import {
   Appointment,
@@ -14,6 +13,16 @@ import {
   mapAppointment,
   uniqueServices,
 } from './models/appointment.mapper';
+import {
+  AppointmentsViewMode,
+  CalendarMonthState,
+} from './models/calendar.model';
+import {
+  buildClientHistoryCounts,
+  currentCalendarMonth,
+  groupAppointmentsByDay,
+  shiftCalendarMonth,
+} from './models/calendar.mapper';
 import { apiErrorMessage } from '../../core/services/api.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
@@ -24,6 +33,8 @@ interface AppointmentsState {
   assignedUserId: number | null;
   filters: AppointmentFilters;
   reloadToken: number;
+  viewMode: AppointmentsViewMode;
+  calendarMonth: CalendarMonthState;
 }
 
 const initialFilters: AppointmentFilters = {
@@ -39,21 +50,48 @@ const initialState: AppointmentsState = {
   assignedUserId: null,
   filters: { ...initialFilters },
   reloadToken: 0,
+  viewMode: 'calendar',
+  calendarMonth: currentCalendarMonth(),
 };
 
 export const AppointmentsStore = signalStore(
   withState(initialState),
-  withComputed(({ items, filters }) => ({
-    filteredItems: computed(() => filterAppointments(items(), filters())),
-    serviceOptions: computed(() => uniqueServices(items())),
-    hasItems: computed(() => items().length > 0),
-  })),
+  withComputed(({ items, filters }) => {
+    const filteredItems = computed(() => filterAppointments(items(), filters()));
+    const clientHistoryCounts = computed(() => buildClientHistoryCounts(items()));
+    const appointmentsByDay = computed(() =>
+      groupAppointmentsByDay(filteredItems()),
+    );
+    return {
+      filteredItems,
+      clientHistoryCounts,
+      appointmentsByDay,
+      serviceOptions: computed(() => uniqueServices(items())),
+      hasItems: computed(() => items().length > 0),
+    };
+  }),
   withMethods(
     (
       store,
       api = inject(AppointmentsApiService),
       toast = inject(ToastService),
     ) => ({
+      setViewMode(mode: AppointmentsViewMode): void {
+        patchState(store, { viewMode: mode });
+      },
+      prevCalendarMonth(): void {
+        patchState(store, {
+          calendarMonth: shiftCalendarMonth(store.calendarMonth(), -1),
+        });
+      },
+      nextCalendarMonth(): void {
+        patchState(store, {
+          calendarMonth: shiftCalendarMonth(store.calendarMonth(), 1),
+        });
+      },
+      goToTodayMonth(): void {
+        patchState(store, { calendarMonth: currentCalendarMonth() });
+      },
       setAssignedUserId(id: number | null): void {
         patchState(store, { assignedUserId: id, reloadToken: store.reloadToken() + 1 });
       },

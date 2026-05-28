@@ -15,3 +15,4 @@
 
 - Estado local por ruta (`providers` en shell de citas).
 - `load` vía `rxMethod`; invalidar con `invalidate()` o cambio de `reloadToken`.
+- Vista: `viewMode` (`calendar` | `list`), `calendarMonth`, `appointmentsByDay`, `clientHistoryCounts`.

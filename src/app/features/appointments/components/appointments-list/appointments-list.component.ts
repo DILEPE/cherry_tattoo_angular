@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppPillComponent } from '../../../../shared/ui/pill/app-pill.component';
 import { AppBadgeComponent } from '../../../../shared/ui/badge/app-badge.component';
@@ -10,14 +9,12 @@ import {
   serviceToBadgeVariant,
   statusToPillVariant,
 } from '../../models/appointment.mapper';
-import { UiStore } from '../../../../store/ui.store';
 
 @Component({
   selector: 'app-appointments-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     AppPillComponent,
     AppBadgeComponent,
     AppSkeletonComponent,
@@ -25,44 +22,6 @@ import { UiStore } from '../../../../store/ui.store';
     TruncatePipe,
   ],
   template: `
-    <div class="filters-bar">
-      <label>
-        <span class="sr-only">Buscar cliente</span>
-        <input
-          type="search"
-          placeholder="Nombre cliente"
-          [ngModel]="store.filters().nameSubstr"
-          (ngModelChange)="store.setFilters({ nameSubstr: $event })"
-        />
-      </label>
-      <label>
-        Servicio
-        <select
-          [ngModel]="store.filters().service"
-          (ngModelChange)="store.setFilters({ service: $event })"
-        >
-          @for (svc of store.serviceOptions(); track svc) {
-            <option [value]="svc">{{ svc }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Estado
-        <select
-          [ngModel]="store.filters().status"
-          (ngModelChange)="store.setFilters({ status: $event })"
-        >
-          <option value="Todos">Todos</option>
-          <option value="Agendada">Agendada</option>
-          <option value="Reprogramada">Reprogramada</option>
-          <option value="Cancelada">Cancelada</option>
-          <option value="Finalizada">Finalizada</option>
-        </select>
-      </label>
-      <button type="button" class="btn btn--ghost" (click)="store.resetFilters()">Limpiar</button>
-      <button type="button" class="btn btn--ghost" (click)="store.invalidate()">Actualizar</button>
-    </div>
-
     @if (store.loading()) {
       <app-skeleton [rows]="8" />
     } @else if (store.error()) {
@@ -106,7 +65,7 @@ import { UiStore } from '../../../../store/ui.store';
               <td>{{ row.financials.depositFmt }}</td>
               <td>{{ row.financials.pendingFmt }}</td>
               <td>
-                <button type="button" class="btn btn--ghost" (click)="openDetail(row.id)">
+                <button type="button" class="btn btn--ghost" (click)="selected.emit(row.id)">
                   Ver
                 </button>
               </td>
@@ -115,19 +74,15 @@ import { UiStore } from '../../../../store/ui.store';
         </tbody>
       </table>
       <p class="empty-state appt-list-footer">
-        {{ store.filteredItems().length }} cita(s) · Vista calendario en desarrollo
+        {{ store.filteredItems().length }} cita(s)
       </p>
     }
   `,
 })
 export class AppointmentsListComponent {
   protected readonly store = inject(AppointmentsStore);
-  private readonly ui = inject(UiStore);
+  readonly selected = output<number>();
 
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly serviceToBadgeVariant = serviceToBadgeVariant;
-
-  openDetail(id: number): void {
-    this.ui.openModal('appointment-detail', id);
-  }
 }
