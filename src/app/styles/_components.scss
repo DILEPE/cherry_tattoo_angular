@@ -314,6 +314,87 @@
   margin-top: 0.5rem;
 }
 
+.appt-detail__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}
+
+.appt-detail__grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.875rem;
+  margin: 0 0 1.25rem;
+
+  dt {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.appt-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.appt-dialog-caption {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.appt-dialog-warning {
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.appt-dialog-subtitle {
+  font-size: 0.95rem;
+  margin: 0.5rem 0;
+}
+
+.appt-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.appt-payments-list {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.appt-receipt-row {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.appt-receipt-hint {
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
 .appt-table {
   width: 100%;
   border-collapse: collapse;

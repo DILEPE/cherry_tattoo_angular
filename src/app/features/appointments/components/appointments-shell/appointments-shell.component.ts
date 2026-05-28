@@ -1,23 +1,25 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
+import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsListComponent } from '../appointments-list/appointments-list.component';
 import { AppointmentsCalendarComponent } from '../appointments-calendar/appointments-calendar.component';
 import { AppointmentsViewToolbarComponent } from '../appointments-view-toolbar/appointments-view-toolbar.component';
 import { AppointmentsFiltersComponent } from '../appointments-filters/appointments-filters.component';
+import { AppointmentsModalsHostComponent } from '../../dialogs/appointments-modals-host/appointments-modals-host.component';
 import { UiStore } from '../../../../store/ui.store';
-import { AppModalComponent } from '../../../../shared/ui/modal/app-modal.component';
+import { AppointmentModalData } from '../../models/appointment-modal.model';
 
 @Component({
   selector: 'app-appointments-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [AppointmentsStore],
+  providers: [AppointmentsStore, AppointmentDialogStore],
   imports: [
     AppointmentsViewToolbarComponent,
     AppointmentsFiltersComponent,
     AppointmentsListComponent,
     AppointmentsCalendarComponent,
-    AppModalComponent,
+    AppointmentsModalsHostComponent,
   ],
   template: `
     <app-appointments-view-toolbar />
@@ -29,23 +31,12 @@ import { AppModalComponent } from '../../../../shared/ui/modal/app-modal.compone
       <app-appointments-list (selected)="openDetail($event)" />
     }
 
-    @switch (ui.activeModal()?.id) {
-      @case ('appointment-detail') {
-        @defer (on immediate) {
-          <app-modal title="Detalle de cita" size="md" [isOpen]="true">
-            <p>Reprogramar, finanzas y recibos: próxima iteración.</p>
-            <p>ID cita: {{ ui.activeModal()?.data }}</p>
-          </app-modal>
-        } @loading {
-          <p>Cargando…</p>
-        }
-      }
-    }
+    <app-appointments-modals-host />
   `,
 })
 export class AppointmentsShellComponent {
   protected readonly store = inject(AppointmentsStore);
-  protected readonly ui = inject(UiStore);
+  private readonly ui = inject(UiStore);
 
   private readonly _loadEffect = effect(() => {
     this.store.reloadToken();
@@ -53,6 +44,7 @@ export class AppointmentsShellComponent {
   });
 
   openDetail(id: number): void {
-    this.ui.openModal('appointment-detail', id);
+    const data: AppointmentModalData = { appointmentId: id };
+    this.ui.openModal('appointment-detail', data);
   }
 }

@@ -2,6 +2,8 @@ import {
   Appointment,
   AppointmentApiRow,
   AppointmentFinancials,
+  AppointmentPayment,
+  AppointmentReceipt,
   AppointmentStatus,
   AppointmentFilters,
 } from './appointment.model';
@@ -35,6 +37,27 @@ function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
     totalFmt: formatCop(total),
     depositFmt: formatCop(deposit),
     pendingFmt: formatCop(pending),
+  };
+}
+
+export function mapPayment(raw: Record<string, unknown>): AppointmentPayment {
+  return {
+    id: Number(raw['id'] ?? 0),
+    appointmentId: Number(raw['appointment_id'] ?? raw['appointmentId'] ?? 0),
+    amount: toFloat(raw['amount']),
+    note: raw['note'] != null ? String(raw['note']) : null,
+    paidOn: raw['paid_on'] != null ? String(raw['paid_on']) : null,
+    createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
+  };
+}
+
+export function mapReceipt(raw: Record<string, unknown>): AppointmentReceipt {
+  return {
+    id: Number(raw['id'] ?? 0),
+    appointmentId: Number(raw['appointment_id'] ?? raw['appointmentId'] ?? 0),
+    kind: String(raw['kind'] ?? ''),
+    amount: toFloat(raw['amount']),
+    createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
   };
 }
 
@@ -105,6 +128,8 @@ export function mapAppointment(raw: AppointmentApiRow): Appointment {
     assignedUsername: (raw.assigned_username ?? '').trim(),
     assignedLabel: assignedStaffLabel(raw),
     customerId: cid != null && cid > 0 ? Number(cid) : null,
+    hasSignedContract: Boolean(raw.has_signed_contract),
+    createdAt: raw.created_at != null ? String(raw.created_at) : null,
     financials: fin,
   };
 }

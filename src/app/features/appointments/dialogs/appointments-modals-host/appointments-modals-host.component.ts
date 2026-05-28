@@ -1,0 +1,64 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { UiStore } from '../../../../store/ui.store';
+import { AppModalComponent } from '../../../../shared/ui/modal/app-modal.component';
+import { AppointmentDetailDialogComponent } from '../appointment-detail-dialog/appointment-detail-dialog.component';
+import { AppointmentRescheduleDialogComponent } from '../appointment-reschedule-dialog/appointment-reschedule-dialog.component';
+import { AppointmentCancelDialogComponent } from '../appointment-cancel-dialog/appointment-cancel-dialog.component';
+import { AppointmentFinancialsDialogComponent } from '../appointment-financials-dialog/appointment-financials-dialog.component';
+import { AppointmentReceiptsDialogComponent } from '../appointment-receipts-dialog/appointment-receipts-dialog.component';
+
+@Component({
+  selector: 'app-appointments-modals-host',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    AppModalComponent,
+    AppointmentDetailDialogComponent,
+    AppointmentRescheduleDialogComponent,
+    AppointmentCancelDialogComponent,
+    AppointmentFinancialsDialogComponent,
+    AppointmentReceiptsDialogComponent,
+  ],
+  template: `
+    @switch (ui.activeModal()?.id) {
+      @case ('appointment-detail') {
+        @defer (on immediate) {
+          <app-modal title="Cita" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-detail-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-reschedule') {
+        @defer (on immediate) {
+          <app-modal title="Reprogramar cita" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-reschedule-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-cancel') {
+        @defer (on immediate) {
+          <app-modal title="Confirmar anulación" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-cancel-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-financials') {
+        @defer (on immediate) {
+          <app-modal title="Ajustar montos" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-financials-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-receipts') {
+        @defer (on immediate) {
+          <app-modal title="Recibos de pago (PDF)" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-receipts-dialog />
+          </app-modal>
+        }
+      }
+    }
+  `,
+})
+export class AppointmentsModalsHostComponent {
+  protected readonly ui = inject(UiStore);
+}
