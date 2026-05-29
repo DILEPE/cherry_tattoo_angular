@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { map } from 'rxjs/operators';
 import {
@@ -154,5 +154,30 @@ export class AppointmentsApiService {
 
   create(payload: Record<string, unknown>): Observable<{ id?: number; message?: string }> {
     return this.api.post<{ id?: number; message?: string }>('/api/appointments', payload);
+  }
+
+  /** Mapa id cita → tipo de perforación (encuesta), para reporte financiero. */
+  getWorkPerformedLabels(appointmentIds: number[]): Observable<Record<number, string>> {
+    const ids = [...new Set(appointmentIds.filter((id) => id > 0))].sort((a, b) => a - b);
+    if (!ids.length) {
+      return of({});
+    }
+    return this.api
+      .get<Record<string, string>>('/api/appointments/work-performed-labels', {
+        ids: ids.join(','),
+      })
+      .pipe(
+        map((data) => {
+          const out: Record<number, string> = {};
+          for (const [key, value] of Object.entries(data ?? {})) {
+            const id = Number(key);
+            const text = String(value ?? '').trim();
+            if (id > 0 && text) {
+              out[id] = text;
+            }
+          }
+          return out;
+        }),
+      );
   }
 }

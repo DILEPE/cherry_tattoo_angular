@@ -29,11 +29,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'encuestas',
         canActivate: [moduleGuard('encuestas')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión encuesta' },
+        loadChildren: () =>
+          import('../surveys/surveys.routes').then((m) => m.SURVEYS_ROUTES),
       },
       {
         path: 'reporte',
