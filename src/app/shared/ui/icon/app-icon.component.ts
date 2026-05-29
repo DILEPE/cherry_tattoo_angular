@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-export type AppIconName = 'edit' | 'trash' | 'document' | 'send';
+export type AppIconName = 'edit' | 'trash' | 'document' | 'send' | 'userOff' | 'userPlus';
 
 @Component({
   selector: 'app-icon',
@@ -41,6 +41,18 @@ export type AppIconName = 'edit' | 'trash' | 'document' | 'send';
         @case ('send') {
           <path d="m22 2-7 20-4-9-9-4Z" />
           <path d="M22 2 11 13" />
+        }
+        @case ('userOff') {
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="m17 8 5 5" />
+          <path d="m22 8-5 5" />
+        }
+        @case ('userPlus') {
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M19 8v6" />
+          <path d="M16 11h6" />
         }
       }
     </svg>
