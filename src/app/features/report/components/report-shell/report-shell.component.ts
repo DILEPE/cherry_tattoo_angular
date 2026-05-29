@@ -2,8 +2,6 @@ import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/cor
 import { ReportStore } from '../../report.store';
 import { ReportFinancesComponent } from '../report-finances/report-finances.component';
 import { ReportSurveysComponent } from '../report-surveys/report-surveys.component';
-import { AppointmentsModalsHostComponent } from '../../../appointments/dialogs/appointments-modals-host/appointments-modals-host.component';
-import { AppointmentDialogStore } from '../../../appointments/appointment-dialog.store';
 import { AppStore } from '../../../../store/app.store';
 import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
 
@@ -11,12 +9,8 @@ import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
   selector: 'app-report-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [ReportStore, AppointmentDialogStore],
-  imports: [
-    ReportFinancesComponent,
-    ReportSurveysComponent,
-    AppointmentsModalsHostComponent,
-  ],
+  providers: [ReportStore],
+  imports: [ReportFinancesComponent, ReportSurveysComponent],
   template: `
     <h2 class="page-title">Gestión reportes</h2>
 
@@ -46,8 +40,6 @@ import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
     } @else {
       <app-report-surveys />
     }
-
-    <app-appointments-modals-host />
   `,
 })
 export class ReportShellComponent {
