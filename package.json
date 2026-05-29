@@ -20,6 +20,7 @@
     "@ngrx/operators": "^19.2.1",
     "@ngrx/signals": "^19.2.1",
     "@ngrx/store": "^19.2.1",
+    "exceljs": "^4.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "xlsx": "^0.18.5",

@@ -54,15 +54,7 @@ export interface PanelStaffOption {
   label: string;
 }
 
-export interface CustomerSnapshot {
-  id: number;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  email: string;
-  documentType: string;
-  documentNumber: string;
-}
+export type { CustomerSnapshot } from '../../customers/models/customer.model';
 
 export interface AppointmentCreatePayload {
   name: string;

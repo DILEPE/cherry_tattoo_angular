@@ -17,11 +17,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'clientes',
         canActivate: [moduleGuard('clientes')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión de clientes' },
+        loadChildren: () =>
+          import('../customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
       },
       {
         path: 'contratos',
