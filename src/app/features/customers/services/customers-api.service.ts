@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, of } from 'rxjs';
+import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import {
   CustomerListResult,
@@ -16,6 +16,34 @@ import { Customer } from '../models/customer.model';
 @Injectable({ providedIn: 'root' })
 export class CustomersApiService {
   private readonly api = inject(ApiService);
+
+  /** Descarga todas las filas del filtro (paginación 100, límite API). */
+  fetchAllForExport(search = ''): Observable<Customer[]> {
+    const batchSize = 100;
+    const term = search.trim() || undefined;
+    return this.list({ limit: batchSize, offset: 0, search: term }).pipe(
+      switchMap((first) => {
+        const total = first.total;
+        if (first.items.length >= total || total === 0) {
+          return of(first.items);
+        }
+        const pageCount = Math.ceil(total / batchSize);
+        const pageRequests: Observable<CustomerListResult>[] = [];
+        for (let page = 1; page < pageCount; page++) {
+          pageRequests.push(
+            this.list({ limit: batchSize, offset: page * batchSize, search: term }),
+          );
+        }
+        return forkJoin(pageRequests).pipe(
+          map((pages) => {
+            const all = [...first.items];
+            for (const p of pages) all.push(...p.items);
+            return all;
+          }),
+        );
+      }),
+    );
+  }
 
   list(params: {
     limit: number;
