@@ -138,6 +138,14 @@ export function mapAppointment(raw: AppointmentApiRow): Appointment {
   };
 }
 
+function parseFilterDate(iso: string): Date | null {
+  const s = iso.trim();
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
 export function filterAppointments(
   items: Appointment[],
   filters: AppointmentFilters,
@@ -145,11 +153,22 @@ export function filterAppointments(
   const name = filters.nameSubstr.trim().toLowerCase();
   const service = filters.service;
   const status = filters.status;
+  const from = parseFilterDate(filters.fromDate);
+  const to = parseFilterDate(filters.toDate);
   return items.filter((row) => {
     if (name && !row.customerName.toLowerCase().includes(name)) return false;
     if (service !== 'Todos' && row.serviceType !== service) return false;
     if (status !== 'Todos' && row.statusLabel.toLowerCase() !== status.toLowerCase()) {
       return false;
+    }
+    const d = row.appointmentDate;
+    if (from && d) {
+      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (day < from) return false;
+    }
+    if (to && d) {
+      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (day > to) return false;
     }
     return true;
   });
