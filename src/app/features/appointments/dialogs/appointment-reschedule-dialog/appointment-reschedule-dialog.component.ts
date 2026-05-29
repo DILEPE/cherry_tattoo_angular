@@ -1,10 +1,14 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { dateNotBeforeTodayValidator } from '../../../../shared/forms/form-validators';
+import { RESCHEDULE_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
+import { validateFormBeforeSubmit } from '../../../../shared/forms/form-submit.util';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
+import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
@@ -20,7 +24,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
   selector: 'app-appointment-reschedule-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent],
+  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
   template: `
     @if (blocked()) {
       <p class="empty-state">
@@ -32,7 +36,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
         Cita #{{ dlg.appointment()?.id }} · {{ dlg.appointment()?.customerName }} · Artista:
         <strong>{{ dlg.appointment()?.assignedLabel }}</strong>
       </p>
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>
         <app-form-field label="Detalle actualizado (opcional)" [control]="form.controls.detail">
           <textarea formControlName="detail" rows="3"></textarea>
         </app-form-field>
@@ -64,14 +68,15 @@ export class AppointmentRescheduleDialogComponent {
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
   private readonly fb = inject(FormBuilder);
+  private readonly formShowErrors = viewChild(FormShowErrorsDirective);
 
   readonly slotOptions = timeSlotOptions();
   readonly saving = signal(false);
   readonly blocked = signal(false);
 
   form = this.fb.nonNullable.group({
-    detail: [''],
-    date: ['', Validators.required],
+    detail: ['', Validators.maxLength(2000)],
+    date: ['', [Validators.required, dateNotBeforeTodayValidator()]],
     slot: ['09:00', Validators.required],
   });
 
@@ -104,8 +109,13 @@ export class AppointmentRescheduleDialogComponent {
   }
 
   onSubmit(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (
+      !validateFormBeforeSubmit(this.form, {
+        toast: this.toast,
+        fieldLabels: RESCHEDULE_FIELD_LABELS,
+        onInvalid: () => this.formShowErrors()?.activate(),
+      })
+    ) {
       return;
     }
     const a = this.dlg.appointment();

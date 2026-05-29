@@ -6,14 +6,20 @@ import {
   effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { minCopAmountValidator } from '../../../../shared/forms/form-validators';
+import { FINANCIALS_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
+import { validateFormBeforeSubmit } from '../../../../shared/forms/form-submit.util';
+import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
+import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
@@ -25,7 +31,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
   selector: 'app-appointment-financials-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent],
+  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
   template: `
     @if (dlg.appointment(); as a) {
       @if (!canEditFinancials(a)) {
@@ -52,7 +58,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
           </ul>
         }
 
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>
           <app-form-field label="Valor total del trabajo (COP)" [control]="form.controls.total">
             <input type="number" formControlName="total" min="0" step="10000" />
           </app-form-field>
@@ -107,6 +113,7 @@ export class AppointmentFinancialsDialogComponent {
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
   private readonly fb = inject(FormBuilder);
+  private readonly formShowErrors = viewChild(FormShowErrorsDirective);
 
   protected readonly formatCop = formatCop;
   protected readonly canEditFinancials = canEditFinancials;
@@ -118,9 +125,9 @@ export class AppointmentFinancialsDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   form = this.fb.nonNullable.group({
-    total: [0, [Validators.required, Validators.min(0)]],
+    total: [0, [Validators.required, minCopAmountValidator(0)]],
     extra: [0, [Validators.min(0)]],
-    note: [''],
+    note: ['', Validators.maxLength(200)],
   });
 
   constructor() {
@@ -162,10 +169,25 @@ export class AppointmentFinancialsDialogComponent {
 
   onSubmit(): void {
     const a = this.dlg.appointment();
-    if (!a || this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (!a) return;
+    const minTotal = Math.max(MIN_APPOINTMENT_TOTAL_COP, a.financials.deposit);
+    this.form.controls.total.setValidators([
+      Validators.required,
+      minCopAmountValidator(minTotal),
+    ]);
+    this.form.controls.total.updateValueAndValidity({ emitEvent: false });
+    if (
+      !validateFormBeforeSubmit(this.form, {
+        toast: this.toast,
+        fieldLabels: FINANCIALS_FIELD_LABELS,
+        onInvalid: () => this.formShowErrors()?.activate(),
+      })
+    ) {
+      this.cdr.markForCheck();
       return;
     }
+    this.formShowErrors()?.reset();
+
     const total = Math.max(Number(this.form.controls.total.value), a.financials.deposit);
     const deposit = a.financials.deposit;
     const credit = a.financials.credit;

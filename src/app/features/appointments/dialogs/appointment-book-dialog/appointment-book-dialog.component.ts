@@ -7,8 +7,25 @@ import {
   effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  bookingAmountsValidator,
+  documentNumberValidator,
+  minCopAmountValidator,
+  mobilePhoneCo10Validator,
+  optionalEmailValidator,
+  trimRequiredValidator,
+} from '../../../../shared/forms/form-validators';
+import { BOOKING_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
+import {
+  collectFormValidationIssues,
+  formatValidationSummaryLines,
+  validateFormBeforeSubmit,
+} from '../../../../shared/forms/form-submit.util';
+import { FormValidationSummaryComponent } from '../../../../shared/forms/form-validation-summary/form-validation-summary.component';
+import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppStore } from '../../../../store/app.store';
@@ -49,7 +66,13 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
   selector: 'app-appointment-book-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent],
+  imports: [
+    ReactiveFormsModule,
+    AppButtonComponent,
+    AppFormFieldComponent,
+    FormValidationSummaryComponent,
+    FormShowErrorsDirective,
+  ],
   template: `
     @if (pickedDateLabel()) {
       <p class="appt-dialog-caption">
@@ -57,7 +80,8 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       </p>
     }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>
+      <app-form-validation-summary [messages]="validationSummary()" />
       <section class="appt-book-section">
         <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
         <div class="appt-book-row">
@@ -203,25 +227,30 @@ export class AppointmentBookDialogComponent {
   readonly verifyLevel = signal<'success' | 'warning' | 'error' | ''>('');
   readonly saving = signal(false);
   readonly verifyLoading = signal(false);
+  readonly validationSummary = signal<string[]>([]);
+  private readonly formShowErrors = viewChild(FormShowErrorsDirective);
   /** Invalida computed que dependen de valores del formulario reactivo. */
   private readonly formRevision = signal(0);
 
-  readonly form = this.fb.nonNullable.group({
-    docType: ['CC'],
-    docNumber: ['', Validators.minLength(5)],
-    firstName: ['', Validators.required],
-    lastName: ['', Validators.required],
-    phone: ['', Validators.required],
-    email: [''],
-    workKind: ['piercing' as BookingWorkKind],
-    staffId: [0, Validators.min(1)],
-    durationSlots: [2, [Validators.min(1), Validators.max(16)]],
-    slot: ['09:00', Validators.required],
-    observations: [''],
-    total: [MIN_APPOINTMENT_TOTAL_COP, Validators.min(MIN_APPOINTMENT_TOTAL_COP)],
-    deposit: [MIN_APPOINTMENT_TOTAL_COP, Validators.min(MIN_APPOINTMENT_TOTAL_COP)],
-    isPriority: [false],
-  });
+  readonly form = this.fb.nonNullable.group(
+    {
+      docType: ['CC'],
+      docNumber: ['', documentNumberValidator()],
+      firstName: ['', trimRequiredValidator()],
+      lastName: ['', trimRequiredValidator()],
+      phone: ['', mobilePhoneCo10Validator()],
+      email: ['', optionalEmailValidator()],
+      workKind: ['piercing' as BookingWorkKind],
+      staffId: [0, Validators.min(1)],
+      durationSlots: [2, [Validators.required, Validators.min(1), Validators.max(16)]],
+      slot: ['09:00', Validators.required],
+      observations: [''],
+      total: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
+      deposit: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
+      isPriority: [false],
+    },
+    { validators: [bookingAmountsValidator()] },
+  );
 
   readonly pickedDate = computed(() => {
     const data = this.ui.activeModal()?.data as BookAppointmentModalData | undefined;
@@ -320,6 +349,17 @@ export class AppointmentBookDialogComponent {
           this.cdr.markForCheck();
         }
       });
+
+    effect(() => {
+      const need = this.needNewCustomer();
+      const emailCtrl = this.form.controls.email;
+      if (need) {
+        emailCtrl.setValidators([trimRequiredValidator(), Validators.email]);
+      } else {
+        emailCtrl.setValidators([optionalEmailValidator()]);
+      }
+      emailCtrl.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
   workKindLabel(wk: BookingWorkKind): string {
@@ -423,10 +463,23 @@ export class AppointmentBookDialogComponent {
       this.toast.error('Vuelve a verificar el documento; el número cambió.');
       return;
     }
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (
+      !validateFormBeforeSubmit(this.form, {
+        toast: this.toast,
+        fieldLabels: BOOKING_FIELD_LABELS,
+        onInvalid: () => this.formShowErrors()?.activate(),
+      })
+    ) {
+      this.validationSummary.set(
+        formatValidationSummaryLines(
+          collectFormValidationIssues(this.form, BOOKING_FIELD_LABELS),
+        ),
+      );
+      this.cdr.markForCheck();
       return;
     }
+    this.validationSummary.set([]);
+    this.formShowErrors()?.reset();
 
     const raw = this.pickedDate();
     const picked = appointmentRowDate(raw);
@@ -446,14 +499,6 @@ export class AppointmentBookDialogComponent {
 
     const total = Math.round(Number(this.form.controls.total.value));
     const deposit = Math.round(Number(this.form.controls.deposit.value));
-    if (deposit > total) {
-      this.toast.error('El abono no puede ser mayor al valor total.');
-      return;
-    }
-    if (deposit < MIN_APPOINTMENT_TOTAL_COP || total < MIN_APPOINTMENT_TOTAL_COP) {
-      this.toast.error(`Mínimo ${formatCop(MIN_APPOINTMENT_TOTAL_COP)} en total y abono.`);
-      return;
-    }
 
     const wk = this.form.controls.workKind.value as BookingWorkKind;
     const staffId = this.resolveStaffId();

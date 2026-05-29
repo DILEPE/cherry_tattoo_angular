@@ -56,6 +56,7 @@ import { Appointment } from '../../models/appointment.model';
 import { AppointmentAbonosSectionComponent } from '../../components/appointment-abonos-section/appointment-abonos-section.component';
 import { apiErrorMessage } from '../../../../core/services/api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
+import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
 import { of, switchMap } from 'rxjs';
 
 @Component({
@@ -446,7 +447,7 @@ export class AppointmentFocusDialogComponent {
 
     const cid = a.customerId;
     if (cid != null && cid > 0) {
-      this.customersApi.getById(cid).subscribe((c) => this.customer.set(c));
+      this.customersApi.getSnapshotById(cid).subscribe((c) => this.customer.set(c));
     } else {
       this.customer.set(null);
     }
@@ -546,6 +547,12 @@ export class AppointmentFocusDialogComponent {
       return;
     }
 
+    if (totDirty && tot < MIN_APPOINTMENT_TOTAL_COP) {
+      this.toast.warn(
+        `El valor total mínimo es COP $${MIN_APPOINTMENT_TOTAL_COP.toLocaleString('es-CO')}.`,
+      );
+      return;
+    }
     if (totDirty && dep > tot + 0.01) {
       this.toast.warn('El valor total no puede ser menor que lo ya abonado.');
       return;

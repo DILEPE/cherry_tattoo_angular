@@ -12,6 +12,7 @@ import { AppointmentsStore } from '../../appointments.store';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
+import { AppIconActionButtonComponent } from '../../../../shared/ui/icon-button/app-icon-action-button.component';
 import {
   formatAmountTable,
   mapAppointment,
@@ -40,7 +41,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
   selector: 'app-appointment-abonos-section',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, AppButtonComponent],
+  imports: [FormsModule, AppButtonComponent, AppIconActionButtonComponent],
   template: `
     <div class="ap-pay-panel-root">
       <div class="ap-pay-panel-title">
@@ -130,32 +131,23 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                       <td>{{ formatAmountTable(p.amount) }}</td>
                       <td class="ap-pay-actions">
                         <button
-                          type="button"
-                          class="ap-pay-icon-btn"
+                          appIconAction="document"
                           title="Ver recibo PDF"
                           [disabled]="!receiptIdFor(p.id)"
                           (click)="openReceiptView(p.id)"
-                        >
-                          📄
-                        </button>
+                        ></button>
                         <button
-                          type="button"
-                          class="ap-pay-icon-btn"
+                          appIconAction="send"
                           title="Reenviar recibo"
                           [disabled]="!receiptIdFor(p.id) || resendingPayId() === p.id"
                           (click)="resendForPayment(p.id)"
-                        >
-                          ➤
-                        </button>
+                        ></button>
                         <button
-                          type="button"
-                          class="ap-pay-icon-btn"
+                          appIconAction="edit"
                           title="Editar abono"
                           [disabled]="montosLocked()"
                           (click)="startEdit(p)"
-                        >
-                          ✎
-                        </button>
+                        ></button>
                       </td>
                     </tr>
                   }

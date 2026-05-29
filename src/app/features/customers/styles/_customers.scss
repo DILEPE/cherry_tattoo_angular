@@ -1,0 +1,139 @@
+.cust-page-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+}
+
+.cust-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.cust-toolbar__search {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+}
+
+.cust-toolbar__input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.cust-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.cust-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th,
+  td {
+    padding: 0.45rem 0.55rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  tbody tr:nth-child(even) {
+    background: var(--surface-raised);
+  }
+}
+
+.cust-col-head {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.78rem;
+  background: #e5e7eb;
+  border-radius: 6px;
+  padding: 0.14rem 0.4rem;
+}
+
+.cust-col-head--actions {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.cust-table {
+  th:last-child,
+  td.cust-row-actions {
+    width: 1%;
+    white-space: nowrap;
+  }
+}
+
+.cust-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex-wrap: nowrap;
+}
+
+.cust-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.cust-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+
+  select {
+    font: inherit;
+    padding: 0.25rem 0.35rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+}
+
+.cust-pagination-info {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.cust-form-section {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.cust-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.65rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cust-form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  grid-column: 1 / -1;
+}
+
+.cust-form-hint {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
