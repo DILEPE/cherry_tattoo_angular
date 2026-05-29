@@ -16,6 +16,7 @@ import {
 import {
   AppointmentsViewMode,
   CalendarMonthState,
+  CalendarPeriod,
 } from './models/calendar.model';
 import {
   buildClientHistoryCounts,
@@ -23,6 +24,12 @@ import {
   groupAppointmentsByDay,
   shiftCalendarMonth,
 } from './models/calendar.mapper';
+import {
+  currentWeekMondayIso,
+  dateToIsoLocal,
+  isoToLocalDate,
+  weekMonday,
+} from './models/week-schedule.mapper';
 import { apiErrorMessage } from '../../core/services/api.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
@@ -34,7 +41,9 @@ interface AppointmentsState {
   filters: AppointmentFilters;
   reloadToken: number;
   viewMode: AppointmentsViewMode;
+  calendarPeriod: CalendarPeriod;
   calendarMonth: CalendarMonthState;
+  weekMondayIso: string;
   listPage: number;
   listPageSize: number;
 }
@@ -55,7 +64,9 @@ const initialState: AppointmentsState = {
   filters: { ...initialFilters },
   reloadToken: 0,
   viewMode: 'calendar',
+  calendarPeriod: 'month',
   calendarMonth: currentCalendarMonth(),
+  weekMondayIso: currentWeekMondayIso(),
   listPage: 0,
   listPageSize: 10,
 };
@@ -99,6 +110,37 @@ export const AppointmentsStore = signalStore(
     ) => ({
       setViewMode(mode: AppointmentsViewMode): void {
         patchState(store, { viewMode: mode });
+      },
+      setCalendarPeriod(period: CalendarPeriod): void {
+        if (period === 'week' && store.calendarPeriod() !== 'week') {
+          const { year, month } = store.calendarMonth();
+          const anchor = new Date(year, month - 1, 1);
+          patchState(store, {
+            calendarPeriod: period,
+            weekMondayIso: dateToIsoLocal(weekMonday(anchor)),
+          });
+          return;
+        }
+        patchState(store, { calendarPeriod: period });
+      },
+      prevWeek(): void {
+        const m = isoToLocalDate(store.weekMondayIso());
+        m.setDate(m.getDate() - 7);
+        patchState(store, { weekMondayIso: dateToIsoLocal(m) });
+      },
+      nextWeek(): void {
+        const m = isoToLocalDate(store.weekMondayIso());
+        m.setDate(m.getDate() + 7);
+        patchState(store, { weekMondayIso: dateToIsoLocal(m) });
+      },
+      goToTodayWeek(): void {
+        patchState(store, { weekMondayIso: currentWeekMondayIso() });
+      },
+      goToWeekContaining(date: Date): void {
+        patchState(store, {
+          calendarPeriod: 'week',
+          weekMondayIso: dateToIsoLocal(weekMonday(date)),
+        });
       },
       prevCalendarMonth(): void {
         patchState(store, {
