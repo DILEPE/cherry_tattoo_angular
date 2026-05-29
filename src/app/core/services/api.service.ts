@@ -1,10 +1,14 @@
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, map, throwError } from 'rxjs';
+import { Observable, catchError, throwError } from 'rxjs';
 
 export interface ApiErrorBody {
   detail?: string | unknown;
   message?: string;
+}
+
+export interface ApiRequestOptions {
+  context?: HttpContext;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -21,39 +25,43 @@ export class ApiService {
   get<T>(
     path: string,
     params?: Record<string, string | number | boolean> | null,
+    options?: ApiRequestOptions,
   ): Observable<T> {
     return this.http
-      .get<T>(this.url(path), { params: this.toParams(params ?? undefined) })
+      .get<T>(this.url(path), {
+        params: this.toParams(params ?? undefined),
+        context: options?.context,
+      })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  post<T>(path: string, body?: unknown): Observable<T> {
+  post<T>(path: string, body?: unknown, options?: ApiRequestOptions): Observable<T> {
     return this.http
-      .post<T>(this.url(path), body ?? {})
+      .post<T>(this.url(path), body ?? {}, { context: options?.context })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  patch<T>(path: string, body?: unknown): Observable<T> {
+  patch<T>(path: string, body?: unknown, options?: ApiRequestOptions): Observable<T> {
     return this.http
-      .patch<T>(this.url(path), body ?? {})
+      .patch<T>(this.url(path), body ?? {}, { context: options?.context })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  put<T>(path: string, body?: unknown): Observable<T> {
+  put<T>(path: string, body?: unknown, options?: ApiRequestOptions): Observable<T> {
     return this.http
-      .put<T>(this.url(path), body ?? {})
+      .put<T>(this.url(path), body ?? {}, { context: options?.context })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  delete<T>(path: string): Observable<T> {
+  delete<T>(path: string, options?: ApiRequestOptions): Observable<T> {
     return this.http
-      .delete<T>(this.url(path))
+      .delete<T>(this.url(path), { context: options?.context })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  getBlob(path: string): Observable<Blob> {
+  getBlob(path: string, options?: ApiRequestOptions): Observable<Blob> {
     return this.http
-      .get(this.url(path), { responseType: 'blob' })
+      .get(this.url(path), { responseType: 'blob', context: options?.context })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
@@ -87,7 +95,11 @@ export class ApiService {
       }
       return { status: err.status, message, raw: err.error };
     }
-    return { status: 0, message: 'Error de red', raw: err };
+    return {
+      status: 0,
+      message: 'No se pudo conectar con el servidor. Comprueba que la API esté en ejecución.',
+      raw: err,
+    };
   }
 }
 

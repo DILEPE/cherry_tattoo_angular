@@ -90,7 +90,11 @@ export class AppointmentsShellComponent {
   }
 
   openBookToday(): void {
-    this.openBook(new Date());
+    const data: BookAppointmentModalData = {
+      pickedDate: this.toIsoDate(new Date()),
+      express: true,
+    };
+    this.ui.openModal('appointment-book', data);
   }
 
   openSearch(): void {

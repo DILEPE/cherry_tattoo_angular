@@ -21,6 +21,7 @@ import { piercingAppointmentIdsForSurvey } from '../../models/work-performed-lab
 import { AppointmentsApiService } from '../../../appointments/services/appointments-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
+import { LoadingService } from '../../../../core/services/loading.service';
 import { firstValueFrom } from 'rxjs';
 
 
@@ -382,6 +383,7 @@ export class ReportFinancesComponent {
   private readonly toast = inject(ToastService);
 
   private readonly errors = inject(ErrorService);
+  private readonly loading = inject(LoadingService);
 
   protected readonly formatCop = formatCop;
 
@@ -408,18 +410,20 @@ export class ReportFinancesComponent {
     this.exporting.set(true);
 
     try {
-      const piercingLabels = await firstValueFrom(
-        this.appointmentsApi.getWorkPerformedLabels(piercingAppointmentIdsForSurvey(rows)),
-      );
-      try {
-        await downloadReportFinancialExcel(rows, this.store.filters(), piercingLabels);
-        const n = rows.length;
-        this.toast.success(
-          n === 1 ? 'Se exportó 1 cita a Excel.' : `Se exportaron ${n} citas a Excel.`,
+      await this.loading.run('Exportando reporte financiero…', async () => {
+        const piercingLabels = await firstValueFrom(
+          this.appointmentsApi.getWorkPerformedLabels(piercingAppointmentIdsForSurvey(rows)),
         );
-      } catch {
-        this.toast.warn('No se pudo generar el archivo Excel.');
-      }
+        try {
+          await downloadReportFinancialExcel(rows, this.store.filters(), piercingLabels);
+          const n = rows.length;
+          this.toast.success(
+            n === 1 ? 'Se exportó 1 cita a Excel.' : `Se exportaron ${n} citas a Excel.`,
+          );
+        } catch {
+          this.toast.warn('No se pudo generar el archivo Excel.');
+        }
+      });
     } catch (err) {
       this.errors.handle(err);
     } finally {

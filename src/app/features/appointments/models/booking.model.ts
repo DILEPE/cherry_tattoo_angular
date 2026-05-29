@@ -22,6 +22,13 @@ export const BOOKING_WORK_KIND_ORDER: BookingWorkKind[] = [
   'tatuaje',
 ];
 
+/** Tipos permitidos en cita express (sin tatuaje). */
+export const EXPRESS_BOOKING_WORK_KIND_ORDER: BookingWorkKind[] = [
+  'piercing',
+  'limpieza_piercing',
+  'cambio_piercing',
+];
+
 export const BOOKING_WORK_KIND_META: Record<BookingWorkKind, BookingWorkKindMeta> = {
   piercing: {
     label: 'Piercing (colocación)',

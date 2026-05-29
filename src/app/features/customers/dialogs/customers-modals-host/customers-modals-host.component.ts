@@ -21,28 +21,59 @@ import { CustomerContractsDialogComponent } from '../customer-contracts-dialog/c
     @switch (ui.activeModal()?.id) {
       @case ('customer-create') {
         @defer (on immediate) {
-          <app-modal title="Registrar cliente" size="lg" [isOpen]="true" [dismissible]="false" (closed)="ui.closeModal()">
+          <app-modal
+            title="Registrar cliente"
+            size="lg"
+            [isOpen]="true"
+            [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-customer-create-dialog />
           </app-modal>
         }
       }
       @case ('customer-edit') {
         @defer (on immediate) {
-          <app-modal title="Editar cliente" size="lg" [isOpen]="true" [dismissible]="false" (closed)="ui.closeModal()">
+          <app-modal
+            title="Editar cliente"
+            size="lg"
+            [isOpen]="true"
+            [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-customer-edit-dialog />
           </app-modal>
         }
       }
       @case ('customer-delete') {
         @defer (on immediate) {
-          <app-modal title="Eliminar cliente" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+          <app-modal
+            title="Eliminar cliente"
+            size="md"
+            [isOpen]="true"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-customer-delete-dialog />
           </app-modal>
         }
       }
       @case ('customer-contracts') {
         @defer (on immediate) {
-          <app-modal title="Contratos firmados" size="lg" [isOpen]="true" [dismissible]="false" (closed)="ui.closeModal()">
+          <app-modal
+            title="Contratos firmados"
+            size="lg"
+            [isOpen]="true"
+            [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-customer-contracts-dialog />
           </app-modal>
         }

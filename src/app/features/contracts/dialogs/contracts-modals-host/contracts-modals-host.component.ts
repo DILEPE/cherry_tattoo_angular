@@ -27,6 +27,8 @@ import { resolveContractModalData } from '../contract-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-template-create-dialog />
@@ -40,6 +42,8 @@ import { resolveContractModalData } from '../contract-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-template-edit-dialog />
@@ -48,14 +52,29 @@ import { resolveContractModalData } from '../contract-modal.util';
       }
       @case ('template-delete') {
         @defer (on immediate) {
-          <app-modal title="Eliminar versión" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+          <app-modal
+            title="Eliminar versión"
+            size="md"
+            [isOpen]="true"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-template-delete-dialog />
           </app-modal>
         }
       }
       @case ('contract-read') {
         @defer (on immediate) {
-          <app-modal title="Contrato firmado" size="lg" [isOpen]="true" [dismissible]="false" (closed)="ui.closeModal()">
+          <app-modal
+            title="Contrato firmado"
+            size="lg"
+            [isOpen]="true"
+            [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-contract-read-dialog />
           </app-modal>
         }

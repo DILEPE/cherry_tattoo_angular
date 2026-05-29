@@ -18,7 +18,9 @@ export function serviceAndDetailForWorkKind(
   userDetail: string,
 ): { service: string; detail: string | null } {
   const meta = BOOKING_WORK_KIND_META[kind] ?? BOOKING_WORK_KIND_META.piercing;
-  const svc = meta.serviceToken === 'tattoo' ? 'Tatuaje' : 'Perforación';
+  // Misma resolución que Streamlit (`resolve_service_type(meta.service_token)`):
+  // «Perforación» no la reconoce el backend y cae en «Tatuaje» → exige tatuador.
+  const svc = meta.serviceToken === 'tattoo' ? 'Tatuaje' : 'Piercing';
   const tag = meta.detailTag;
   const extra = (userDetail || '').trim();
   if (extra) return { service: svc, detail: `${tag} ${extra}`.trim() };

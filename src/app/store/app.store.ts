@@ -4,7 +4,13 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
 import { EMPTY, pipe, switchMap, tap } from 'rxjs';
 import { PanelAuthApiService } from '../features/auth/services/panel-auth-api.service';
+import { ToastService } from '../shared/ui/toast/toast.service';
+import { apiErrorMessage } from '../core/services/api.service';
 import { PanelModuleKey, PanelUserSession } from '../features/auth/models/panel-auth.model';
+import {
+  isPanelSessionExpired,
+  sessionFromApiUser,
+} from '../features/auth/models/panel-session.util';
 
 const SESSION_KEY = 'cherry_panel_session';
 
@@ -27,8 +33,13 @@ function loadPersistedSession(): PanelUserSession | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PanelUserSession;
-    return parsed?.id ? parsed : null;
+    if (!parsed?.id || isPanelSessionExpired(parsed)) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
+    sessionStorage.removeItem(SESSION_KEY);
     return null;
   }
 }
@@ -40,7 +51,10 @@ export const AppStore = signalStore(
     user: loadPersistedSession(),
   })),
   withComputed(({ user, allowedModules }) => ({
-    isAuthenticated: computed(() => user() !== null),
+    isAuthenticated: computed(() => {
+      const u = user();
+      return !!u?.id && !isPanelSessionExpired(u);
+    }),
     isAdmin: computed(() => user()?.role === 'administrador'),
     allowedModuleKeys: computed(() => {
       const mods = allowedModules();
@@ -50,13 +64,18 @@ export const AppStore = signalStore(
       return u.effectiveModules ?? [];
     }),
   })),
-  withMethods((store, authApi = inject(PanelAuthApiService)) => {
+  withMethods((store, authApi = inject(PanelAuthApiService), toast = inject(ToastService)) => {
     const persist = (user: PanelUserSession | null) => {
-      if (user) {
+      if (user && !isPanelSessionExpired(user)) {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
       } else {
         sessionStorage.removeItem(SESSION_KEY);
       }
+    };
+
+    const clearSession = () => {
+      patchState(store, { ...initialState });
+      persist(null);
     };
 
     const loadModules = rxMethod<number>(
@@ -74,6 +93,7 @@ export const AppStore = signalStore(
 
     return {
       canAccessModule(key: string): boolean {
+        if (!store.isAuthenticated()) return false;
         const u = store.user();
         if (!u) return false;
         if (key === 'usuarios_panel') {
@@ -93,9 +113,21 @@ export const AppStore = signalStore(
       },
       initFromSession(): void {
         const u = store.user();
-        if (u?.id) {
-          loadModules(u.id);
+        if (!u) return;
+        if (isPanelSessionExpired(u)) {
+          clearSession();
+          return;
         }
+        loadModules(u.id);
+      },
+      ensureSessionValid(): boolean {
+        const u = store.user();
+        if (!u) return false;
+        if (isPanelSessionExpired(u)) {
+          clearSession();
+          return false;
+        }
+        return true;
       },
       login: rxMethod<{ username: string; password: string }>(
         pipe(
@@ -105,7 +137,7 @@ export const AppStore = signalStore(
               tapResponse({
                 next: (resp) => {
                   const session: PanelUserSession = {
-                    ...resp.user,
+                    ...sessionFromApiUser(resp.user),
                     effectiveModules: [],
                   };
                   patchState(store, {
@@ -116,11 +148,23 @@ export const AppStore = signalStore(
                   persist(session);
                   loadModules(session.id);
                 },
-                error: (err: { message?: string }) => {
+                error: (err: unknown) => {
+                  const status =
+                    err && typeof err === 'object' && 'status' in err
+                      ? Number((err as { status: number }).status)
+                      : 0;
+                  const message = apiErrorMessage(err) || 'No se pudo iniciar sesión';
                   patchState(store, {
                     authLoading: false,
-                    authError: err?.message ?? 'Credenciales inválidas',
+                    authError: message,
                   });
+                  if (status === 0) {
+                    toast.error(message);
+                  } else if (status === 401) {
+                    toast.error('Usuario o contraseña incorrectos.');
+                  } else {
+                    toast.error(message);
+                  }
                 },
               }),
             ),
@@ -128,13 +172,12 @@ export const AppStore = signalStore(
         ),
       ),
       logout(): void {
-        patchState(store, { ...initialState });
-        persist(null);
+        clearSession();
       },
       setAllowedModules(modules: PanelModuleKey[]): void {
         patchState(store, { allowedModules: modules });
         const u = store.user();
-        if (u) {
+        if (u && !isPanelSessionExpired(u)) {
           persist({ ...u, effectiveModules: modules });
         }
       },

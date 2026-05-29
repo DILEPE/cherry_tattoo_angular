@@ -14,6 +14,7 @@ export type ButtonVariant = 'primary' | 'ghost';
       (click)="clicked.emit()"
     >
       @if (loading()) {
+        <span class="btn__spinner" aria-hidden="true"></span>
         <span class="sr-only">Cargando…</span>
       }
       <ng-content />

@@ -5,26 +5,21 @@ import { CalendarAppointmentSlotView } from '../../models/calendar.model';
   selector: 'app-calendar-appointment-slot',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    '[class.cal-appt-slot--muted]': 'slot().muted',
-  },
   template: `
-    <div class="cal-appt-slot twg-cli-pill-{{ slot().pillKind }}">
-      <div class="cal-appt-slot-body">
-        <span class="cal-appt-slot-time">{{ slot().timeLabel }}</span>
+    <button
+      type="button"
+      class="cal-appt-slot twg-cli-pill-{{ slot().pillKind }}"
+      [class.cal-appt-slot--muted]="slot().muted"
+      [title]="slot().tooltip"
+      [attr.aria-label]="slot().tooltip"
+      (click)="selected.emit(slot().id)"
+    >
+      <span class="cal-appt-slot-time">{{ slot().timeLabel }}</span>
+      <span class="cal-appt-slot-row">
         <span class="cal-appt-slot-client">{{ slot().customerShort }}</span>
         <span class="cal-appt-total" [title]="slot().totalFmt">{{ slot().totalCompact }}</span>
-      </div>
-      <button
-        type="button"
-        class="cal-appt-slot-link cal-query-nav"
-        [attr.aria-label]="'Ver cita ' + slot().id"
-        (click)="selected.emit(slot().id); $event.stopPropagation()"
-      >
-        <span class="cal-appt-slot-link-play" aria-hidden="true">▶</span>
-        <span>Ver cita</span>
-      </button>
-    </div>
+      </span>
+    </button>
   `,
 })
 export class CalendarAppointmentSlotComponent {

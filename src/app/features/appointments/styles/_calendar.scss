@@ -50,27 +50,87 @@
 }
 
 .cal-cell-today.cal-cell--month {
-  border-color: var(--brand-border);
-  box-shadow: inset 0 0 0 1px var(--brand-light);
-  background: var(--brand-light);
+  position: relative;
+  z-index: 1;
+  border-color: var(--brand);
+  border-width: 2px;
+  background: rgba(217, 0, 100, 0.11);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 0, 100, 0.22),
+    0 0 0 1px rgba(217, 0, 100, 0.12),
+    0 2px 10px var(--brand-glow);
 }
 
 .cal-cell--month .cal-cell-head {
   flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
-  padding: 0.14rem 0.28rem 0.04rem;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.12rem 0.28rem 0.08rem;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.12) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .cal-cell--month .cal-cell-daynum {
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cal-cell--month.cal-cell--past .cal-cell-daynum {
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: none;
+}
+
+.cal-cell-today.cal-cell--month .cal-cell-head {
+  padding-top: 0.1rem;
+  padding-right: 0.22rem;
+  background: linear-gradient(180deg, rgba(217, 0, 100, 0.14) 0%, transparent 100%);
+  border-bottom-color: rgba(217, 0, 100, 0.22);
 }
 
 .cal-cell-today.cal-cell--month .cal-cell-daynum {
-  color: var(--brand);
+  min-width: 1.65rem;
+  height: 1.65rem;
+  padding: 0 0.34rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
+  border-color: rgba(217, 0, 100, 0.55);
+  box-shadow: 0 1px 5px rgba(217, 0, 100, 0.45);
+}
+
+.cal-cell-today.cal-cell--month .cal-day-inner {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.cal-cell-today.cal-cell--month .cal-cell-footer-strip {
+  background: rgba(217, 0, 100, 0.08);
+  border-top-color: rgba(217, 0, 100, 0.28);
+}
+
+.cal-cell-today.cal-cell--month .cal-footer-daynum {
+  color: #fff;
+  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
+  border-color: rgba(217, 0, 100, 0.55);
+  box-shadow: 0 1px 4px rgba(217, 0, 100, 0.35);
 }
 
 .cal-cell-footer-strip {
@@ -87,9 +147,24 @@
 }
 
 .cal-footer-daynum {
-  font-size: 0.74rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
   font-weight: 800;
+  color: var(--text-primary);
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-cell--past:not(.cal-cell-today) .cal-footer-daynum {
   color: var(--text-muted);
+  opacity: 0.85;
 }
 
 .cal-footer-book {
@@ -102,8 +177,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
-  padding: 0.2rem 0.22rem;
+  gap: 0.18rem;
+  padding: 0.18rem 0.2rem;
   overflow-y: auto;
   border-bottom: 1px solid var(--border);
 }
@@ -117,113 +192,88 @@
   opacity: 0.35;
 }
 
-/* Bloques mes (.cal-appt-slot) y semana (.twg-appt): color por tipo de cliente */
+/* Bloques mes (.cal-appt-slot) y semana (.twg-appt): color por tipo de cliente; clic en toda la celda */
 .cal-appt-slot {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 2px;
-  min-height: 4.5rem;
+  gap: 1px;
+  min-height: 0;
   width: 100%;
-  padding: 4px 5px 3px;
-  border-radius: 5px;
+  padding: 2px 4px;
+  border-radius: 4px;
   border-width: 1px;
   border-style: solid;
   box-sizing: border-box;
   min-width: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   text-align: left;
   font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:hover {
+    filter: brightness(1.07);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand, #d90064);
+    outline-offset: 1px;
+  }
 
   &--muted {
     opacity: 0.48;
   }
 }
 
-.cal-appt-slot-body {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
 .cal-appt-slot-time {
   font-weight: 700;
-  font-size: 0.78rem;
-  line-height: 1.12;
+  font-size: 0.68rem;
+  line-height: 1.1;
   color: rgba(248, 250, 252, 0.98);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
+.cal-appt-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+  width: 100%;
+}
+
 .cal-appt-slot-client {
   font-weight: 600;
-  font-size: 0.72rem;
-  line-height: 1.16;
+  font-size: 0.65rem;
+  line-height: 1.12;
   color: rgba(248, 250, 252, 0.96);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  min-height: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
   flex: 1 1 auto;
 }
 
 .cal-appt-slot .cal-appt-total,
 .twg-appt .cal-appt-total {
-  font-size: 0.72rem;
+  font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   opacity: 1;
-  padding: 0.08rem 0.2rem;
+  padding: 0.04rem 0.18rem;
   color: rgba(254, 249, 195, 0.98);
   background: rgba(255, 0, 127, 0.16);
   border: 1px solid rgba(251, 113, 182, 0.45);
-  border-radius: 4px;
+  border-radius: 3px;
   box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.12);
   flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 0.06rem;
+  margin-top: 0;
   font-variant-numeric: tabular-nums;
-}
-
-.cal-appt-slot-link {
-  flex-shrink: 0;
-  width: 100%;
-  appearance: none;
-  margin-top: auto;
-  min-height: 1.35rem;
-  text-align: center;
-  font-size: 0.6rem;
-  font-weight: 700;
-  padding: 3px 4px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.28);
-  color: #f8fafc !important;
-  border: 1px solid rgba(255, 255, 255, 0.28);
   line-height: 1.1;
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  box-sizing: border-box;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.18);
-    color: #ffffff !important;
-  }
-}
-
-.cal-appt-slot-link-play {
-  font-size: 0.55rem;
-  line-height: 1;
-  opacity: 0.95;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .twg-appt.twg-cli-pill-cancelada,
@@ -949,8 +999,34 @@
 }
 
 .twg-h-today {
-  border-color: var(--brand-border);
-  box-shadow: inset 0 0 0 1px var(--brand-light);
+  border-color: var(--brand);
+  border-width: 2px;
+  background: rgba(217, 0, 100, 0.11);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 0, 100, 0.2),
+    0 2px 8px var(--brand-glow);
+}
+
+.twg-h-today .twg-h-wd {
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.twg-h-today .twg-h-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  margin-bottom: 0.08rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
+  box-shadow: 0 1px 4px rgba(217, 0, 100, 0.4);
 }
 
 .twg-h-wd {
@@ -1037,8 +1113,13 @@
 }
 
 .twg-col-today {
-  border-color: var(--brand-border);
-  background: var(--brand-light);
+  border-color: var(--brand);
+  border-width: 2px;
+  background: rgba(217, 0, 100, 0.09);
+  box-shadow:
+    inset 0 0 0 1px rgba(217, 0, 100, 0.18),
+    0 0 8px rgba(255, 0, 127, 0.12);
+  z-index: 1;
 }
 
 .twg-slot-line {
@@ -1059,14 +1140,40 @@
   border-width: 1px;
   border-style: solid;
   font-size: 11px;
-  line-height: 1.22;
+  line-height: 1.18;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1px;
   min-height: 0;
   z-index: 2;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+  font: inherit;
+
+  &:hover {
+    filter: brightness(1.07);
+    z-index: 3;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand, #d90064);
+    outline-offset: 1px;
+    z-index: 3;
+  }
+}
+
+.twg-appt-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .twg-appt-client {
@@ -1074,76 +1181,28 @@
   font-size: 0.72rem;
   line-height: 1.18;
   color: inherit;
-  white-space: normal;
-  word-break: break-word;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 8;
+  -webkit-line-clamp: 3;
   min-height: 0;
-  flex: 1 1 auto;
-}
-
-.twg-appt--single-slot {
-  padding: 3px 5px 2px;
-  gap: 2px;
-  justify-content: flex-start;
-}
-
-.twg-appt--single-slot .twg-appt-body-stack {
-  flex: 0 1 auto;
-  gap: 2px;
-}
-
-.twg-appt--single-slot .twg-appt-head-time {
-  font-size: 0.78rem;
-  line-height: 1.12;
+  width: 100%;
 }
 
 .twg-appt--single-slot .twg-appt-client {
-  font-size: 0.72rem;
-  line-height: 1.16;
+  font-size: 0.68rem;
+  line-height: 1.12;
   -webkit-line-clamp: 2;
 }
 
-.twg-appt-link {
-  flex-shrink: 0;
-  align-self: stretch;
-  text-align: center;
-  font-size: 0.58rem;
-  font-weight: 700;
-  padding: 2px 4px 1px;
-  margin-top: 2px;
-  border-radius: 4px;
-  background: rgba(15, 23, 42, 0.08);
-  color: var(--text-primary) !important;
-  text-decoration: none !important;
-  border: 1px solid var(--border);
-  line-height: 1.1;
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  box-sizing: border-box;
-  width: 100%;
-  appearance: none;
-}
-
-.twg-appt-link:hover {
-  background: var(--brand-light);
-  border-color: var(--brand-border);
-}
-
-.twg-appt-body-stack {
-  display: flex;
-  flex-direction: column;
+.twg-appt--single-slot {
+  padding: 2px 4px;
   gap: 1px;
-  min-height: 0;
-  overflow: hidden;
-  flex: 1 1 auto;
-  width: 100%;
+}
+
+.twg-appt--single-slot .twg-appt-head-time {
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
 .twg-appt-head-time {

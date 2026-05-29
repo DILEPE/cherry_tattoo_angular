@@ -5,7 +5,7 @@ import { AppStore } from '../../store/app.store';
 export const authGuard: CanActivateFn = () => {
   const store = inject(AppStore);
   const router = inject(Router);
-  if (store.isAuthenticated()) {
+  if (store.ensureSessionValid()) {
     return true;
   }
   return router.createUrlTree(['/login']);

@@ -14,7 +14,16 @@ import { UiStore } from '../../../store/ui.store';
         [attr.aria-label]="title()"
         aria-modal="true"
       >
-        <div class="modal-container" [class]="'modal-container modal-container--' + size()">
+        <div
+          class="modal-container modal-container--{{ size() }}"
+          [class.modal-container--busy]="busy()"
+        >
+          @if (busy()) {
+            <div class="modal-busy" role="status" aria-live="polite" aria-busy="true">
+              <span class="modal-busy__spinner" aria-hidden="true"></span>
+              <span class="modal-busy__text">{{ busyMessage() }}</span>
+            </div>
+          }
           <header class="modal-header">
             <h2>{{ title() }}</h2>
             @if (dismissible()) {
@@ -36,6 +45,8 @@ export class AppModalComponent {
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly dismissible = input(true);
   readonly isOpen = input(true);
+  readonly busy = input(false);
+  readonly busyMessage = input('Cargando…');
   readonly closed = output<void>();
 
   protected readonly ui = inject(UiStore);

@@ -14,6 +14,7 @@ import { CalendarAppointmentSlotComponent } from '../calendar-appointment-slot/c
       <div
         class="cal-cell cal-cell--month"
         [class.cal-cell-today]="cell().isToday"
+        [class.cal-cell--past]="cell().isPast && !cell().isToday"
         [class.cal-cell--team]="cell().teamGroups.length > 0"
       >
         <div class="cal-cell-head">
@@ -37,20 +38,11 @@ import { CalendarAppointmentSlotComponent } from '../calendar-appointment-slot/c
               </div>
             }
           } @else {
-            @for (slot of cell().slots; track slot.id) {
+            @for (slot of cell().allSlots; track slot.id) {
               <app-calendar-appointment-slot
                 [slot]="slot"
                 (selected)="selected.emit($event)"
               />
-            }
-            @if (cell().hiddenCount > 0) {
-              <button
-                type="button"
-                class="cal-overflow-more btn btn--ghost"
-                (click)="overflowDay.emit(cell().date!)"
-              >
-                +{{ cell().hiddenCount }} citas
-              </button>
             }
           }
         </div>
@@ -76,5 +68,4 @@ export class CalendarDayCellComponent {
   readonly showBookFooter = input(true);
   readonly selected = output<number>();
   readonly bookDay = output<Date>();
-  readonly overflowDay = output<Date>();
 }

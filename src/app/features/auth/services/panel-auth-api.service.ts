@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
+import { skipGlobalLoadingContext } from '../../../core/interceptors/loading.context';
 import {
   PanelLoginResponse,
   PanelModuleKey,
@@ -12,10 +13,14 @@ export class PanelAuthApiService {
   private readonly api = inject(ApiService);
 
   login(username: string, password: string): Observable<PanelLoginResponse> {
-    return this.api.post<PanelLoginResponse>('/api/panel-users/login', {
-      username: username.trim().toLowerCase(),
-      password,
-    });
+    return this.api.post<PanelLoginResponse>(
+      '/api/panel-users/login',
+      {
+        username: username.trim().toLowerCase(),
+        password,
+      },
+      { context: skipGlobalLoadingContext() },
+    );
   }
 
   getEffectiveModules(userId: number): Observable<PanelModuleKey[]> {

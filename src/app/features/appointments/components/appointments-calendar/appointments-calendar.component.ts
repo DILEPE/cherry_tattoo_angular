@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
-import { UiStore } from '../../../../store/ui.store';
 import { CalendarLegendComponent } from '../calendar-legend/calendar-legend.component';
 import { CalendarMonthHeaderComponent } from '../calendar-month-header/calendar-month-header.component';
 import { CalendarMonthGridComponent } from '../calendar-month-grid/calendar-month-grid.component';
@@ -9,7 +8,6 @@ import { CalendarGotoRowComponent } from '../calendar-goto-row/calendar-goto-row
 import { CalendarWeekHeaderComponent } from '../calendar-week-header/calendar-week-header.component';
 import { CalendarWeekGridComponent } from '../calendar-week-grid/calendar-week-grid.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
-import { CalendarDayOverflowModalData } from '../../models/appointment-modal.model';
 import { buildWeekScheduleView } from '../../models/week-schedule.mapper';
 
 @Component({
@@ -57,7 +55,6 @@ import { buildWeekScheduleView } from '../../models/week-schedule.mapper';
         [showBookFooter]="showBookFooter()"
         (selected)="selected.emit($event)"
         (bookDay)="bookDay.emit($event)"
-        (overflowDay)="openOverflow($event)"
       />
     } @else {
       <app-calendar-week-grid
@@ -70,24 +67,9 @@ import { buildWeekScheduleView } from '../../models/week-schedule.mapper';
 })
 export class AppointmentsCalendarComponent {
   protected readonly store = inject(AppointmentsStore);
-  private readonly ui = inject(UiStore);
   readonly selected = output<number>();
   readonly bookDay = output<Date>();
   readonly showBookFooter = input(true);
-
-  openOverflow(date: Date): void {
-    const data: CalendarDayOverflowModalData = {
-      pickedDate: this.toIsoDate(date),
-    };
-    this.ui.openModal('calendar-day-overflow', data);
-  }
-
-  private toIsoDate(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
 
   readonly weekSpanLabel = computed(() => {
     const v = buildWeekScheduleView(

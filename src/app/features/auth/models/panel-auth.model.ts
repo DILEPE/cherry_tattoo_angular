@@ -23,10 +23,13 @@ export interface PanelUserPublic {
   id: number;
   username: string;
   role: string;
+  session_expires_at?: number;
 }
 
 export interface PanelUserSession extends PanelUserPublic {
   effectiveModules?: PanelModuleKey[];
+  /** Unix epoch en milisegundos (vida útil 60 min desde el login). */
+  sessionExpiresAt: number;
 }
 
 export interface PanelLoginResponse {

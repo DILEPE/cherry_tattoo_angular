@@ -5,7 +5,6 @@ import {
   CalendarDayDescriptor,
   CalendarDayTeamGroupView,
   CalendarMonthState,
-  CALENDAR_COMPACT_MAX_VISIBLE,
   ClientPillKind,
   DayKey,
 } from './calendar.model';
@@ -248,7 +247,7 @@ export function buildDayCellViews(
   countsByClient: Map<string, number>,
   today: Date,
   teamLayout = false,
-  maxVisible: number | null = CALENDAR_COMPACT_MAX_VISIBLE,
+  maxVisible: number | null = null,
 ): CalendarDayCellView[][] {
   const todayKey = dayKeyFromDate(today);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
