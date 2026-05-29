@@ -50,11 +50,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'usuarios_panel',
         canActivate: [moduleGuard('usuarios_panel')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión de usuarios' },
+        loadChildren: () =>
+          import('../panel-users/panel-users.routes').then((m) => m.PANEL_USERS_ROUTES),
       },
     ],
   },

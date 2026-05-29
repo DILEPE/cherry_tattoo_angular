@@ -21,6 +21,11 @@ export function formErrorMessage(
     return `Mínimo ${e['minlength'].requiredLength} caracteres`;
   if (e['maxlength'])
     return `Máximo ${e['maxlength'].requiredLength} caracteres`;
+  if (e['panelUsername'])
+    return 'Use minúsculas, números, punto, guion o guion bajo (mín. 3 caracteres)';
+  if (e['storeRequired']) return 'Seleccione una tienda activa del catálogo';
+  if (e['modulesRequired']) return 'Marque al menos un módulo permitido';
+  if (e['pattern']) return 'Formato inválido';
   if (e['min']) return 'Valor demasiado bajo';
   if (e['max']) return 'Valor demasiado alto';
   if (e['noStaff']) return 'No hay profesional disponible para este tipo de trabajo';

@@ -76,11 +76,18 @@ export const AppStore = signalStore(
       canAccessModule(key: string): boolean {
         const u = store.user();
         if (!u) return false;
-        if (key === 'tiendas' || key === 'usuarios_panel') {
+        if (key === 'usuarios_panel') {
           return u.role === 'administrador';
         }
         if (u.role === 'administrador') {
-          return ['citas', 'clientes', 'contratos', 'encuestas', 'reporte'].includes(key);
+          return [
+            'citas',
+            'clientes',
+            'contratos',
+            'encuestas',
+            'reporte',
+            'tiendas',
+          ].includes(key);
         }
         return store.allowedModuleKeys().includes(key as PanelModuleKey);
       },
