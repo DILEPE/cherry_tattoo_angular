@@ -5,7 +5,6 @@ import {
   PanelUserFormValue,
   PanelUserRow,
   PanelUserUpdatePayload,
-  StoreOption,
 } from './panel-user.model';
 
 function toRole(v: unknown): PanelRole {
@@ -29,14 +28,6 @@ export function mapPanelUser(raw: Record<string, unknown>): PanelUserRow {
     isActive: Boolean(raw['is_active'] ?? true),
     createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
     updatedAt: raw['updated_at'] != null ? String(raw['updated_at']) : null,
-  };
-}
-
-export function mapStoreOption(raw: Record<string, unknown>): StoreOption {
-  return {
-    id: Number(raw['id'] ?? 0),
-    name: String(raw['name'] ?? ''),
-    isActive: Boolean(raw['is_active'] ?? true),
   };
 }
 

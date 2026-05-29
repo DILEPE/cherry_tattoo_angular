@@ -12,7 +12,8 @@ import { FormsModule } from '@angular/forms';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppStore } from '../../../../store/app.store';
 import { PanelStaffApiService } from '../../services/panel-staff-api.service';
-import { StoresApiService, StoreOption } from '../../services/stores-api.service';
+import { StoresApiService } from '../../../../core/services/stores-api.service';
+import { StoreOption } from '../../../../core/models/store.model';
 import { PanelStaffOption } from '../../models/booking.model';
 import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/utils/panel-roles';
 
