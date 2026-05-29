@@ -424,6 +424,147 @@
   margin: 0.5rem 0 1rem;
 }
 
+.appt-scope-caption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: -0.25rem 0 0.75rem;
+}
+
+.appt-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.appt-pagination-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.appt-cancel-abono {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.appt-cancel-abono label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.page-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.report-subsection-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-subsection-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.report-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.report-filters {
+  margin-bottom: 1rem;
+}
+
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report-metric {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.report-metric-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.report-export-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.report-table {
+  margin-top: 0.5rem;
+}
+
+.report-survey-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.report-survey-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.report-survey-meta {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.report-survey-stat {
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+.report-survey-caption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.report-breakdown-table {
+  width: 100%;
+  max-width: 28rem;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.report-breakdown-table th,
+.report-breakdown-table td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
 .appt-table {
   width: 100%;
   border-collapse: collapse;

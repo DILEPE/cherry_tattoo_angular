@@ -44,12 +44,16 @@ interface AppointmentsState {
   calendarPeriod: CalendarPeriod;
   calendarMonth: CalendarMonthState;
   weekMondayIso: string;
+  listPage: number;
+  listPageSize: number;
 }
 
 const initialFilters: AppointmentFilters = {
   nameSubstr: '',
   service: 'Todos',
   status: 'Todos',
+  fromDate: '',
+  toDate: '',
 };
 
 const initialState: AppointmentsState = {
@@ -63,18 +67,35 @@ const initialState: AppointmentsState = {
   calendarPeriod: 'month',
   calendarMonth: currentCalendarMonth(),
   weekMondayIso: currentWeekMondayIso(),
+  listPage: 0,
+  listPageSize: 10,
 };
 
 export const AppointmentsStore = signalStore(
   withState(initialState),
-  withComputed(({ items, filters }) => {
+  withComputed(({ items, filters, listPage, listPageSize }) => {
     const filteredItems = computed(() => filterAppointments(items(), filters()));
+    const listTotalPages = computed(() => {
+      const total = filteredItems().length;
+      const size = Math.max(1, listPageSize());
+      return Math.max(1, Math.ceil(total / size));
+    });
+    const paginatedListItems = computed(() => {
+      const all = filteredItems();
+      const size = listPageSize();
+      const pages = Math.max(1, Math.ceil(all.length / size) || 1);
+      const page = Math.min(listPage(), pages - 1);
+      const start = page * size;
+      return all.slice(start, start + size);
+    });
     const clientHistoryCounts = computed(() => buildClientHistoryCounts(items()));
     const appointmentsByDay = computed(() =>
       groupAppointmentsByDay(filteredItems()),
     );
     return {
       filteredItems,
+      paginatedListItems,
+      listTotalPages,
       clientHistoryCounts,
       appointmentsByDay,
       serviceOptions: computed(() => uniqueServices(items())),
@@ -138,10 +159,23 @@ export const AppointmentsStore = signalStore(
         patchState(store, { assignedUserId: id, reloadToken: store.reloadToken() + 1 });
       },
       setFilters(partial: Partial<AppointmentFilters>): void {
-        patchState(store, { filters: { ...store.filters(), ...partial } });
+        patchState(store, {
+          filters: { ...store.filters(), ...partial },
+          listPage: 0,
+        });
       },
       resetFilters(): void {
-        patchState(store, { filters: { ...initialFilters } });
+        patchState(store, { filters: { ...initialFilters }, listPage: 0 });
+      },
+      setListPage(page: number): void {
+        patchState(store, { listPage: Math.max(0, page) });
+      },
+      prevListPage(): void {
+        patchState(store, { listPage: Math.max(0, store.listPage() - 1) });
+      },
+      nextListPage(): void {
+        const max = store.listTotalPages() - 1;
+        patchState(store, { listPage: Math.min(max, store.listPage() + 1) });
       },
       invalidate(): void {
         patchState(store, { reloadToken: store.reloadToken() + 1 });
