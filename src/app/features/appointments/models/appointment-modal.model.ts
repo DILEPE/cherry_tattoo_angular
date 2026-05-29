@@ -6,6 +6,8 @@ export interface AppointmentModalData {
 export interface BookAppointmentModalData {
   /** YYYY-MM-DD */
   pickedDate: string;
+  /** Cita express: solo piercing / limpieza / cambio (sin tatuaje). */
+  express?: boolean;
 }
 
 export interface CalendarDayOverflowModalData {

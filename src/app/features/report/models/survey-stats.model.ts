@@ -31,4 +31,14 @@ export const SURVEY_TYPE_LABEL_ES: Record<string, string> = {
 export const CONTRACT_KIND_LABEL_ES: Record<string, string> = {
   tattoo: 'Tatuaje',
   piercing: 'Perforación',
+  both: 'Ambos',
 };
+
+export interface SurveyQuestionTextResponseRow {
+  customer_id: number | null;
+  response_text: string;
+}
+
+export function isSurveyTextQuestion(questionType: string): boolean {
+  return ['text', 'textarea', 'text_short'].includes(String(questionType ?? '').trim());
+}

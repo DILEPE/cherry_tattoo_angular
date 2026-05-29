@@ -14,6 +14,7 @@ import {
   uniqueServices,
 } from '../appointments/models/appointment.mapper';
 import { apiErrorMessage } from '../../core/services/api.service';
+import { LoadingService } from '../../core/services/loading.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
 export type ReportSubsection = 'finances' | 'surveys';
@@ -91,6 +92,7 @@ export const ReportStore = signalStore(
       store,
       api = inject(AppointmentsApiService),
       toast = inject(ToastService),
+      loading = inject(LoadingService),
     ) => ({
       setSubsection(s: ReportSubsection): void {
         patchState(store, { subsection: s });
@@ -99,12 +101,14 @@ export const ReportStore = signalStore(
         patchState(store, { assignedUserId: id, reloadToken: store.reloadToken() + 1 });
       },
       setFilters(partial: Partial<AppointmentFilters>): void {
+        loading.pulse('Aplicando filtros…');
         patchState(store, {
           filters: { ...store.filters(), ...partial },
           page: 0,
         });
       },
       resetFilters(): void {
+        loading.pulse('Aplicando filtros…');
         patchState(store, { filters: { ...initialFilters }, page: 0 });
       },
       invalidate(): void {

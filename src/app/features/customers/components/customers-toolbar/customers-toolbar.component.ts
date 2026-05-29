@@ -6,6 +6,7 @@ import { downloadCustomersExcel } from '../../models/customers-excel-export';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
+import { LoadingService } from '../../../../core/services/loading.service';
 
 @Component({
   selector: 'app-customers-toolbar',
@@ -44,6 +45,7 @@ export class CustomersToolbarComponent {
   private readonly api = inject(CustomersApiService);
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
+  private readonly loading = inject(LoadingService);
 
   readonly exporting = signal(false);
   readonly create = output<void>();
@@ -57,7 +59,9 @@ export class CustomersToolbarComponent {
     this.api.fetchAllForExport(this.store.searchQuery()).subscribe({
       next: async (rows) => {
         try {
-          await downloadCustomersExcel(rows, this.store.searchQuery());
+          await this.loading.run('Exportando clientes a Excel…', () =>
+            downloadCustomersExcel(rows, this.store.searchQuery()),
+          );
           this.toast.success(
             rows.length === 1
               ? 'Se exportó 1 cliente a Excel.'

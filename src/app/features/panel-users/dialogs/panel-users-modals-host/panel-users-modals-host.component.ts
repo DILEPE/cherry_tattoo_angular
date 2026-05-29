@@ -19,6 +19,8 @@ import { resolvePanelUserModalData } from '../panel-user-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-panel-user-create-dialog />
@@ -32,6 +34,8 @@ import { resolvePanelUserModalData } from '../panel-user-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-panel-user-edit-dialog />

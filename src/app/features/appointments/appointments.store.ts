@@ -32,6 +32,7 @@ import {
   weekMonday,
 } from './models/week-schedule.mapper';
 import { apiErrorMessage } from '../../core/services/api.service';
+import { LoadingService } from '../../core/services/loading.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
 interface AppointmentsState {
@@ -111,6 +112,7 @@ export const AppointmentsStore = signalStore(
       store,
       api = inject(AppointmentsApiService),
       toast = inject(ToastService),
+      loading = inject(LoadingService),
     ) => ({
       setViewMode(mode: AppointmentsViewMode): void {
         patchState(store, { viewMode: mode });
@@ -184,12 +186,14 @@ export const AppointmentsStore = signalStore(
         patchState(store, patch);
       },
       setFilters(partial: Partial<AppointmentFilters>): void {
+        loading.pulse('Aplicando filtros…');
         patchState(store, {
           filters: { ...store.filters(), ...partial },
           listPage: 0,
         });
       },
       resetFilters(): void {
+        loading.pulse('Aplicando filtros…');
         patchState(store, { filters: { ...initialFilters }, listPage: 0 });
       },
       setListPage(page: number): void {

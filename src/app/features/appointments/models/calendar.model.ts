@@ -10,7 +10,7 @@ export type AppointmentsViewMode = 'calendar' | 'list';
 /** Mes compacto, mes por equipo o rejilla semanal (Streamlit). */
 export type CalendarPeriod = 'month' | 'team' | 'week';
 
-/** Máximo de citas visibles en celda mensual compacta antes de «+N citas». */
+/** @deprecated Ya no se trunca la celda mensual; se listan todas con scroll. */
 export const CALENDAR_COMPACT_MAX_VISIBLE = 4;
 
 export const WEEK_SCHEDULE_SLOT_PX = 72;

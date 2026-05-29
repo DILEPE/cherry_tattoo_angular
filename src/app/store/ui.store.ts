@@ -18,12 +18,14 @@ interface UiState {
   activeModal: ModalState | null;
   toasts: Toast[];
   globalLoading: boolean;
+  loadingMessage: string | null;
 }
 
 const initialState: UiState = {
   activeModal: null,
   toasts: [],
   globalLoading: false,
+  loadingMessage: null,
 };
 
 export const UiStore = signalStore(
@@ -40,8 +42,11 @@ export const UiStore = signalStore(
       closeModal(): void {
         patchState(store, { activeModal: null });
       },
-      setGlobalLoading(loading: boolean): void {
-        patchState(store, { globalLoading: loading });
+      setGlobalLoading(loading: boolean, message: string | null = null): void {
+        patchState(store, {
+          globalLoading: loading,
+          loadingMessage: loading ? message : null,
+        });
       },
       showToast(toast: Omit<Toast, 'id'>): void {
         const id = crypto.randomUUID();

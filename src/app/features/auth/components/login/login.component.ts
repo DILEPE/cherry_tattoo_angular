@@ -9,6 +9,7 @@ import { AppStore } from '../../../../store/app.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
 import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
+import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
 
 @Component({
   selector: 'app-login',
@@ -17,11 +18,24 @@ import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-erro
   imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
   template: `
     <div class="login-page panel-fade-in">
-      <div class="login-card">
+      <div class="login-card" [class.login-card--busy]="appStore.authLoading()">
+        @if (appStore.authLoading()) {
+          <div class="login-card__overlay" aria-live="polite" aria-busy="true">
+            <span class="login-card__spinner" aria-hidden="true"></span>
+            <span class="login-card__loading-text">Iniciando sesión…</span>
+          </div>
+        }
         <h1>Cherry Ink · Rock City</h1>
         <p>Panel de operaciones</p>
+        <p class="login-card__hint">La sesión dura {{ sessionMinutes }} minutos por usuario.</p>
 
-        <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>
+        <form
+          [formGroup]="form"
+          appFormShowErrors
+          (ngSubmit)="onSubmit()"
+          novalidate
+          [attr.aria-busy]="appStore.authLoading()"
+        >
           <app-form-field label="Usuario" [control]="form.controls.username" controlId="username">
             <input id="username" type="text" formControlName="username" autocomplete="username" />
           </app-form-field>
@@ -53,6 +67,7 @@ import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-erro
 })
 export class LoginComponent {
   protected readonly appStore = inject(AppStore);
+  protected readonly sessionMinutes = PANEL_SESSION_TTL_MS / 60_000;
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);

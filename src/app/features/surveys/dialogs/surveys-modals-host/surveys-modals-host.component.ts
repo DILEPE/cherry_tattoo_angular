@@ -25,6 +25,8 @@ import { resolveSurveyModalData } from '../survey-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-question-create-dialog />
@@ -38,6 +40,8 @@ import { resolveSurveyModalData } from '../survey-modal.util';
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
             <app-question-edit-dialog />
@@ -46,7 +50,14 @@ import { resolveSurveyModalData } from '../survey-modal.util';
       }
       @case ('question-delete') {
         @defer (on immediate) {
-          <app-modal title="Eliminar pregunta" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+          <app-modal
+            title="Eliminar pregunta"
+            size="md"
+            [isOpen]="true"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
             <app-question-delete-dialog />
           </app-modal>
         }

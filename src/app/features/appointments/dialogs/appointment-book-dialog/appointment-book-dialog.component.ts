@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -29,7 +30,7 @@ import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-erro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppStore } from '../../../../store/app.store';
-import { UiStore } from '../../../../store/ui.store';
+import { ModalState, UiStore } from '../../../../store/ui.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
@@ -40,6 +41,7 @@ import { ErrorService } from '../../../../core/services/error.service';
 import {
   BOOKING_WORK_KIND_META,
   BOOKING_WORK_KIND_ORDER,
+  EXPRESS_BOOKING_WORK_KIND_ORDER,
   BookingWorkKind,
   CUSTOMER_BIRTH_PENDING_ISO,
   MIN_APPOINTMENT_TOTAL_COP,
@@ -76,7 +78,17 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
   template: `
     @if (pickedDateLabel()) {
       <p class="appt-dialog-caption">
-        <strong>Fecha de la cita:</strong> {{ pickedDateLabel() }} (elegida en el calendario)
+        <strong>Fecha de la cita:</strong> {{ pickedDateLabel() }}
+        @if (isExpress()) {
+          (cita express — hoy)
+        } @else {
+          (elegida en el calendario)
+        }
+      </p>
+    }
+    @if (isExpress()) {
+      <p class="appt-dialog-caption">
+        Solo piercing, limpieza o cambio de piercing. Asigna un <strong>perforador</strong>.
       </p>
     }
 
@@ -84,7 +96,7 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       <app-form-validation-summary [messages]="validationSummary()" />
       <section class="appt-book-section">
         <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
-        <div class="appt-book-row">
+        <div class="appt-book-row appt-book-row--doc-verify">
           <app-form-field label="Tipo de documento" [control]="form.controls.docType">
             <select formControlName="docType">
               <option value="CC">CC — Cédula</option>
@@ -96,14 +108,16 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
           <app-form-field label="Número de documento" [control]="form.controls.docNumber">
             <input formControlName="docNumber" autocomplete="off" />
           </app-form-field>
-          <app-button
-            type="button"
-            variant="ghost"
-            [loading]="verifyLoading()"
-            (clicked)="verifyDocument()"
-          >
-            Verificar identificación
-          </app-button>
+          <div class="appt-book-row__action">
+            <app-button
+              type="button"
+              variant="ghost"
+              [loading]="verifyLoading()"
+              (clicked)="verifyDocument()"
+            >
+              Verificar identificación
+            </app-button>
+          </div>
         </div>
         @if (verifyMessage()) {
           <p [class]="verifyLevelClass()">{{ verifyMessage() }}</p>
@@ -129,13 +143,13 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       <div class="appt-book-row">
         <app-form-field label="Tipo de trabajo" [control]="form.controls.workKind">
           <select formControlName="workKind">
-            @for (wk of workKinds; track wk) {
+            @for (wk of workKinds(); track wk) {
               <option [value]="wk">{{ workKindLabel(wk) }}</option>
             }
           </select>
         </app-form-field>
         @if (!lockedToSelf()) {
-          <app-form-field label="Profesional" [control]="form.controls.staffId">
+          <app-form-field [label]="staffFieldLabel()" [control]="form.controls.staffId">
             <select formControlName="staffId">
               @for (s of staffForRole(); track s.id) {
                 <option [ngValue]="s.id">{{ s.label }}</option>
@@ -214,7 +228,6 @@ export class AppointmentBookDialogComponent {
 
   protected readonly formatCop = formatCop;
   protected readonly MIN_COP = MIN_APPOINTMENT_TOTAL_COP;
-  readonly workKinds = BOOKING_WORK_KIND_ORDER;
   readonly slotOptions = timeSlotOptions();
 
   readonly staffList = signal<PanelStaffOption[]>([]);
@@ -231,6 +244,8 @@ export class AppointmentBookDialogComponent {
   private readonly formShowErrors = viewChild(FormShowErrorsDirective);
   /** Invalida computed que dependen de valores del formulario reactivo. */
   private readonly formRevision = signal(0);
+  /** Evita resetear el formulario en cada tecla (effect no debe re-ejecutar reset). */
+  private bookingModalSession: ModalState | null = null;
 
   readonly form = this.fb.nonNullable.group(
     {
@@ -263,6 +278,15 @@ export class AppointmentBookDialogComponent {
     const d = appointmentRowDate(raw);
     return d.toLocaleDateString('es-CO');
   });
+
+  readonly isExpress = computed(() => {
+    const data = this.ui.activeModal()?.data as BookAppointmentModalData | undefined;
+    return Boolean(data?.express);
+  });
+
+  readonly workKinds = computed(() =>
+    this.isExpress() ? EXPRESS_BOOKING_WORK_KIND_ORDER : BOOKING_WORK_KIND_ORDER,
+  );
 
   readonly lockedToSelf = computed(() => {
     this.formRevision();
@@ -302,6 +326,18 @@ export class AppointmentBookDialogComponent {
   });
 
   constructor() {
+    effect(() => {
+      const modal = this.ui.activeModal();
+      if (modal?.id !== 'appointment-book') {
+        this.bookingModalSession = null;
+        return;
+      }
+      if (modal === this.bookingModalSession) return;
+      this.bookingModalSession = modal;
+      const data = modal.data as BookAppointmentModalData | undefined;
+      untracked(() => this.resetBookingForm(Boolean(data?.express)));
+    });
+
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.formRevision.update((n) => n + 1);
       const avail = this.availableSlots();
@@ -312,28 +348,34 @@ export class AppointmentBookDialogComponent {
       this.cdr.markForCheck();
     });
 
-    effect(() => {
+    effect((onCleanup) => {
       if (this.ui.activeModal()?.id !== 'appointment-book') return;
-      this.staffApi.listAssignable().subscribe({
+      const sub = this.staffApi.listAssignable().subscribe({
         next: (list) => {
           this.staffList.set(list);
-          this.syncStaffForWorkKind();
+          untracked(() => this.syncStaffForWorkKind());
         },
       });
+      onCleanup(() => sub.unsubscribe());
     });
 
     effect(() => {
-      if (this.lockedToSelf()) {
-        this.syncStaffForWorkKind();
-      }
+      if (!this.lockedToSelf()) return;
+      untracked(() => this.syncStaffForWorkKind());
     });
 
     this.form.controls.workKind.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((wk) => {
         const kind = wk as BookingWorkKind;
-        const slots = kind === 'tatuaje' ? 4 : kind === 'piercing' ? 2 : 1;
-        this.form.patchValue({ durationSlots: slots }, { emitEvent: true });
+        if (this.isExpress() && kind === 'tatuaje') {
+          this.form.patchValue({ workKind: 'piercing' }, { emitEvent: false });
+          return;
+        }
+        this.form.patchValue(
+          { durationSlots: this.durationSlotsForWorkKind(kind) },
+          { emitEvent: true },
+        );
         this.syncStaffForWorkKind();
         this.cdr.markForCheck();
       });
@@ -366,9 +408,56 @@ export class AppointmentBookDialogComponent {
     return BOOKING_WORK_KIND_META[wk]?.label ?? wk;
   }
 
+  staffFieldLabel(): string {
+    const wk = this.form.controls.workKind.value as BookingWorkKind;
+    return workKindToAssigneeRole(wk) === 'tatuador' ? 'Tatuador' : 'Perforador';
+  }
+
   assigneeRoleLabel(): string {
     const wk = this.form.controls.workKind.value as BookingWorkKind;
     return workKindToAssigneeRole(wk) === 'tatuador' ? 'tatuador' : 'perforador';
+  }
+
+  private durationSlotsForWorkKind(kind: BookingWorkKind): number {
+    if (kind === 'tatuaje') return 4;
+    if (kind === 'piercing') return 2;
+    return 1;
+  }
+
+  private resetBookingForm(_express: boolean): void {
+    this.docVerified.set(false);
+    this.verifiedDoc.set('');
+    this.customerId.set(null);
+    this.customerSnapshot.set(null);
+    this.needNewCustomer.set(false);
+    this.verifyMessage.set('');
+    this.verifyLevel.set('');
+    this.validationSummary.set([]);
+    this.saving.set(false);
+    this.verifyLoading.set(false);
+
+    const workKind: BookingWorkKind = 'piercing';
+    this.form.reset({
+      docType: 'CC',
+      docNumber: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      workKind,
+      staffId: 0,
+      durationSlots: this.durationSlotsForWorkKind(workKind),
+      slot: '09:00',
+      observations: '',
+      total: MIN_APPOINTMENT_TOTAL_COP,
+      deposit: MIN_APPOINTMENT_TOTAL_COP,
+      isPriority: false,
+    });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    this.formShowErrors()?.reset();
+    this.syncStaffForWorkKind();
+    this.cdr.markForCheck();
   }
 
   /** Alinea el profesional con el tipo de trabajo (tatuaje → tatuador, piercing → perforador). */
@@ -501,6 +590,10 @@ export class AppointmentBookDialogComponent {
     const deposit = Math.round(Number(this.form.controls.deposit.value));
 
     const wk = this.form.controls.workKind.value as BookingWorkKind;
+    if (this.isExpress() && wk === 'tatuaje') {
+      this.toast.error('La cita express no admite tatuaje.');
+      return;
+    }
     const staffId = this.resolveStaffId();
     const allowed = this.staffForRole();
     if (!staffId || !allowed.some((s) => s.id === staffId)) {

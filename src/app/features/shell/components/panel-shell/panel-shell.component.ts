@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AppStore } from '../../../../store/app.store';
-import { AppToastContainerComponent } from '../../../../shared/ui/toast/app-toast-container.component';
 import { PANEL_MODULE_LABELS } from '../../../auth/models/panel-auth.model';
+import { PANEL_SESSION_TTL_MS } from '../../../auth/models/panel-session.util';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
+import { ToastService } from '../../../../shared/ui/toast/toast.service';
 
 interface NavItem {
   key: string;
@@ -19,7 +20,6 @@ interface NavItem {
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    AppToastContainerComponent,
     AppButtonComponent,
   ],
   template: `
@@ -31,6 +31,7 @@ interface NavItem {
         </div>
         @if (user(); as u) {
           <p class="panel-sidebar__user">{{ u.username }} · {{ u.role }}</p>
+          <p class="panel-sidebar__session">Sesión: {{ sessionMinutesLeft() }} min restantes</p>
         }
         <nav class="panel-sidebar__nav">
           @for (item of navItems(); track item.key) {
@@ -44,7 +45,9 @@ interface NavItem {
           }
         </nav>
         <div class="panel-sidebar__footer">
-          <app-button variant="ghost" (clicked)="logout()">Cerrar sesión</app-button>
+          <app-button variant="ghost" type="button" (clicked)="logout()">
+            Cerrar sesión
+          </app-button>
         </div>
       </aside>
       <main class="panel-main">
@@ -52,17 +55,39 @@ interface NavItem {
         <router-outlet />
       </main>
     </div>
-    <app-toast-container />
   `,
 })
-export class PanelShellComponent implements OnInit {
+export class PanelShellComponent implements OnInit, OnDestroy {
   protected readonly appStore = inject(AppStore);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly user = this.appStore.user;
 
+  private sessionTimer: ReturnType<typeof setInterval> | null = null;
+
   ngOnInit(): void {
     this.appStore.initFromSession();
+    this.sessionTimer = setInterval(() => this.checkSessionExpiry(), 30_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.sessionTimer !== null) {
+      clearInterval(this.sessionTimer);
+    }
+  }
+
+  sessionMinutesLeft(): number {
+    const exp = this.user()?.sessionExpiresAt;
+    if (!exp) return 0;
+    return Math.max(0, Math.ceil((exp - Date.now()) / 60_000));
+  }
+
+  private checkSessionExpiry(): void {
+    if (!this.appStore.user()) return;
+    if (this.appStore.ensureSessionValid()) return;
+    this.toast.warn('Tu sesión expiró (60 min). Inicia sesión de nuevo.');
+    void this.router.navigateByUrl('/login');
   }
 
   navItems(): NavItem[] {
@@ -89,6 +114,7 @@ export class PanelShellComponent implements OnInit {
   }
 
   logout(): void {
+    this.appStore.ensureSessionValid();
     this.appStore.logout();
     void this.router.navigateByUrl('/login');
   }
