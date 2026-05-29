@@ -1,7 +1,6 @@
 import {
   CUSTOMER_BIRTH_PENDING_ISO,
   Customer,
-  CustomerContractRow,
   CustomerListResult,
   CustomerSnapshot,
   CustomerWritePayload,
@@ -123,12 +122,4 @@ export function customerToWritePayload(c: Customer): CustomerWritePayload {
   };
 }
 
-export function mapCustomerContract(raw: Record<string, unknown>): CustomerContractRow {
-  return {
-    id: Number(raw['id'] ?? 0),
-    appointmentId: Number(raw['appointment_id'] ?? 0),
-    serviceType: String(raw['service_type'] ?? ''),
-    appointmentDate:
-      raw['appointment_date'] != null ? String(raw['appointment_date']) : null,
-  };
-}
+export { mapCustomerSignedContract as mapCustomerContract } from '../../contracts/models/signed-contract.mapper';
