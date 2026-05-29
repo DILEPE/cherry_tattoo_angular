@@ -7,6 +7,50 @@ export type ClientPillKind = 'new' | 'returning' | 'priority' | 'reprogramada' |
 
 export type AppointmentsViewMode = 'calendar' | 'list';
 
+/** Mes compacto o rejilla semanal (Streamlit «Semana»). */
+export type CalendarPeriod = 'month' | 'week';
+
+export const WEEK_SCHEDULE_SLOT_PX = 72;
+
+export interface WeekDayHeaderView {
+  date: Date;
+  weekdayLabel: string;
+  dayNum: number;
+  isToday: boolean;
+  isPast: boolean;
+}
+
+export interface WeekAppointmentBlockView {
+  appointmentId: number;
+  topPx: number;
+  heightPx: number;
+  leftPct: number;
+  widthPct: number;
+  timeLabel: string;
+  customerName: string;
+  totalCompact: string;
+  pillKind: ClientPillKind;
+  muted: boolean;
+  singleSlot: boolean;
+  tooltip: string;
+}
+
+export interface WeekDayColumnView {
+  date: Date;
+  isToday: boolean;
+  totalHeightPx: number;
+  blocks: WeekAppointmentBlockView[];
+}
+
+export interface WeekScheduleView {
+  monday: Date;
+  spanLabel: string;
+  slotList: string[];
+  slotPx: number;
+  dayHeaders: WeekDayHeaderView[];
+  dayColumns: WeekDayColumnView[];
+}
+
 export interface CalendarMonthState {
   year: number;
   month: number;
