@@ -43,7 +43,7 @@ import {
           </tr>
         </thead>
         <tbody>
-          @for (row of store.filteredItems(); track row.id) {
+          @for (row of store.paginatedListItems(); track row.id) {
             <tr>
               <td>{{ row.appointmentDate | dateEs }}</td>
               <td>
@@ -73,9 +73,28 @@ import {
           }
         </tbody>
       </table>
-      <p class="empty-state appt-list-footer">
-        {{ store.filteredItems().length }} cita(s)
-      </p>
+      <div class="appt-pagination">
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [disabled]="store.listPage() <= 0"
+          (click)="store.prevListPage()"
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          class="btn btn--ghost"
+          [disabled]="store.listPage() >= store.listTotalPages() - 1"
+          (click)="store.nextListPage()"
+        >
+          ▶
+        </button>
+        <span class="appt-pagination-info">
+          Página {{ store.listPage() + 1 }}/{{ store.listTotalPages() }} ·
+          {{ store.filteredItems().length }} cita(s)
+        </span>
+      </div>
     }
   `,
 })

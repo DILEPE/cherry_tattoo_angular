@@ -10,6 +10,7 @@ import { AppButtonComponent } from '../../../../shared/ui/button/app-button.comp
 import { UiStore } from '../../../../store/ui.store';
 import { AppStore } from '../../../../store/app.store';
 import { AppointmentModalData, BookAppointmentModalData } from '../../models/appointment-modal.model';
+import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-appointments-shell',
@@ -54,6 +55,14 @@ export class AppointmentsShellComponent {
   readonly canBook = computed(() => {
     const role = this.appStore.user()?.role ?? '';
     return role !== 'tatuador' && role !== 'perforador';
+  });
+
+  private readonly _scopeEffect = effect(() => {
+    const u = this.appStore.user();
+    if (!u) return;
+    if (!maySeeAllAppointments(u.role)) {
+      this.store.setAssignedUserId(u.id);
+    }
   });
 
   private readonly _loadEffect = effect(() => {

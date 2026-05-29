@@ -74,4 +74,7 @@ export interface AppointmentFilters {
   nameSubstr: string;
   service: string;
   status: string;
+  /** YYYY-MM-DD o vacío. */
+  fromDate: string;
+  toDate: string;
 }

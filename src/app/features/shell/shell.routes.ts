@@ -44,11 +44,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'reporte',
         canActivate: [moduleGuard('reporte')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión reportes' },
+        loadChildren: () =>
+          import('../report/report.routes').then((m) => m.REPORT_ROUTES),
       },
       {
         path: 'tiendas',
