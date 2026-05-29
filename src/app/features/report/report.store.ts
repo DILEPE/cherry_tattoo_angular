@@ -34,6 +34,7 @@ const initialFilters: AppointmentFilters = {
   nameSubstr: '',
   service: 'Todos',
   status: 'Todos',
+  storeId: 0,
   fromDate: '',
   toDate: '',
 };

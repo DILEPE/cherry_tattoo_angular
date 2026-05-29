@@ -7,6 +7,9 @@ import { AppointmentCancelDialogComponent } from '../appointment-cancel-dialog/a
 import { AppointmentFinancialsDialogComponent } from '../appointment-financials-dialog/appointment-financials-dialog.component';
 import { AppointmentReceiptsDialogComponent } from '../appointment-receipts-dialog/appointment-receipts-dialog.component';
 import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appointment-book-dialog.component';
+import { CalendarDayOverflowDialogComponent } from '../calendar-day-overflow-dialog/calendar-day-overflow-dialog.component';
+import { AppointmentSearchDialogComponent } from '../appointment-search-dialog/appointment-search-dialog.component';
+import { AppointmentFocusDialogComponent } from '../appointment-focus-dialog/appointment-focus-dialog.component';
 
 @Component({
   selector: 'app-appointments-modals-host',
@@ -20,6 +23,9 @@ import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appoi
     AppointmentFinancialsDialogComponent,
     AppointmentReceiptsDialogComponent,
     AppointmentBookDialogComponent,
+    CalendarDayOverflowDialogComponent,
+    AppointmentSearchDialogComponent,
+    AppointmentFocusDialogComponent,
   ],
   template: `
     @switch (ui.activeModal()?.id) {
@@ -27,6 +33,13 @@ import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appoi
         @defer (on immediate) {
           <app-modal title="Cita" size="md" [isOpen]="true" (closed)="ui.closeModal()">
             <app-appointment-detail-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-focus') {
+        @defer (on immediate) {
+          <app-modal title="Cita" size="lg" [isOpen]="true" [dismissible]="false" (closed)="ui.closeModal()">
+            <app-appointment-focus-dialog />
           </app-modal>
         }
       }
@@ -62,6 +75,20 @@ import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appoi
         @defer (on immediate) {
           <app-modal title="Agendar cita" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
             <app-appointment-book-dialog />
+          </app-modal>
+        }
+      }
+      @case ('calendar-day-overflow') {
+        @defer (on immediate) {
+          <app-modal title="Citas del día" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-calendar-day-overflow-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-search') {
+        @defer (on immediate) {
+          <app-modal title="Buscar cita" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-search-dialog />
           </app-modal>
         }
       }

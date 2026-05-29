@@ -6,6 +6,7 @@ import { pipe, switchMap, tap } from 'rxjs';
 import { AppointmentsApiService } from './services/appointments-api.service';
 import {
   Appointment,
+  AppointmentApiRow,
   AppointmentFilters,
 } from './models/appointment.model';
 import {
@@ -44,6 +45,7 @@ interface AppointmentsState {
   calendarPeriod: CalendarPeriod;
   calendarMonth: CalendarMonthState;
   weekMondayIso: string;
+  gotoDateIso: string;
   listPage: number;
   listPageSize: number;
 }
@@ -52,6 +54,7 @@ const initialFilters: AppointmentFilters = {
   nameSubstr: '',
   service: 'Todos',
   status: 'Todos',
+  storeId: 0,
   fromDate: '',
   toDate: '',
 };
@@ -67,6 +70,7 @@ const initialState: AppointmentsState = {
   calendarPeriod: 'month',
   calendarMonth: currentCalendarMonth(),
   weekMondayIso: currentWeekMondayIso(),
+  gotoDateIso: dateToIsoLocal(new Date()),
   listPage: 0,
   listPageSize: 10,
 };
@@ -112,16 +116,30 @@ export const AppointmentsStore = signalStore(
         patchState(store, { viewMode: mode });
       },
       setCalendarPeriod(period: CalendarPeriod): void {
-        if (period === 'week' && store.calendarPeriod() !== 'week') {
+        let next = period;
+        if (next === 'team' && store.assignedUserId() != null && store.assignedUserId()! > 0) {
+          next = 'month';
+        }
+        if (next === 'week' && store.calendarPeriod() !== 'week') {
           const { year, month } = store.calendarMonth();
           const anchor = new Date(year, month - 1, 1);
           patchState(store, {
-            calendarPeriod: period,
+            calendarPeriod: next,
             weekMondayIso: dateToIsoLocal(weekMonday(anchor)),
           });
           return;
         }
-        patchState(store, { calendarPeriod: period });
+        patchState(store, { calendarPeriod: next });
+      },
+      setGotoDateIso(iso: string): void {
+        patchState(store, { gotoDateIso: iso });
+      },
+      goToSelectedWeek(): void {
+        const d = isoToLocalDate(store.gotoDateIso());
+        patchState(store, {
+          calendarPeriod: 'week',
+          weekMondayIso: dateToIsoLocal(weekMonday(d)),
+        });
       },
       prevWeek(): void {
         const m = isoToLocalDate(store.weekMondayIso());
@@ -156,7 +174,14 @@ export const AppointmentsStore = signalStore(
         patchState(store, { calendarMonth: currentCalendarMonth() });
       },
       setAssignedUserId(id: number | null): void {
-        patchState(store, { assignedUserId: id, reloadToken: store.reloadToken() + 1 });
+        const patch: Partial<AppointmentsState> = {
+          assignedUserId: id,
+          reloadToken: store.reloadToken() + 1,
+        };
+        if (id != null && id > 0 && store.calendarPeriod() === 'team') {
+          patch.calendarPeriod = 'month';
+        }
+        patchState(store, patch);
       },
       setFilters(partial: Partial<AppointmentFilters>): void {
         patchState(store, {
@@ -179,6 +204,26 @@ export const AppointmentsStore = signalStore(
       },
       invalidate(): void {
         patchState(store, { reloadToken: store.reloadToken() + 1 });
+      },
+      mergeAppointment(raw: AppointmentApiRow): void {
+        const appt = mapAppointment(raw);
+        const items = [...store.items()];
+        const idx = items.findIndex((a) => a.id === appt.id);
+        if (idx >= 0) items[idx] = appt;
+        else items.unshift(appt);
+        patchState(store, { items });
+      },
+      focusCalendarWeek(date: Date): void {
+        patchState(store, {
+          viewMode: 'calendar',
+          calendarPeriod: 'week',
+          weekMondayIso: dateToIsoLocal(weekMonday(date)),
+          gotoDateIso: dateToIsoLocal(date),
+          calendarMonth: {
+            year: date.getFullYear(),
+            month: date.getMonth() + 1,
+          },
+        });
       },
       load: rxMethod<void>(
         pipe(

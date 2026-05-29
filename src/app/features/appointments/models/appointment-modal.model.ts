@@ -7,3 +7,8 @@ export interface BookAppointmentModalData {
   /** YYYY-MM-DD */
   pickedDate: string;
 }
+
+export interface CalendarDayOverflowModalData {
+  /** YYYY-MM-DD */
+  pickedDate: string;
+}

@@ -7,8 +7,11 @@ export type ClientPillKind = 'new' | 'returning' | 'priority' | 'reprogramada' |
 
 export type AppointmentsViewMode = 'calendar' | 'list';
 
-/** Mes compacto o rejilla semanal (Streamlit «Semana»). */
-export type CalendarPeriod = 'month' | 'week';
+/** Mes compacto, mes por equipo o rejilla semanal (Streamlit). */
+export type CalendarPeriod = 'month' | 'team' | 'week';
+
+/** Máximo de citas visibles en celda mensual compacta antes de «+N citas». */
+export const CALENDAR_COMPACT_MAX_VISIBLE = 4;
 
 export const WEEK_SCHEDULE_SLOT_PX = 72;
 
@@ -67,11 +70,21 @@ export interface CalendarAppointmentSlotView {
   timeLabel: string;
   customerShort: string;
   customerFull: string;
+  serviceType: string;
+  serviceFlagClass: string;
   totalCompact: string;
+  totalFmt: string;
+  artistLabel: string;
+  contractPending: boolean;
   pillKind: ClientPillKind;
   muted: boolean;
   tooltip: string;
   appointment: Appointment;
+}
+
+export interface CalendarDayTeamGroupView {
+  staffLabel: string;
+  slots: CalendarAppointmentSlotView[];
 }
 
 export interface CalendarDayCellView {
@@ -81,6 +94,10 @@ export interface CalendarDayCellView {
   isToday: boolean;
   isPast: boolean;
   slots: CalendarAppointmentSlotView[];
+  /** Citas ocultas por overflow (solo vista compacta). */
+  hiddenCount: number;
+  allSlots: CalendarAppointmentSlotView[];
+  teamGroups: CalendarDayTeamGroupView[];
 }
 
 export const MONTHS_ES = [

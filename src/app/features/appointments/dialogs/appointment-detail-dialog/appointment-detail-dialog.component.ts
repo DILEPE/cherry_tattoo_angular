@@ -58,12 +58,33 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
           </dd>
           <dt>Artista</dt>
           <dd>{{ a.assignedLabel }}</dd>
-          <dt>Total</dt>
-          <dd>{{ a.financials.totalFmt }}</dd>
-          <dt>Abonado</dt>
-          <dd>{{ a.financials.depositFmt }}</dd>
-          <dt>Pendiente</dt>
-          <dd>{{ a.financials.pendingFmt }}</dd>
+        </dl>
+
+        <div class="appt-fin-summary">
+          <div class="appt-fin-summary__item">
+            <span class="appt-fin-summary__label">Total servicio</span>
+            <strong>{{ a.financials.totalFmt }}</strong>
+          </div>
+          <div class="appt-fin-summary__item">
+            <span class="appt-fin-summary__label">Abonado</span>
+            <strong>{{ a.financials.depositFmt }}</strong>
+          </div>
+          <div class="appt-fin-summary__item" [class.appt-fin-summary__item--pending]="a.financials.pending > 0">
+            <span class="appt-fin-summary__label">Pendiente</span>
+            <strong>{{ a.financials.pendingFmt }}</strong>
+          </div>
+          @if (a.financials.credit > 0) {
+            <div class="appt-fin-summary__item">
+              <span class="appt-fin-summary__label">Saldo a favor</span>
+              <strong>{{ a.financials.creditFmt }}</strong>
+            </div>
+          }
+        </div>
+        @if (a.contractPendingArtistSignature) {
+          <p class="cal-overflow-fire-pending appt-detail-fire">Firma profesional pendiente</p>
+        }
+
+        <dl class="appt-detail__grid appt-detail__grid--after-fin">
           @if (a.detail) {
             <dt>Detalle</dt>
             <dd>{{ a.detail }}</dd>

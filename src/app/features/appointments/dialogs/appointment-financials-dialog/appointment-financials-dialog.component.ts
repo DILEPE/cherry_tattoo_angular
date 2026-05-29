@@ -56,10 +56,22 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
           <app-form-field label="Valor total del trabajo (COP)" [control]="form.controls.total">
             <input type="number" formControlName="total" min="0" step="10000" />
           </app-form-field>
-          <p class="appt-dialog-caption">Abonado actual: {{ a.financials.depositFmt }}</p>
-          <p class="appt-dialog-caption">
-            Saldo pendiente calculado: {{ formatCop(pendingCalc()) }}
-          </p>
+          <div class="appt-fin-summary appt-fin-summary--compact">
+            <div class="appt-fin-summary__item">
+              <span class="appt-fin-summary__label">Abonado</span>
+              <strong>{{ a.financials.depositFmt }}</strong>
+            </div>
+            <div class="appt-fin-summary__item" [class.appt-fin-summary__item--pending]="pendingCalc() > 0">
+              <span class="appt-fin-summary__label">Pendiente (calc.)</span>
+              <strong>{{ formatCop(pendingCalc()) }}</strong>
+            </div>
+            @if (a.financials.credit > 0) {
+              <div class="appt-fin-summary__item">
+                <span class="appt-fin-summary__label">Saldo a favor</span>
+                <strong>{{ a.financials.creditFmt }}</strong>
+              </div>
+            }
+          </div>
 
           @if (canAddExtra()) {
             <app-form-field label="Agregar abono adicional (COP)" [control]="form.controls.extra">
@@ -120,8 +132,10 @@ export class AppointmentFinancialsDialogComponent {
   pendingCalc(): number {
     const a = this.dlg.appointment();
     if (!a) return 0;
-    const total = Number(this.form.controls.total.value ?? 0);
-    return Math.max(Math.round((total - a.financials.deposit) * 100) / 100, 0);
+    const total = Math.max(Number(this.form.controls.total.value ?? 0), a.financials.deposit);
+    const deposit = a.financials.deposit;
+    const credit = a.financials.credit;
+    return Math.max(Math.round((total - deposit - credit) * 100) / 100, 0);
   }
 
   private readonly _load = effect(() => {
@@ -152,9 +166,10 @@ export class AppointmentFinancialsDialogComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const total = Number(this.form.controls.total.value);
+    const total = Math.max(Number(this.form.controls.total.value), a.financials.deposit);
     const deposit = a.financials.deposit;
-    const pending = Math.max(Math.round((total - deposit) * 100) / 100, 0);
+    const credit = a.financials.credit;
+    const pending = Math.max(Math.round((total - deposit - credit) * 100) / 100, 0);
     const extra = Number(this.form.controls.extra.value);
 
     if (deposit > total) {

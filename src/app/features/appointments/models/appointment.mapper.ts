@@ -37,6 +37,7 @@ function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
     totalFmt: formatCop(total),
     depositFmt: formatCop(deposit),
     pendingFmt: formatCop(pending),
+    creditFmt: formatCop(credit),
   };
 }
 
@@ -52,13 +53,21 @@ export function mapPayment(raw: Record<string, unknown>): AppointmentPayment {
 }
 
 export function mapReceipt(raw: Record<string, unknown>): AppointmentReceipt {
+  const payId = raw['appointment_payment_id'];
   return {
     id: Number(raw['id'] ?? 0),
     appointmentId: Number(raw['appointment_id'] ?? raw['appointmentId'] ?? 0),
+    appointmentPaymentId:
+      payId != null && Number(payId) > 0 ? Number(payId) : null,
     kind: String(raw['kind'] ?? ''),
     amount: toFloat(raw['amount']),
     createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
   };
+}
+
+/** Valor en tabla de abonos (60.000) sin prefijo COP. */
+export function formatAmountTable(value: number): string {
+  return Math.round(value).toLocaleString('es-CO').replace(/,/g, '.');
 }
 
 export function normalizeStatus(status: string | null | undefined): AppointmentStatus {
@@ -131,8 +140,13 @@ export function mapAppointment(raw: AppointmentApiRow): Appointment {
       raw.assigned_panel_user_id != null && Number(raw.assigned_panel_user_id) > 0
         ? Number(raw.assigned_panel_user_id)
         : null,
+    assignedStoreId:
+      raw.assigned_store_id != null && Number(raw.assigned_store_id) > 0
+        ? Number(raw.assigned_store_id)
+        : null,
     customerId: cid != null && cid > 0 ? Number(cid) : null,
     hasSignedContract: Boolean(raw.has_signed_contract),
+    contractPendingArtistSignature: Boolean(raw.contract_pending_artist_signature),
     createdAt: raw.created_at != null ? String(raw.created_at) : null,
     financials: fin,
   };
@@ -155,8 +169,10 @@ export function filterAppointments(
   const status = filters.status;
   const from = parseFilterDate(filters.fromDate);
   const to = parseFilterDate(filters.toDate);
+  const storeId = filters.storeId ?? 0;
   return items.filter((row) => {
     if (name && !row.customerName.toLowerCase().includes(name)) return false;
+    if (storeId > 0 && (row.assignedStoreId ?? 0) !== storeId) return false;
     if (service !== 'Todos' && row.serviceType !== service) return false;
     if (status !== 'Todos' && row.statusLabel.toLowerCase() !== status.toLowerCase()) {
       return false;

@@ -9,18 +9,22 @@ import { CalendarAppointmentSlotView } from '../../models/calendar.model';
     '[class.cal-appt-slot--muted]': 'slot().muted',
   },
   template: `
-    <button
-      type="button"
-      class="cal-appt-slot twg-cli-pill-{{ slot().pillKind }}"
-      [title]="slot().tooltip"
-      (click)="selected.emit(slot().id)"
-    >
-      <span class="cal-appt-slot-time">{{ slot().timeLabel }}</span>
-      <span class="cli-pill cli-pill-{{ slot().pillKind }} cal-appt-slot-client">
-        {{ slot().customerShort }}
-      </span>
-      <span class="cal-appt-total">{{ slot().totalCompact }}</span>
-    </button>
+    <div class="cal-appt-slot twg-cli-pill-{{ slot().pillKind }}">
+      <div class="cal-appt-slot-body">
+        <span class="cal-appt-slot-time">{{ slot().timeLabel }}</span>
+        <span class="cal-appt-slot-client">{{ slot().customerShort }}</span>
+        <span class="cal-appt-total" [title]="slot().totalFmt">{{ slot().totalCompact }}</span>
+      </div>
+      <button
+        type="button"
+        class="cal-appt-slot-link cal-query-nav"
+        [attr.aria-label]="'Ver cita ' + slot().id"
+        (click)="selected.emit(slot().id); $event.stopPropagation()"
+      >
+        <span class="cal-appt-slot-link-play" aria-hidden="true">▶</span>
+        <span>Ver cita</span>
+      </button>
+    </div>
   `,
 })
 export class CalendarAppointmentSlotComponent {

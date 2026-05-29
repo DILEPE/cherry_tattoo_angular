@@ -7,6 +7,10 @@ import {
   AppointmentPayment,
   AppointmentReceipt,
 } from '../models/appointment.model';
+import {
+  AppointmentSearchField,
+  AppointmentSearchResponse,
+} from '../models/appointment-search.model';
 import { mapPayment, mapReceipt } from '../models/appointment.mapper';
 
 @Injectable({ providedIn: 'root' })
@@ -25,10 +29,29 @@ export class AppointmentsApiService {
     return this.api.get<AppointmentApiRow>(`/api/appointments/${appointmentId}`);
   }
 
+  search(params: {
+    field: AppointmentSearchField;
+    q: string;
+    limit: number;
+    offset: number;
+    assignedPanelUserId?: number | null;
+  }): Observable<AppointmentSearchResponse> {
+    const query: Record<string, string | number> = {
+      field: params.field,
+      q: params.q,
+      limit: params.limit,
+      offset: params.offset,
+    };
+    if (params.assignedPanelUserId != null && params.assignedPanelUserId > 0) {
+      query['assigned_panel_user_id'] = params.assignedPanelUserId;
+    }
+    return this.api.get<AppointmentSearchResponse>('/api/appointments/search', query);
+  }
+
   patchStatus(
     appointmentId: number,
     status: string,
-    onCancelAbono?: 'credito_cliente' | 'devolucion',
+    onCancelAbono?: 'credito_cliente',
   ): Observable<unknown> {
     const body: Record<string, string> = { status };
     if (status === 'Cancelada' && onCancelAbono) {
@@ -61,6 +84,24 @@ export class AppointmentsApiService {
     });
   }
 
+  patchMeta(
+    appointmentId: number,
+    params: {
+      assignedPanelUserId?: number | null;
+      isPriority: boolean;
+      detail?: string | null;
+    },
+  ): Observable<unknown> {
+    const body: Record<string, unknown> = { is_priority: params.isPriority };
+    if (params.assignedPanelUserId != null) {
+      body['assigned_panel_user_id'] = params.assignedPanelUserId;
+    }
+    if (params.detail != null) {
+      body['detail'] = params.detail;
+    }
+    return this.api.patch(`/api/appointments/${appointmentId}/meta`, body);
+  }
+
   getPayments(appointmentId: number): Observable<AppointmentPayment[]> {
     return this.api
       .get<Record<string, unknown>[]>(`/api/appointments/${appointmentId}/payments`)
@@ -71,10 +112,26 @@ export class AppointmentsApiService {
     appointmentId: number,
     amount: number,
     note?: string | null,
+    paidOn?: string | null,
   ): Observable<unknown> {
     const body: Record<string, unknown> = { amount };
     if (note) body['note'] = note;
+    if (paidOn) body['paid_on'] = paidOn;
     return this.api.post(`/api/appointments/${appointmentId}/payments`, body);
+  }
+
+  patchPayment(
+    appointmentId: number,
+    paymentId: number,
+    amount: number,
+    paidOn?: string | null,
+  ): Observable<unknown> {
+    const body: Record<string, unknown> = { amount };
+    if (paidOn) body['paid_on'] = paidOn;
+    return this.api.patch(
+      `/api/appointments/${appointmentId}/payments/${paymentId}`,
+      body,
+    );
   }
 
   getReceipts(appointmentId: number): Observable<AppointmentReceipt[]> {
