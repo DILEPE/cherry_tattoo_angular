@@ -67,9 +67,4 @@ export interface CustomerWritePayload {
   guardian_document_issue_date?: string | null;
 }
 
-export interface CustomerContractRow {
-  id: number;
-  appointmentId: number;
-  serviceType: string;
-  appointmentDate: string | null;
-}
+export type { CustomerSignedContractRow as CustomerContractRow } from '../../contracts/models/signed-contract.model';

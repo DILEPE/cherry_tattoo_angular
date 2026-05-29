@@ -23,11 +23,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'contratos',
         canActivate: [moduleGuard('contratos')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión contratos' },
+        loadChildren: () =>
+          import('../contracts/contracts.routes').then((m) => m.CONTRACTS_ROUTES),
       },
       {
         path: 'encuestas',
