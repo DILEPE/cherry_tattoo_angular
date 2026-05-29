@@ -27,6 +27,7 @@ import { CalendarDayCellComponent } from '../calendar-day-cell/calendar-day-cell
               [showBookFooter]="showBookFooter()"
               (selected)="selected.emit($event)"
               (bookDay)="bookDay.emit($event)"
+              (overflowDay)="overflowDay.emit($event)"
             />
           }
         </div>
@@ -38,6 +39,7 @@ export class CalendarMonthGridComponent {
   private readonly store = inject(AppointmentsStore);
   readonly selected = output<number>();
   readonly bookDay = output<Date>();
+  readonly overflowDay = output<Date>();
   readonly showBookFooter = input(true);
 
   readonly weekdays = [...WEEKDAY_HEADERS_ES];
@@ -46,11 +48,13 @@ export class CalendarMonthGridComponent {
     const { year, month } = this.store.calendarMonth();
     const weeks = buildMonthWeeks(year, month);
     const today = new Date();
+    const teamLayout = this.store.calendarPeriod() === 'team';
     return buildDayCellViews(
       weeks,
       this.store.appointmentsByDay(),
       this.store.clientHistoryCounts(),
       today,
+      teamLayout,
     );
   });
 }

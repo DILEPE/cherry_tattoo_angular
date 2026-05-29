@@ -28,11 +28,14 @@ import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
   template: `
     <div class="appt-shell-header">
       <app-appointments-view-toolbar />
-      @if (canBook()) {
-        <app-button variant="primary" (clicked)="openBookToday()">Cita express</app-button>
-      }
+      <div class="appt-shell-header__actions">
+        <app-button variant="ghost" (clicked)="openSearch()">Buscar cita</app-button>
+        @if (canBook()) {
+          <app-button variant="primary" (clicked)="openBookToday()">Cita express</app-button>
+        }
+      </div>
     </div>
-    <app-appointments-filters />
+    <app-appointments-filters [calendarMode]="store.viewMode() === 'calendar'" />
 
     @if (store.viewMode() === 'calendar') {
       <app-appointments-calendar
@@ -72,7 +75,11 @@ export class AppointmentsShellComponent {
 
   openDetail(id: number): void {
     const data: AppointmentModalData = { appointmentId: id };
-    this.ui.openModal('appointment-detail', data);
+    if (this.store.viewMode() === 'calendar') {
+      this.ui.openModal('appointment-focus', data);
+    } else {
+      this.ui.openModal('appointment-detail', data);
+    }
   }
 
   openBook(date: Date): void {
@@ -84,6 +91,10 @@ export class AppointmentsShellComponent {
 
   openBookToday(): void {
     this.openBook(new Date());
+  }
+
+  openSearch(): void {
+    this.ui.openModal('appointment-search', {});
   }
 
   private toIsoDate(d: Date): string {

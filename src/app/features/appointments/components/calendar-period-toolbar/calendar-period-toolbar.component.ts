@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
+import { AppStore } from '../../../../store/app.store';
 import { CalendarPeriod } from '../../models/calendar.model';
+import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-calendar-period-toolbar',
@@ -16,6 +18,16 @@ import { CalendarPeriod } from '../../models/calendar.model';
       >
         Mes compacto
       </button>
+      @if (canTeam()) {
+        <button
+          type="button"
+          class="cal-period-toolbar__tab"
+          [class.cal-period-toolbar__tab--active]="store.calendarPeriod() === 'team'"
+          (click)="setPeriod('team')"
+        >
+          Mes por equipo
+        </button>
+      }
       <button
         type="button"
         class="cal-period-toolbar__tab"
@@ -29,6 +41,14 @@ import { CalendarPeriod } from '../../models/calendar.model';
 })
 export class CalendarPeriodToolbarComponent {
   protected readonly store = inject(AppointmentsStore);
+  private readonly appStore = inject(AppStore);
+
+  readonly canTeam = computed(() => {
+    const role = this.appStore.user()?.role ?? '';
+    if (!maySeeAllAppointments(role)) return false;
+    const aid = this.store.assignedUserId();
+    return aid == null || aid <= 0;
+  });
 
   setPeriod(period: CalendarPeriod): void {
     this.store.setCalendarPeriod(period);

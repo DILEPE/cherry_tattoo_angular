@@ -17,8 +17,10 @@ export interface AppointmentApiRow {
   assigned_username?: string | null;
   assigned_first_name?: string | null;
   assigned_last_name?: string | null;
+  assigned_store_id?: number | null;
   customer_id?: number | null;
   has_signed_contract?: boolean | null;
+  contract_pending_artist_signature?: boolean | null;
   created_at?: string | null;
 }
 
@@ -30,6 +32,7 @@ export interface AppointmentFinancials {
   totalFmt: string;
   depositFmt: string;
   pendingFmt: string;
+  creditFmt: string;
 }
 
 export interface Appointment {
@@ -47,8 +50,10 @@ export interface Appointment {
   assignedUsername: string;
   assignedLabel: string;
   assignedPanelUserId: number | null;
+  assignedStoreId: number | null;
   customerId: number | null;
   hasSignedContract: boolean;
+  contractPendingArtistSignature: boolean;
   createdAt: string | null;
   financials: AppointmentFinancials;
 }
@@ -65,6 +70,7 @@ export interface AppointmentPayment {
 export interface AppointmentReceipt {
   id: number;
   appointmentId: number;
+  appointmentPaymentId: number | null;
   kind: string;
   amount: number;
   createdAt: string | null;
@@ -74,6 +80,8 @@ export interface AppointmentFilters {
   nameSubstr: string;
   service: string;
   status: string;
+  /** 0 = todas las tiendas. */
+  storeId: number;
   /** YYYY-MM-DD o vacío. */
   fromDate: string;
   toDate: string;

@@ -3,10 +3,13 @@ import {
   CalendarAppointmentSlotView,
   CalendarDayCellView,
   CalendarDayDescriptor,
+  CalendarDayTeamGroupView,
   CalendarMonthState,
+  CALENDAR_COMPACT_MAX_VISIBLE,
   ClientPillKind,
   DayKey,
 } from './calendar.model';
+import { serviceToBadgeVariant } from './appointment.mapper';
 
 export function dayKeyFromDate(d: Date): DayKey {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -76,11 +79,16 @@ export function clientPillKind(
   return 'new';
 }
 
+export function serviceFlagCssClass(service: string): string {
+  const v = serviceToBadgeVariant(service);
+  return v === 'other' ? 'svc-flag-other' : `svc-flag-${v}`;
+}
+
 export function calendarMonthCompactLabel(total: number): string {
   const v = Math.round(Math.max(total, 0));
   if (v <= 0) return '—';
   if (v < 1000) return String(v);
-  const n = Math.floor(v / 1000);
+  const n = Math.trunc(v / 1000);
   if (n < 1000) return String(n);
   return n.toLocaleString('es-CO').replace(/,/g, '.');
 }
@@ -123,16 +131,24 @@ export function toCalendarSlotView(
   const hm = appointmentTimeHm(appt.appointmentDateRaw ?? appt.appointmentDate);
   const customerFull = appt.customerName;
   const customerShort = calendarCellCustomerLabel(customerFull, 22);
-  const staffPart = appt.assignedLabel !== '—' ? ` · ${appt.assignedLabel}` : '';
+  const artist =
+    appt.assignedLabel !== '—' ? appt.assignedLabel.split(' (@')[0] : 'Sin asignar';
+  const staffPart = artist !== 'Sin asignar' ? ` · ${appt.assignedLabel}` : '';
+  const fin = appt.financials;
   return {
     id: appt.id,
     timeLabel: hm,
     customerShort,
     customerFull,
-    totalCompact: calendarMonthCompactLabel(appt.financials.total),
+    serviceType: appt.serviceType,
+    serviceFlagClass: serviceFlagCssClass(appt.serviceType),
+    totalCompact: calendarMonthCompactLabel(fin.total),
+    totalFmt: fin.totalFmt,
+    artistLabel: artist,
+    contractPending: appt.contractPendingArtistSignature,
     pillKind: clientPillKind(appt, countsByClient),
     muted: appt.status === 'cancelada',
-    tooltip: `${hm} · ${customerFull}${staffPart} · Total: ${appt.financials.totalFmt}`,
+    tooltip: `${hm} · ${customerFull}${staffPart} · Total: ${fin.totalFmt}`,
     appointment: appt,
   };
 }
@@ -177,11 +193,62 @@ export function buildMonthWeeks(year: number, month: number): CalendarDayDescrip
   return weeks;
 }
 
+function emptyCell(): CalendarDayCellView {
+  return {
+    day: 0,
+    inMonth: false,
+    date: null,
+    isToday: false,
+    isPast: false,
+    slots: [],
+    hiddenCount: 0,
+    allSlots: [],
+    teamGroups: [],
+  };
+}
+
+function buildCellSlots(
+  rows: Appointment[],
+  countsByClient: Map<string, number>,
+  options: { teamLayout: boolean; maxVisible: number | null },
+): Pick<CalendarDayCellView, 'slots' | 'hiddenCount' | 'allSlots' | 'teamGroups'> {
+  const { teamLayout, maxVisible } = options;
+  const allSlots = rows.map((r) => toCalendarSlotView(r, countsByClient));
+
+  if (teamLayout) {
+    const orderKeys: (number | string)[] = [];
+    const buckets = new Map<number | string, Appointment[]>();
+    const labels = new Map<number | string, string>();
+    for (const row of rows) {
+      const raw = row.assignedPanelUserId;
+      const key = raw != null && raw > 0 ? raw : '__unassigned__';
+      const lab = key === '__unassigned__' ? 'Sin asignar' : row.assignedLabel || '—';
+      if (!buckets.has(key)) {
+        buckets.set(key, []);
+        orderKeys.push(key);
+        labels.set(key, lab);
+      }
+      buckets.get(key)!.push(row);
+    }
+    const teamGroups: CalendarDayTeamGroupView[] = orderKeys.map((key) => ({
+      staffLabel: labels.get(key) ?? '—',
+      slots: (buckets.get(key) ?? []).map((r) => toCalendarSlotView(r, countsByClient)),
+    }));
+    return { slots: allSlots, hiddenCount: 0, allSlots, teamGroups };
+  }
+
+  const limit = maxVisible ?? allSlots.length;
+  const visible = allSlots.slice(0, limit);
+  const hiddenCount = Math.max(0, allSlots.length - visible.length);
+  return { slots: visible, hiddenCount, allSlots, teamGroups: [] };
+}
 export function buildDayCellViews(
   weeks: CalendarDayDescriptor[][],
   byDay: Map<DayKey, Appointment[]>,
   countsByClient: Map<string, number>,
   today: Date,
+  teamLayout = false,
+  maxVisible: number | null = CALENDAR_COMPACT_MAX_VISIBLE,
 ): CalendarDayCellView[][] {
   const todayKey = dayKeyFromDate(today);
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -189,24 +256,21 @@ export function buildDayCellViews(
   return weeks.map((week) =>
     week.map((desc) => {
       if (!desc.inMonth || !desc.date) {
-        return {
-          day: 0,
-          inMonth: false,
-          date: null,
-          isToday: false,
-          isPast: false,
-          slots: [],
-        };
+        return emptyCell();
       }
       const key = dayKeyFromDate(desc.date);
       const rows = byDay.get(key) ?? [];
+      const slotData = buildCellSlots(rows, countsByClient, {
+        teamLayout,
+        maxVisible: teamLayout ? null : maxVisible,
+      });
       return {
         day: desc.day,
         inMonth: true,
         date: desc.date,
         isToday: key === todayKey,
         isPast: desc.date < todayStart,
-        slots: rows.map((r) => toCalendarSlotView(r, countsByClient)),
+        ...slotData,
       };
     }),
   );

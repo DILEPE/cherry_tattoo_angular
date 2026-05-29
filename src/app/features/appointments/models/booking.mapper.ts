@@ -32,6 +32,17 @@ export function appointmentToScheduleKind(appt: Appointment): ScheduleKind {
   return 'piercing';
 }
 
+export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind {
+  const det = (appt.detail || '').toLowerCase();
+  const svc = (appt.serviceType || '').toLowerCase();
+  if (det.includes('limpieza')) return 'limpieza_piercing';
+  if (det.includes('cambio') && (det.includes('pierc') || svc.includes('pierc'))) {
+    return 'cambio_piercing';
+  }
+  if (svc.includes('tatu') || det.includes('tatu')) return 'tatuaje';
+  return 'piercing';
+}
+
 export const MIN_BOOKING_DURATION_SLOTS = 1;
 export const MAX_BOOKING_DURATION_SLOTS = 16;
 

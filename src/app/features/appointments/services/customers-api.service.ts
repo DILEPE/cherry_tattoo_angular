@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { CustomerSnapshot } from '../models/booking.model';
 
@@ -19,6 +19,22 @@ function rowsFromCustomersResponse(
 @Injectable({ providedIn: 'root' })
 export class CustomersApiService {
   private readonly api = inject(ApiService);
+
+  getById(customerId: number): Observable<CustomerSnapshot | null> {
+    const id = Number(customerId);
+    if (id <= 0) return of(null);
+    return this.api.get<Record<string, unknown>>(`/api/customers/${id}`).pipe(
+      map((row) => ({
+        id: Number(row['id'] ?? id),
+        firstName: String(row['first_name'] ?? ''),
+        lastName: String(row['last_name'] ?? ''),
+        phoneNumber: String(row['phone_number'] ?? ''),
+        email: String(row['email'] ?? ''),
+        documentType: String(row['document_type'] ?? 'CC'),
+        documentNumber: String(row['document_number'] ?? ''),
+      })),
+    );
+  }
 
   findByDocument(documentNumber: string): Observable<CustomerSnapshot | null> {
     const doc = documentNumber.trim();
