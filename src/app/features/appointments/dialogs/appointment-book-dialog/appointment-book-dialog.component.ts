@@ -57,28 +57,34 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       </p>
     }
 
-    <section class="appt-book-section">
-      <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
-      <div class="appt-book-row">
-        <app-form-field label="Tipo de documento" [control]="form.controls.docType">
-          <select formControlName="docType">
-            <option value="CC">CC — Cédula</option>
-            <option value="TI">TI — Tarjeta de identidad</option>
-            <option value="CE">CE — Extranjería</option>
-            <option value="PAS">PAS — Pasaporte</option>
-          </select>
-        </app-form-field>
-        <app-form-field label="Número de documento" [control]="form.controls.docNumber">
-          <input formControlName="docNumber" />
-        </app-form-field>
-        <app-button variant="ghost" (clicked)="verifyDocument()">Verificar identificación</app-button>
-      </div>
-      @if (verifyMessage()) {
-        <p [class]="verifyLevelClass()">{{ verifyMessage() }}</p>
-      }
-    </section>
-
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <section class="appt-book-section">
+        <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
+        <div class="appt-book-row">
+          <app-form-field label="Tipo de documento" [control]="form.controls.docType">
+            <select formControlName="docType">
+              <option value="CC">CC — Cédula</option>
+              <option value="TI">TI — Tarjeta de identidad</option>
+              <option value="CE">CE — Extranjería</option>
+              <option value="PAS">PAS — Pasaporte</option>
+            </select>
+          </app-form-field>
+          <app-form-field label="Número de documento" [control]="form.controls.docNumber">
+            <input formControlName="docNumber" autocomplete="off" />
+          </app-form-field>
+          <app-button
+            type="button"
+            variant="ghost"
+            [loading]="verifyLoading()"
+            (clicked)="verifyDocument()"
+          >
+            Verificar identificación
+          </app-button>
+        </div>
+        @if (verifyMessage()) {
+          <p [class]="verifyLevelClass()">{{ verifyMessage() }}</p>
+        }
+      </section>
       <div class="appt-book-row">
         <app-form-field label="Nombre" [control]="form.controls.firstName">
           <input formControlName="firstName" />
@@ -108,10 +114,15 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
           <app-form-field label="Profesional" [control]="form.controls.staffId">
             <select formControlName="staffId">
               @for (s of staffForRole(); track s.id) {
-                <option [value]="s.id">{{ s.label }}</option>
+                <option [ngValue]="s.id">{{ s.label }}</option>
               }
             </select>
           </app-form-field>
+          @if (!staffForRole().length) {
+            <p class="form-field__error">
+              No hay {{ assigneeRoleLabel() }} activo para asignar. Revisa usuarios del panel.
+            </p>
+          }
         } @else {
           <p class="appt-dialog-caption">La cita quedará asignada a tu usuario del panel.</p>
         }
@@ -191,6 +202,9 @@ export class AppointmentBookDialogComponent {
   readonly verifyMessage = signal('');
   readonly verifyLevel = signal<'success' | 'warning' | 'error' | ''>('');
   readonly saving = signal(false);
+  readonly verifyLoading = signal(false);
+  /** Invalida computed que dependen de valores del formulario reactivo. */
+  private readonly formRevision = signal(0);
 
   readonly form = this.fb.nonNullable.group({
     docType: ['CC'],
@@ -222,6 +236,7 @@ export class AppointmentBookDialogComponent {
   });
 
   readonly lockedToSelf = computed(() => {
+    this.formRevision();
     const u = this.appStore.user();
     if (!u) return false;
     const role = u.role;
@@ -230,12 +245,14 @@ export class AppointmentBookDialogComponent {
   });
 
   readonly staffForRole = computed(() => {
+    this.formRevision();
     const wk = this.form.controls.workKind.value as BookingWorkKind;
     const need = workKindToAssigneeRole(wk);
     return this.staffList().filter((s) => s.role === need);
   });
 
   readonly availableSlots = computed(() => {
+    this.formRevision();
     const raw = this.pickedDate();
     if (!raw) return [];
     const day = appointmentRowDate(raw);
@@ -257,6 +274,7 @@ export class AppointmentBookDialogComponent {
 
   constructor() {
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.formRevision.update((n) => n + 1);
       const avail = this.availableSlots();
       const cur = this.form.controls.slot.value;
       if (avail.length && !avail.includes(cur)) {
@@ -270,26 +288,74 @@ export class AppointmentBookDialogComponent {
       this.staffApi.listAssignable().subscribe({
         next: (list) => {
           this.staffList.set(list);
-          const wk = this.form.controls.workKind.value as BookingWorkKind;
-          const filtered = list.filter((s) => s.role === workKindToAssigneeRole(wk));
-          if (filtered.length) {
-            this.form.patchValue({ staffId: filtered[0].id }, { emitEvent: false });
-          }
-          this.cdr.markForCheck();
+          this.syncStaffForWorkKind();
         },
       });
     });
 
     effect(() => {
       if (this.lockedToSelf()) {
-        const id = this.appStore.user()?.id;
-        if (id) this.form.patchValue({ staffId: id }, { emitEvent: false });
+        this.syncStaffForWorkKind();
       }
     });
+
+    this.form.controls.workKind.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((wk) => {
+        const kind = wk as BookingWorkKind;
+        const slots = kind === 'tatuaje' ? 4 : kind === 'piercing' ? 2 : 1;
+        this.form.patchValue({ durationSlots: slots }, { emitEvent: true });
+        this.syncStaffForWorkKind();
+        this.cdr.markForCheck();
+      });
+
+    this.form.controls.docNumber.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.docVerified()) {
+          this.docVerified.set(false);
+          this.verifiedDoc.set('');
+          this.verifyMessage.set('Vuelve a verificar el documento si cambiaste el número.');
+          this.verifyLevel.set('warning');
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   workKindLabel(wk: BookingWorkKind): string {
     return BOOKING_WORK_KIND_META[wk]?.label ?? wk;
+  }
+
+  assigneeRoleLabel(): string {
+    const wk = this.form.controls.workKind.value as BookingWorkKind;
+    return workKindToAssigneeRole(wk) === 'tatuador' ? 'tatuador' : 'perforador';
+  }
+
+  /** Alinea el profesional con el tipo de trabajo (tatuaje → tatuador, piercing → perforador). */
+  private syncStaffForWorkKind(): void {
+    if (this.lockedToSelf()) {
+      const id = this.appStore.user()?.id;
+      if (id) this.form.patchValue({ staffId: id }, { emitEvent: false });
+      return;
+    }
+    const filtered = this.staffForRole();
+    if (!filtered.length) {
+      this.form.patchValue({ staffId: 0 }, { emitEvent: false });
+      this.form.controls.staffId.setErrors({ noStaff: true });
+      return;
+    }
+    const cur = Number(this.form.controls.staffId.value);
+    if (!filtered.some((s) => s.id === cur)) {
+      this.form.patchValue({ staffId: filtered[0].id }, { emitEvent: false });
+    }
+    this.form.controls.staffId.setErrors(null);
+  }
+
+  private resolveStaffId(): number {
+    if (this.lockedToSelf()) {
+      return Number(this.appStore.user()?.id ?? 0);
+    }
+    return Number(this.form.controls.staffId.value);
   }
 
   verifyLevelClass(): string {
@@ -300,15 +366,18 @@ export class AppointmentBookDialogComponent {
   }
 
   verifyDocument(): void {
-    const doc = this.form.controls.docNumber.value.trim();
+    const doc = (this.form.controls.docNumber.value ?? '').trim();
     if (doc.length < 5) {
       this.docVerified.set(false);
       this.verifyLevel.set('error');
       this.verifyMessage.set('Ingresa un número de identificación válido (mínimo 5 caracteres).');
+      this.cdr.markForCheck();
       return;
     }
+    this.verifyLoading.set(true);
     this.customersApi.findByDocument(doc).subscribe({
       next: (row) => {
+        this.verifyLoading.set(false);
         this.verifiedDoc.set(doc);
         this.docVerified.set(true);
         if (!row) {
@@ -336,8 +405,10 @@ export class AppointmentBookDialogComponent {
         this.cdr.markForCheck();
       },
       error: (err) => {
+        this.verifyLoading.set(false);
         this.docVerified.set(false);
         this.errors.handle(err);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -385,11 +456,15 @@ export class AppointmentBookDialogComponent {
     }
 
     const wk = this.form.controls.workKind.value as BookingWorkKind;
-    const staffId = this.lockedToSelf()
-      ? Number(this.appStore.user()?.id)
-      : Number(this.form.controls.staffId.value);
-    if (!staffId) {
-      this.toast.error('Indica el profesional que atenderá la cita.');
+    const staffId = this.resolveStaffId();
+    const allowed = this.staffForRole();
+    if (!staffId || !allowed.some((s) => s.id === staffId)) {
+      const rol = this.assigneeRoleLabel();
+      this.toast.error(
+        allowed.length
+          ? `Elige un ${rol} en el campo Profesional (debe coincidir con el tipo de trabajo).`
+          : `No hay ningún ${rol} activo para asignar esta cita.`,
+      );
       return;
     }
 

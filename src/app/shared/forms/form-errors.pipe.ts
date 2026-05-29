@@ -12,6 +12,8 @@ export class FormErrorPipe implements PipeTransform {
     if (errors['minCop']) return `Mínimo COP $${errors['minCop'].min}`;
     if (errors['minlength'])
       return `Mínimo ${errors['minlength'].requiredLength} caracteres`;
+    if (errors['min']) return 'Valor demasiado bajo';
+    if (errors['noStaff']) return 'No hay profesional disponible para este tipo de trabajo';
     return 'Campo inválido';
   }
 }
