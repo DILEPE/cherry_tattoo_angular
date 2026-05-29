@@ -2,3 +2,8 @@
 export interface AppointmentModalData {
   appointmentId: number;
 }
+
+export interface BookAppointmentModalData {
+  /** YYYY-MM-DD */
+  pickedDate: string;
+}

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
 import {
   buildDayCellViews,
@@ -22,7 +22,12 @@ import { CalendarDayCellComponent } from '../calendar-day-cell/calendar-day-cell
       @for (week of weeksView(); track $index) {
         <div class="cal-month-week">
           @for (cell of week; track $index) {
-            <app-calendar-day-cell [cell]="cell" (selected)="selected.emit($event)" />
+            <app-calendar-day-cell
+              [cell]="cell"
+              [showBookFooter]="showBookFooter()"
+              (selected)="selected.emit($event)"
+              (bookDay)="bookDay.emit($event)"
+            />
           }
         </div>
       }
@@ -32,6 +37,8 @@ import { CalendarDayCellComponent } from '../calendar-day-cell/calendar-day-cell
 export class CalendarMonthGridComponent {
   private readonly store = inject(AppointmentsStore);
   readonly selected = output<number>();
+  readonly bookDay = output<Date>();
+  readonly showBookFooter = input(true);
 
   readonly weekdays = [...WEEKDAY_HEADERS_ES];
 

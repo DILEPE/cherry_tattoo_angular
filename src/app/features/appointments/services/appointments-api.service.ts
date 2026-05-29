@@ -94,4 +94,8 @@ export class AppointmentsApiService {
       `/api/appointments/${appointmentId}/receipts/${receiptId}/resend`,
     );
   }
+
+  create(payload: Record<string, unknown>): Observable<{ id?: number; message?: string }> {
+    return this.api.post<{ id?: number; message?: string }>('/api/appointments', payload);
+  }
 }

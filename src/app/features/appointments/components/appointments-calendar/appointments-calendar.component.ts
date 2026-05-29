@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
 import { CalendarLegendComponent } from '../calendar-legend/calendar-legend.component';
 import { CalendarMonthHeaderComponent } from '../calendar-month-header/calendar-month-header.component';
@@ -31,11 +31,17 @@ import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleto
     } @else if (store.error()) {
       <p class="empty-state">{{ store.error() }}</p>
     } @else {
-      <app-calendar-month-grid (selected)="selected.emit($event)" />
+      <app-calendar-month-grid
+        [showBookFooter]="showBookFooter()"
+        (selected)="selected.emit($event)"
+        (bookDay)="bookDay.emit($event)"
+      />
     }
   `,
 })
 export class AppointmentsCalendarComponent {
   protected readonly store = inject(AppointmentsStore);
   readonly selected = output<number>();
+  readonly bookDay = output<Date>();
+  readonly showBookFooter = input(true);
 }

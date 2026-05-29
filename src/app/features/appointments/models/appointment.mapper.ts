@@ -127,6 +127,10 @@ export function mapAppointment(raw: AppointmentApiRow): Appointment {
     isPriority: Boolean(raw.is_priority),
     assignedUsername: (raw.assigned_username ?? '').trim(),
     assignedLabel: assignedStaffLabel(raw),
+    assignedPanelUserId:
+      raw.assigned_panel_user_id != null && Number(raw.assigned_panel_user_id) > 0
+        ? Number(raw.assigned_panel_user_id)
+        : null,
     customerId: cid != null && cid > 0 ? Number(cid) : null,
     hasSignedContract: Boolean(raw.has_signed_contract),
     createdAt: raw.created_at != null ? String(raw.created_at) : null,
