@@ -30,11 +30,26 @@ import { CalendarAppointmentSlotComponent } from '../calendar-appointment-slot/c
             }
           }
         </div>
+        @if (showBookFooter()) {
+          <div class="cal-cell-footer-strip">
+            <span class="cal-footer-daynum">{{ cell().day }}</span>
+            <button
+              type="button"
+              class="cal-footer-book btn btn--ghost"
+              [disabled]="cell().isPast"
+              (click)="bookDay.emit(cell().date!)"
+            >
+              + Agendar
+            </button>
+          </div>
+        }
       </div>
     }
   `,
 })
 export class CalendarDayCellComponent {
   readonly cell = input.required<CalendarDayCellView>();
+  readonly showBookFooter = input(true);
   readonly selected = output<number>();
+  readonly bookDay = output<Date>();
 }

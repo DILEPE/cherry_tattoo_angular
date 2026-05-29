@@ -46,6 +46,7 @@ export interface Appointment {
   isPriority: boolean;
   assignedUsername: string;
   assignedLabel: string;
+  assignedPanelUserId: number | null;
   customerId: number | null;
   hasSignedContract: boolean;
   createdAt: string | null;

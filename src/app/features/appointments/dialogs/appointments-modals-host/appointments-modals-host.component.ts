@@ -6,6 +6,7 @@ import { AppointmentRescheduleDialogComponent } from '../appointment-reschedule-
 import { AppointmentCancelDialogComponent } from '../appointment-cancel-dialog/appointment-cancel-dialog.component';
 import { AppointmentFinancialsDialogComponent } from '../appointment-financials-dialog/appointment-financials-dialog.component';
 import { AppointmentReceiptsDialogComponent } from '../appointment-receipts-dialog/appointment-receipts-dialog.component';
+import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appointment-book-dialog.component';
 
 @Component({
   selector: 'app-appointments-modals-host',
@@ -18,6 +19,7 @@ import { AppointmentReceiptsDialogComponent } from '../appointment-receipts-dial
     AppointmentCancelDialogComponent,
     AppointmentFinancialsDialogComponent,
     AppointmentReceiptsDialogComponent,
+    AppointmentBookDialogComponent,
   ],
   template: `
     @switch (ui.activeModal()?.id) {
@@ -53,6 +55,13 @@ import { AppointmentReceiptsDialogComponent } from '../appointment-receipts-dial
         @defer (on immediate) {
           <app-modal title="Recibos de pago (PDF)" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
             <app-appointment-receipts-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-book') {
+        @defer (on immediate) {
+          <app-modal title="Agendar cita" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
+            <app-appointment-book-dialog />
           </app-modal>
         }
       }

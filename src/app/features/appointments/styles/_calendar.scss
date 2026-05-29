@@ -73,6 +73,30 @@
   color: var(--brand);
 }
 
+.cal-cell-footer-strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.28rem 0.35rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.cal-footer-daynum {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.cal-footer-book {
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.45rem !important;
+}
+
 .cal-day-inner {
   flex: 1 1 auto;
   min-height: 0;
