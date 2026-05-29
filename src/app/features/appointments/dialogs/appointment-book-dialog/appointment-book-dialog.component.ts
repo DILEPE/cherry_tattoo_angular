@@ -57,28 +57,34 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       </p>
     }
 
-    <section class="appt-book-section">
-      <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
-      <div class="appt-book-row">
-        <app-form-field label="Tipo de documento" [control]="form.controls.docType">
-          <select formControlName="docType">
-            <option value="CC">CC — Cédula</option>
-            <option value="TI">TI — Tarjeta de identidad</option>
-            <option value="CE">CE — Extranjería</option>
-            <option value="PAS">PAS — Pasaporte</option>
-          </select>
-        </app-form-field>
-        <app-form-field label="Número de documento" [control]="form.controls.docNumber">
-          <input formControlName="docNumber" />
-        </app-form-field>
-        <app-button variant="ghost" (clicked)="verifyDocument()">Verificar identificación</app-button>
-      </div>
-      @if (verifyMessage()) {
-        <p [class]="verifyLevelClass()">{{ verifyMessage() }}</p>
-      }
-    </section>
-
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <section class="appt-book-section">
+        <h4 class="appt-dialog-subtitle">Identificación del cliente</h4>
+        <div class="appt-book-row">
+          <app-form-field label="Tipo de documento" [control]="form.controls.docType">
+            <select formControlName="docType">
+              <option value="CC">CC — Cédula</option>
+              <option value="TI">TI — Tarjeta de identidad</option>
+              <option value="CE">CE — Extranjería</option>
+              <option value="PAS">PAS — Pasaporte</option>
+            </select>
+          </app-form-field>
+          <app-form-field label="Número de documento" [control]="form.controls.docNumber">
+            <input formControlName="docNumber" autocomplete="off" />
+          </app-form-field>
+          <app-button
+            type="button"
+            variant="ghost"
+            [loading]="verifyLoading()"
+            (clicked)="verifyDocument()"
+          >
+            Verificar identificación
+          </app-button>
+        </div>
+        @if (verifyMessage()) {
+          <p [class]="verifyLevelClass()">{{ verifyMessage() }}</p>
+        }
+      </section>
       <div class="appt-book-row">
         <app-form-field label="Nombre" [control]="form.controls.firstName">
           <input formControlName="firstName" />
@@ -191,6 +197,7 @@ export class AppointmentBookDialogComponent {
   readonly verifyMessage = signal('');
   readonly verifyLevel = signal<'success' | 'warning' | 'error' | ''>('');
   readonly saving = signal(false);
+  readonly verifyLoading = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     docType: ['CC'],
@@ -286,6 +293,18 @@ export class AppointmentBookDialogComponent {
         if (id) this.form.patchValue({ staffId: id }, { emitEvent: false });
       }
     });
+
+    this.form.controls.docNumber.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.docVerified()) {
+          this.docVerified.set(false);
+          this.verifiedDoc.set('');
+          this.verifyMessage.set('Vuelve a verificar el documento si cambiaste el número.');
+          this.verifyLevel.set('warning');
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   workKindLabel(wk: BookingWorkKind): string {
@@ -300,15 +319,18 @@ export class AppointmentBookDialogComponent {
   }
 
   verifyDocument(): void {
-    const doc = this.form.controls.docNumber.value.trim();
+    const doc = (this.form.controls.docNumber.value ?? '').trim();
     if (doc.length < 5) {
       this.docVerified.set(false);
       this.verifyLevel.set('error');
       this.verifyMessage.set('Ingresa un número de identificación válido (mínimo 5 caracteres).');
+      this.cdr.markForCheck();
       return;
     }
+    this.verifyLoading.set(true);
     this.customersApi.findByDocument(doc).subscribe({
       next: (row) => {
+        this.verifyLoading.set(false);
         this.verifiedDoc.set(doc);
         this.docVerified.set(true);
         if (!row) {
@@ -336,8 +358,10 @@ export class AppointmentBookDialogComponent {
         this.cdr.markForCheck();
       },
       error: (err) => {
+        this.verifyLoading.set(false);
         this.docVerified.set(false);
         this.errors.handle(err);
+        this.cdr.markForCheck();
       },
     });
   }

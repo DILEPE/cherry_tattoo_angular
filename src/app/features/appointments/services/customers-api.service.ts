@@ -7,20 +7,30 @@ interface CustomersListResponse {
   items?: Record<string, unknown>[];
 }
 
+function rowsFromCustomersResponse(
+  resp: CustomersListResponse | Record<string, unknown>[] | null | undefined,
+): Record<string, unknown>[] {
+  if (!resp) return [];
+  if (Array.isArray(resp)) return resp;
+  const items = resp.items;
+  return Array.isArray(items) ? items : [];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CustomersApiService {
   private readonly api = inject(ApiService);
 
   findByDocument(documentNumber: string): Observable<CustomerSnapshot | null> {
+    const doc = documentNumber.trim();
     return this.api
-      .get<CustomersListResponse>('/api/customers', {
+      .get<CustomersListResponse | Record<string, unknown>[]>('/api/customers', {
         limit: 1,
         offset: 0,
-        document_number: documentNumber.trim(),
+        document_number: doc,
       })
       .pipe(
         map((resp) => {
-          const row = resp.items?.[0];
+          const row = rowsFromCustomersResponse(resp)[0];
           if (!row) return null;
           return {
             id: Number(row['id'] ?? 0),
