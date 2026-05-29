@@ -4,8 +4,9 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
 import { pipe, switchMap, tap } from 'rxjs';
 import { PanelUsersApiService } from './services/panel-users-api.service';
-import { StoresApiService } from './services/stores-api.service';
-import { PanelUserRow, StoreOption } from './models/panel-user.model';
+import { StoresApiService } from '../../core/services/stores-api.service';
+import { StoreOption } from '../../core/models/store.model';
+import { PanelUserRow } from './models/panel-user.model';
 import { apiErrorMessage } from '../../core/services/api.service';
 
 interface PanelUsersState {

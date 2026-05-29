@@ -85,12 +85,6 @@ export interface PanelUserFormValue {
   moduleKeys: AssignablePanelModuleKey[];
 }
 
-export interface StoreOption {
-  id: number;
-  name: string;
-  isActive: boolean;
-}
-
 export function panelUserDisplayName(u: Pick<PanelUserRow, 'firstName' | 'lastName' | 'username'>): string {
   const full = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim();
   return full || u.username || '—';

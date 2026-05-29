@@ -41,11 +41,8 @@ export const SHELL_ROUTES: Routes = [
       {
         path: 'tiendas',
         canActivate: [moduleGuard('tiendas')],
-        loadComponent: () =>
-          import('./components/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
-        data: { title: 'Gestión de tiendas' },
+        loadChildren: () =>
+          import('../stores/stores.routes').then((m) => m.STORES_ROUTES),
       },
       {
         path: 'usuarios_panel',
