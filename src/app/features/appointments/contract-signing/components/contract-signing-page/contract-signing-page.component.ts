@@ -78,13 +78,10 @@ import { DocumentType } from '../../../../customers/models/customer.model';
       } @else if (artistOnly()) {
         <section class="ctsig-step">
           <h2>Firma del profesional</h2>
-          <p class="ctsig-step-intro">
-            El cliente ya firmó. Solo debes registrar tu firma para finalizar la cita.
-          </p>
           @if (paymentBlock()) {
             <p class="form-field__error">{{ paymentBlock() }}</p>
           } @else if (!summaryPendingArtist()) {
-            <p class="ctsig-step-intro">Este contrato ya tiene la firma del profesional.</p>
+            <p class="ctsig-page__meta">Este contrato ya tiene la firma del profesional.</p>
           } @else {
             <app-signature-pad
               label="Firma del tatuador/perforador *"
@@ -117,9 +114,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
           @case (1) {
             <section class="ctsig-step">
               <h2>Etapa 1 — Datos del cliente</h2>
-              <p class="ctsig-step-intro">
-                Completa los datos obligatorios antes del cuestionario y la firma.
-              </p>
               @if (customer(); as c) {
                 <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
                   <div actions class="ctsig-step-actions">
@@ -138,9 +132,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
             <section class="ctsig-step">
               <h2>Etapa 2 — Cuestionario</h2>
               @if (!questions().length) {
-                <p class="ctsig-step-intro">
-                  No hay preguntas activas. Puedes continuar directamente a la firma.
-                </p>
                 <app-button variant="primary" (clicked)="goToSignStep()">
                   Continuar a firma
                 </app-button>
@@ -250,9 +241,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
       } @else {
         <section class="ctsig-step ctsig-step--single">
           <h2>Firma de contrato</h2>
-          <p class="ctsig-step-intro">
-            Completa los datos del cliente, el cuestionario y la firma en esta misma pantalla.
-          </p>
           @if (paymentBlock()) {
             <p class="form-field__error">{{ paymentBlock() }}</p>
           }

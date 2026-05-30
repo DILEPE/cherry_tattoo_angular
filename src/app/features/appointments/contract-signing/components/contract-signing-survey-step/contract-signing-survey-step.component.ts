@@ -52,10 +52,6 @@ import {
 
   template: `
 
-    @if (!inline()) {
-      <p class="ctsig-step-intro">Completa el cuestionario de salud y satisfacción.</p>
-    }
-
     @if (errors().length) {
 
       <ul class="form-field__error ctsig-errors" role="alert">
