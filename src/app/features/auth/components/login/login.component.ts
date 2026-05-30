@@ -18,6 +18,13 @@ import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
   imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
   template: `
     <div class="login-page panel-fade-in">
+      <img
+        class="login-page__logo"
+        src="/assets/rock-city-logo.png"
+        alt="Rock City"
+        width="72"
+        height="72"
+      />
       <div class="login-card" [class.login-card--busy]="appStore.authLoading()">
         @if (appStore.authLoading()) {
           <div class="login-card__overlay" aria-live="polite" aria-busy="true">

@@ -425,41 +425,158 @@
 }
 
 .panel-layout {
+  --panel-sidebar-current: var(--panel-sidebar-width);
   display: grid;
-  grid-template-columns: 16rem 1fr;
+  grid-template-columns: var(--panel-sidebar-current) 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.22s ease;
+
+  &--collapsed {
+    --panel-sidebar-current: var(--panel-sidebar-width-collapsed);
+  }
 }
 
 .panel-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  align-self: start;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--surface-sidebar);
   color: #f1f5f9;
-  padding: 1rem 0.75rem;
+  padding: 0.85rem 0.65rem;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
+}
+
+.panel-sidebar__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.panel-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    opacity: 0.92;
+  }
+}
+
+.panel-sidebar__logo {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.panel-sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+
+  strong {
+    font-size: 0.92rem;
+    letter-spacing: 0.02em;
+  }
 }
 
 .panel-sidebar__subtitle {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   opacity: 0.75;
 }
 
+.panel-sidebar__toggle {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 120, 180, 0.85);
+    outline-offset: 2px;
+  }
+}
+
+.panel-sidebar__toggle-icon {
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: auto;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(-45deg) translate(-1px, 1px);
+  transition: transform 0.2s ease;
+}
+
+.panel-layout--collapsed .panel-sidebar__toggle-icon {
+  transform: rotate(135deg) translate(-1px, 1px);
+}
+
+.panel-sidebar__user-block {
+  padding: 0.35rem 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .panel-sidebar__user {
-  font-size: 0.8rem;
-  margin: 0.75rem 0 0;
-  opacity: 0.85;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.9;
+  overflow: hidden;
+}
+
+.panel-sidebar__user-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-sidebar__user-role {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  text-transform: capitalize;
 }
 
 .panel-sidebar__session {
-  font-size: 0.72rem;
-  margin: 0.2rem 0 0;
+  margin: 0.25rem 0 0;
+  font-size: 0.68rem;
   color: rgba(255, 200, 220, 0.9);
   font-variant-numeric: tabular-nums;
 }
 
 .panel-sidebar__footer {
   margin-top: auto;
-  padding-top: 2rem;
+  padding-top: 1rem;
 
   app-button {
     display: block;
@@ -469,7 +586,8 @@
   .btn {
     width: 100%;
     justify-content: center;
-    padding: 0.62rem 1rem;
+    gap: 0.45rem;
+    padding: 0.62rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -497,20 +615,28 @@
   }
 }
 
+.panel-sidebar__logout-icon {
+  display: inline-flex;
+  line-height: 0;
+}
+
 .panel-sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 1rem;
+  gap: 0.2rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-sidebar__link {
-  display: block;
-  padding: 0.55rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
   border-radius: var(--radius-md);
   color: inherit;
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
   font-weight: 500;
 
   &:hover {
@@ -523,8 +649,86 @@
   }
 }
 
+.panel-sidebar__link-icon {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.panel-sidebar__link--active .panel-sidebar__link-icon {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.panel-sidebar__link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-layout--collapsed {
+  .panel-sidebar__brand-text,
+  .panel-sidebar__user-block,
+  .panel-sidebar__link-label,
+  .panel-sidebar__logout-label {
+    display: none;
+  }
+
+  .panel-sidebar__head {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .panel-sidebar__brand {
+    justify-content: center;
+  }
+
+  .panel-sidebar__link {
+    justify-content: center;
+    padding-inline: 0.35rem;
+  }
+
+  .panel-sidebar__footer .btn {
+    padding-inline: 0.35rem;
+  }
+}
+
 .panel-main {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
   padding: 1.25rem 1.5rem 2rem;
+  background: var(--surface-raised);
+
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--panel-sidebar-current);
+    z-index: 0;
+    pointer-events: none;
+    background-image: url('/assets/rock-city-watermark.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: clamp(320px, 78vmin, min(92vw, 1180px));
+    opacity: var(--panel-watermark-opacity);
+    filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.06)) brightness(1.02) contrast(1.02);
+    mix-blend-mode: multiply;
+    transition: left 0.22s ease;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .appt-list-footer {
@@ -1282,12 +1486,41 @@
 }
 
 .login-page {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
   padding: 1.5rem;
   background: var(--surface-raised);
+
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url('/assets/rock-city-watermark.png');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: clamp(320px, 82vmin, min(94vw, 1200px));
+    opacity: var(--panel-watermark-opacity);
+    filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.06)) brightness(1.02) contrast(1.02);
+    mix-blend-mode: multiply;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.login-page__logo {
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.12));
 }
 
 .login-card {
