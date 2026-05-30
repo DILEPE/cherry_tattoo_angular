@@ -1,5 +1,13 @@
 export type ContractKind = 'tattoo' | 'piercing';
 
+/** Flujo de firma configurado en la plantilla activa. */
+export type ContractSigningFlow = 'phased' | 'single';
+
+export const CONTRACT_SIGNING_FLOW_LABELS: Record<ContractSigningFlow, string> = {
+  phased: 'Con fases (3 pasos)',
+  single: 'Sin fases (una pantalla)',
+};
+
 export const CONTRACT_KIND_LABEL_ES: Record<ContractKind, string> = {
   tattoo: 'Tatuaje',
   piercing: 'Piercing',
@@ -28,6 +36,7 @@ export interface ContractTemplate {
   version: string;
   content: string;
   isActive: boolean;
+  signingFlow: ContractSigningFlow;
 }
 
 export interface ContractTemplateWritePayload {
@@ -36,4 +45,5 @@ export interface ContractTemplateWritePayload {
   version: string;
   content: string;
   is_active: boolean;
+  signing_flow: ContractSigningFlow;
 }

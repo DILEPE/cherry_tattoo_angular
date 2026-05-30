@@ -4,6 +4,7 @@ import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleto
 import { AppIconActionButtonComponent } from '../../../../shared/ui/icon-button/app-icon-action-button.component';
 import {
   CONTRACT_KIND_LABEL_ES,
+  CONTRACT_SIGNING_FLOW_LABELS,
   ContractTemplate,
 } from '../../models/contract-template.model';
 
@@ -28,6 +29,7 @@ import {
               <th><span class="ct-col-head">Nombre</span></th>
               <th><span class="ct-col-head">Tipo</span></th>
               <th><span class="ct-col-head">Versión</span></th>
+              <th><span class="ct-col-head">Flujo firma</span></th>
               <th><span class="ct-col-head">Activa</span></th>
               <th><span class="ct-col-head ct-col-head--actions">Acciones</span></th>
             </tr>
@@ -38,6 +40,7 @@ import {
                 <td>{{ row.name }}</td>
                 <td>{{ kindLabel(row.contractKind) }}</td>
                 <td>{{ row.version }}</td>
+                <td>{{ flowLabel(row.signingFlow) }}</td>
                 <td>
                   <span class="ct-active-pill" [class.ct-active-pill--on]="row.isActive">
                     {{ row.isActive ? 'Sí' : 'No' }}
@@ -67,6 +70,8 @@ export class ContractsTemplatesListComponent {
   protected readonly store = inject(ContractsStore);
   protected readonly kindLabel = (k: keyof typeof CONTRACT_KIND_LABEL_ES) =>
     CONTRACT_KIND_LABEL_ES[k];
+  protected readonly flowLabel = (f: keyof typeof CONTRACT_SIGNING_FLOW_LABELS) =>
+    CONTRACT_SIGNING_FLOW_LABELS[f];
 
   readonly edit = output<ContractTemplate>();
   readonly delete = output<ContractTemplate>();

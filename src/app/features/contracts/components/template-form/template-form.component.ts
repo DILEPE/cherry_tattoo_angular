@@ -18,7 +18,9 @@ import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import {
   CONTRACT_KIND_LABEL_ES,
   CONTRACT_PLACEHOLDERS_HINT,
+  CONTRACT_SIGNING_FLOW_LABELS,
   ContractKind,
+  ContractSigningFlow,
   ContractTemplate,
 } from '../../models/contract-template.model';
 import { trimRequiredValidator } from '../../../../shared/forms/form-validators';
@@ -31,6 +33,7 @@ export interface TemplateFormValue {
   version: string;
   content: string;
   isActive: boolean;
+  signingFlow: ContractSigningFlow;
 }
 
 @Component({
@@ -60,10 +63,20 @@ export interface TemplateFormValue {
         <app-form-field label="Versión *" [control]="form.controls.version">
           <input formControlName="version" placeholder="Ej. 1.0.0" autocomplete="off" />
         </app-form-field>
+        <app-form-field label="Flujo al firmar *" [control]="form.controls.signingFlow">
+          <select formControlName="signingFlow">
+            @for (f of signingFlows; track f) {
+              <option [value]="f">{{ signingFlowLabel(f) }}</option>
+            }
+          </select>
+        </app-form-field>
         <label class="ct-form-check">
           <input type="checkbox" formControlName="isActive" />
           Plantilla activa
         </label>
+        <p class="ct-form-flow-hint">
+          Sin fases: datos, cuestionario y firma en una sola pantalla. Con fases: tres pasos como hasta ahora.
+        </p>
       </div>
       <section
         class="ct-editor-panel"
@@ -98,8 +111,11 @@ export class TemplateFormComponent {
   readonly submitted = output<TemplateFormValue>();
 
   protected readonly kinds: ContractKind[] = ['tattoo', 'piercing'];
+  protected readonly signingFlows: ContractSigningFlow[] = ['phased', 'single'];
   protected readonly placeholdersHint = CONTRACT_PLACEHOLDERS_HINT;
   protected readonly kindLabel = (k: ContractKind) => CONTRACT_KIND_LABEL_ES[k];
+  protected readonly signingFlowLabel = (f: ContractSigningFlow) =>
+    CONTRACT_SIGNING_FLOW_LABELS[f];
 
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
@@ -112,6 +128,7 @@ export class TemplateFormComponent {
     version: ['', trimRequiredValidator()],
     content: ['', richHtmlRequiredValidator()],
     isActive: [true],
+    signingFlow: ['phased' as ContractSigningFlow, Validators.required],
   });
 
   private readonly _patch = effect(() => {
@@ -123,6 +140,7 @@ export class TemplateFormComponent {
         version: '',
         content: '',
         isActive: true,
+        signingFlow: 'phased',
       });
       return;
     }
@@ -132,6 +150,7 @@ export class TemplateFormComponent {
       version: t.version,
       content: t.content,
       isActive: t.isActive,
+      signingFlow: t.signingFlow,
     });
     this.cdr.markForCheck();
   });
@@ -145,6 +164,7 @@ export class TemplateFormComponent {
           contractKind: 'Tipo de trabajo',
           version: 'Versión',
           content: 'Texto del contrato',
+          signingFlow: 'Flujo al firmar',
         },
         onInvalid: () => this.formShowErrors()?.activate(),
       })
@@ -160,6 +180,7 @@ export class TemplateFormComponent {
       version: v.version,
       content: v.content,
       isActive: v.isActive,
+      signingFlow: v.signingFlow,
     });
   }
 

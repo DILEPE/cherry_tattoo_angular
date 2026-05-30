@@ -10,6 +10,7 @@ import { AppointmentBookDialogComponent } from '../appointment-book-dialog/appoi
 import { CalendarDayOverflowDialogComponent } from '../calendar-day-overflow-dialog/calendar-day-overflow-dialog.component';
 import { AppointmentSearchDialogComponent } from '../appointment-search-dialog/appointment-search-dialog.component';
 import { AppointmentFocusDialogComponent } from '../appointment-focus-dialog/appointment-focus-dialog.component';
+import { AppointmentContractViewDialogComponent } from '../appointment-contract-view-dialog/appointment-contract-view-dialog.component';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 
 @Component({
@@ -27,6 +28,7 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
     CalendarDayOverflowDialogComponent,
     AppointmentSearchDialogComponent,
     AppointmentFocusDialogComponent,
+    AppointmentContractViewDialogComponent,
   ],
   template: `
     @switch (ui.activeModal()?.id) {
@@ -130,6 +132,20 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             title="Buscar cita" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
             <app-appointment-search-dialog />
+          </app-modal>
+        }
+      }
+      @case ('appointment-contract-view') {
+        @defer (on immediate) {
+          <app-modal
+            title="Contrato firmado"
+            size="lg"
+            [isOpen]="true"
+            [busy]="ui.globalLoading()"
+            [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
+            (closed)="ui.closeModal()"
+          >
+            <app-appointment-contract-view-dialog />
           </app-modal>
         }
       }

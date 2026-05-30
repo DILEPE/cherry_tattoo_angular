@@ -16,7 +16,6 @@ import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
   selector: 'app-appointments-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [AppointmentsStore, AppointmentDialogStore],
   imports: [
     AppointmentsViewToolbarComponent,
     AppointmentsFiltersComponent,
