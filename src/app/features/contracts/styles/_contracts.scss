@@ -19,6 +19,14 @@
   margin-bottom: 0.75rem;
 }
 
+.ct-form-flow-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .ct-toolbar__check {
   display: inline-flex;
   align-items: center;

@@ -16,8 +16,8 @@ import {
   formatSearchHitDatetime,
   searchHitArtistLabel,
 } from '../../models/appointment-search.model';
-import { appointmentRowDate } from '../../models/calendar.mapper';
 import { AppointmentApiRow } from '../../models/appointment.model';
+import { openAppointmentModal } from '../appointment-open.util';
 
 @Component({
   selector: 'app-appointment-search-dialog',
@@ -66,7 +66,7 @@ import { AppointmentApiRow } from '../../models/appointment.model';
               <th>Recibo #</th>
               <th>Cliente</th>
               <th>Artista</th>
-              <th>Ir a fecha</th>
+              <th>Ver cita</th>
             </tr>
           </thead>
           <tbody>
@@ -80,11 +80,11 @@ import { AppointmentApiRow } from '../../models/appointment.model';
                   <button
                     type="button"
                     class="btn btn--ghost ap-search-go"
-                    title="Ir a fecha en agenda semanal"
+                    title="Abrir ficha de la cita"
                     [disabled]="navigatingId() === hit.id"
-                    (click)="goToAppointment(hit)"
+                    (click)="openAppointment(hit)"
                   >
-                    Ir
+                    Ver
                   </button>
                 </td>
               </tr>
@@ -185,7 +185,7 @@ export class AppointmentSearchDialogComponent {
       });
   }
 
-  goToAppointment(hit: AppointmentSearchHit): void {
+  openAppointment(hit: AppointmentSearchHit): void {
     const id = hit.id;
     if (id <= 0) return;
     this.navigatingId.set(id);
@@ -195,10 +195,8 @@ export class AppointmentSearchDialogComponent {
       .subscribe({
         next: (raw) => {
           this.store.mergeAppointment(raw);
-          const d = appointmentRowDate(raw.appointment_date ?? hit.appointment_date);
-          this.store.focusCalendarWeek(d);
           this.navigatingId.set(0);
-          this.ui.closeModal();
+          openAppointmentModal(this.ui, this.store, id);
         },
         error: () => {
           this.navigatingId.set(0);

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
@@ -11,6 +12,8 @@ import { statusToPillVariant, serviceToBadgeVariant } from '../../models/appoint
 import {
   canCancelAppointment,
   canEditFinancials,
+  firmarContratoDisabled,
+  firmarContratoLabel,
   reprogramDisabledForRow,
 } from '../../models/appointment-policy';
 import { appointmentTimeHm } from '../../models/calendar.mapper';
@@ -37,7 +40,12 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
       <div class="appt-detail">
         <div class="appt-detail__header">
           <h3>Cita #{{ a.id }}</h3>
-          <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+          <div class="appt-detail__status">
+            <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+            @if (a.hasSignedContract) {
+              <app-button variant="ghost" (clicked)="openContractView()">Ver contrato</app-button>
+            }
+          </div>
         </div>
 
         <dl class="appt-detail__grid">
@@ -116,6 +124,13 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
           >
             Anular cita
           </app-button>
+          <app-button
+            variant="ghost"
+            [disabled]="firmarContratoDisabled(a)"
+            (clicked)="openSignContract()"
+          >
+            {{ firmarContratoLabel(a) }}
+          </app-button>
         </div>
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
       </div>
@@ -127,11 +142,14 @@ export class AppointmentDetailDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly router = inject(Router);
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly serviceToBadgeVariant = serviceToBadgeVariant;
   protected readonly reprogramDisabled = reprogramDisabledForRow;
   protected readonly canEditFinancials = canEditFinancials;
   protected readonly canCancelAppointment = canCancelAppointment;
+  protected readonly firmarContratoDisabled = firmarContratoDisabled;
+  protected readonly firmarContratoLabel = firmarContratoLabel;
 
   readonly appt = this.dlg.appointment;
 
@@ -154,10 +172,26 @@ export class AppointmentDetailDialogComponent {
     return appointmentTimeHm(a.appointmentDateRaw ?? a.appointmentDate);
   }
 
+  openContractView(): void {
+    const a = this.appt();
+    if (!a?.hasSignedContract) return;
+    this.ui.openModal('appointment-contract-view', { appointmentId: a.id });
+  }
+
   openSub(modalId: string): void {
     const a = this.appt();
     if (!a) return;
     this.ui.openModal(modalId, { appointmentId: a.id });
+  }
+
+  openSignContract(): void {
+    const a = this.appt();
+    if (!a || firmarContratoDisabled(a)) return;
+    const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
+    void this.router.navigate(['/citas', 'firmar', a.id], {
+      queryParams: artistOnly ? { artistOnly: '1' } : {},
+    });
+    this.close();
   }
 
   close(): void {

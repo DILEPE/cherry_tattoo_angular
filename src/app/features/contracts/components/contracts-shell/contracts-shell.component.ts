@@ -21,7 +21,7 @@ import { ContractTemplate } from '../../models/contract-template.model';
     <h2 class="ct-page-title">Gestión de contratos</h2>
     <p class="ct-page-lead">
       Administra las plantillas de contrato para tatuaje y piercing. Solo puede haber una plantilla
-      activa por tipo de trabajo.
+      activa por tipo de trabajo. El flujo al firmar (con o sin fases) se define en cada plantilla.
     </p>
     <app-contracts-toolbar (create)="openCreate()" />
     <app-contracts-templates-list (edit)="openEdit($event)" (delete)="openDelete($event)" />

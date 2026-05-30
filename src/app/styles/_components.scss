@@ -544,6 +544,13 @@
   }
 }
 
+.appt-detail__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .appt-detail__grid {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -616,6 +623,14 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.ap-ficha-header__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .ap-ficha-title {

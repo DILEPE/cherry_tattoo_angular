@@ -57,8 +57,16 @@ function isMinorByBirthIso(iso: string): boolean {
     FormShowErrorsDirective,
   ],
   template: `
-    <form [formGroup]="form" appFormShowErrors (ngSubmit)="submit()" novalidate>
-      <app-form-validation-summary [messages]="validationSummary()" />
+    <form
+      [formGroup]="form"
+      [class.cust-form--readonly]="readonly()"
+      appFormShowErrors
+      (ngSubmit)="submit()"
+      novalidate
+    >
+      @if (!readonly()) {
+        <app-form-validation-summary [messages]="validationSummary()" />
+      }
       <h4 class="cust-form-section">Datos personales</h4>
       <div class="cust-form-grid">
         <app-form-field label="Nombre *" [control]="form.controls.firstName">
@@ -84,14 +92,25 @@ function isMinorByBirthIso(iso: string): boolean {
           <input formControlName="documentNumber" autocomplete="off" />
         </app-form-field>
         @if (!birthPending()) {
-          <label class="cust-form-check">
-            <input type="checkbox" formControlName="hasDocumentIssue" />
-            Indicar fecha de expedición del documento
-          </label>
-          @if (form.controls.hasDocumentIssue.value) {
-            <app-form-field label="Expedición documento *" [control]="form.controls.documentIssueDate">
-              <input type="date" formControlName="documentIssueDate" />
-            </app-form-field>
+          @if (readonly()) {
+            @if (form.controls.documentIssueDate.value) {
+              <app-form-field
+                label="Expedición documento"
+                [control]="form.controls.documentIssueDate"
+              >
+                <input type="date" formControlName="documentIssueDate" />
+              </app-form-field>
+            }
+          } @else {
+            <label class="cust-form-check">
+              <input type="checkbox" formControlName="hasDocumentIssue" />
+              Indicar fecha de expedición del documento
+            </label>
+            @if (form.controls.hasDocumentIssue.value) {
+              <app-form-field label="Expedición documento *" [control]="form.controls.documentIssueDate">
+                <input type="date" formControlName="documentIssueDate" />
+              </app-form-field>
+            }
           }
         }
       </div>
@@ -144,14 +163,25 @@ function isMinorByBirthIso(iso: string): boolean {
           <app-form-field label="Número doc. tutor" [control]="form.controls.guardianDocumentNumber">
             <input formControlName="guardianDocumentNumber" />
           </app-form-field>
-          <label class="cust-form-check">
-            <input type="checkbox" formControlName="hasGuardianIssue" />
-            Fecha expedición documento tutor
-          </label>
-          @if (form.controls.hasGuardianIssue.value) {
-            <app-form-field label="Expedición tutor *" [control]="form.controls.guardianDocumentIssueDate">
-              <input type="date" formControlName="guardianDocumentIssueDate" />
-            </app-form-field>
+          @if (readonly()) {
+            @if (form.controls.guardianDocumentIssueDate.value) {
+              <app-form-field
+                label="Expedición tutor"
+                [control]="form.controls.guardianDocumentIssueDate"
+              >
+                <input type="date" formControlName="guardianDocumentIssueDate" />
+              </app-form-field>
+            }
+          } @else {
+            <label class="cust-form-check">
+              <input type="checkbox" formControlName="hasGuardianIssue" />
+              Fecha expedición documento tutor
+            </label>
+            @if (form.controls.hasGuardianIssue.value) {
+              <app-form-field label="Expedición tutor *" [control]="form.controls.guardianDocumentIssueDate">
+                <input type="date" formControlName="guardianDocumentIssueDate" />
+              </app-form-field>
+            }
           }
         </div>
       }
@@ -162,6 +192,8 @@ function isMinorByBirthIso(iso: string): boolean {
 })
 export class CustomerFormComponent {
   readonly initial = input<Customer | null>(null);
+  /** Solo lectura: mismos campos deshabilitados (visualización de contrato / revisión). */
+  readonly readonly = input(false);
   readonly submitted = output<ReturnType<typeof customerToWritePayload>>();
 
   protected readonly docTypes = DOC_TYPES;
@@ -227,6 +259,16 @@ export class CustomerFormComponent {
     ctrl.updateValueAndValidity({ emitEvent: false });
   });
 
+  private readonly _readonlyMode = effect(() => {
+    this.readonly();
+    this.initial();
+    if (this.readonly()) {
+      this.form.disable({ emitEvent: false });
+    } else {
+      this.form.enable({ emitEvent: false });
+    }
+  });
+
   private readonly _patch = effect(() => {
     const c = this.initial();
     if (!c) {
@@ -278,9 +320,18 @@ export class CustomerFormComponent {
       hasGuardianIssue: !!c.guardianDocumentIssueDate,
       guardianDocumentIssueDate: c.guardianDocumentIssueDate ?? '',
     });
+    if (this.readonly()) {
+      this.form.disable({ emitEvent: false });
+    }
   });
 
-  submit(): void {
+  isMinorFromForm(): boolean {
+    return isMinorByBirthIso(this.form.getRawValue().birthDate);
+  }
+
+  /** Valida el formulario y devuelve el payload API; `null` si hay errores. */
+  tryGetWritePayload(): ReturnType<typeof customerToWritePayload> | null {
+    if (this.readonly()) return null;
     if (
       !validateFormBeforeSubmit(this.form, {
         toast: this.toast,
@@ -291,7 +342,7 @@ export class CustomerFormComponent {
       const issues = collectFormValidationIssues(this.form, CUSTOMER_FIELD_LABELS);
       this.validationSummary.set(formatValidationSummaryLines(issues));
       this.cdr.markForCheck();
-      return;
+      return null;
     }
     this.validationSummary.set([]);
     this.formShowErrors()?.reset();
@@ -313,7 +364,7 @@ export class CustomerFormComponent {
       this.validationSummary.set([businessErr]);
       this.toast.warn(businessErr);
       this.cdr.markForCheck();
-      return;
+      return null;
     }
 
     const pending = v.birthDate === CUSTOMER_BIRTH_PENDING_ISO;
@@ -348,6 +399,11 @@ export class CustomerFormComponent {
       createdAt: this.initial()?.createdAt ?? null,
       updatedAt: this.initial()?.updatedAt ?? null,
     };
-    this.submitted.emit(customerToWritePayload(customer));
+    return customerToWritePayload(customer);
+  }
+
+  submit(): void {
+    const payload = this.tryGetWritePayload();
+    if (payload) this.submitted.emit(payload);
   }
 }

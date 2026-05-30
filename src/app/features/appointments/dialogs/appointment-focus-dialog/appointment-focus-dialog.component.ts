@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
@@ -86,7 +87,12 @@ import { of, switchMap } from 'rxjs';
               {{ formatCreated(a.createdAt) }} · Cita #{{ a.id }}
             </p>
           </div>
-          <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+          <div class="ap-ficha-header__status">
+            <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+            @if (a.hasSignedContract) {
+              <app-button variant="ghost" (clicked)="openContractView()">Ver contrato</app-button>
+            }
+          </div>
         </header>
 
         <p class="ap-ficha-section-band">Cliente</p>
@@ -266,6 +272,7 @@ export class AppointmentFocusDialogComponent {
   private readonly api = inject(AppointmentsApiService);
   private readonly staffApi = inject(PanelStaffApiService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly clientPillKind = (a: Appointment) =>
@@ -628,10 +635,20 @@ export class AppointmentFocusDialogComponent {
     this.ui.openModal('appointment-cancel', { appointmentId: a.id });
   }
 
+  openContractView(): void {
+    const a = this.appt();
+    if (!a?.hasSignedContract) return;
+    this.ui.openModal('appointment-contract-view', { appointmentId: a.id });
+  }
+
   onFirmarContrato(): void {
-    this.toast.info(
-      'El flujo de firma de contrato se gestiona desde el panel principal; migración en curso.',
-    );
+    const a = this.appt();
+    if (!a) return;
+    const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
+    void this.router.navigate(['/citas', 'firmar', a.id], {
+      queryParams: artistOnly ? { artistOnly: '1' } : {},
+    });
+    this.close();
   }
 
   private reloadAppointment(id: number): void {
