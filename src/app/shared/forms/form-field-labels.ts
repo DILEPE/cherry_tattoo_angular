@@ -30,6 +30,8 @@ export const BOOKING_FIELD_LABELS: Record<string, string> = {
   staffId: 'Profesional',
   durationSlots: 'Franjas de 30 min',
   slot: 'Hora de inicio',
+  design: 'Descripción del diseño',
+  observations: 'Notas u observaciones',
   total: 'Valor total',
   deposit: 'Abono inicial',
 };

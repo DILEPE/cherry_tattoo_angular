@@ -28,6 +28,7 @@ import {
 import { FormValidationSummaryComponent } from '../../../../shared/forms/form-validation-summary/form-validation-summary.component';
 import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppStore } from '../../../../store/app.store';
 import { ModalState, UiStore } from '../../../../store/ui.store';
@@ -61,6 +62,7 @@ import {
 } from '../../models/schedule.mapper';
 import { combineAppointmentDatetime, timeSlotOptions } from '../../models/appointment-slots';
 import { formatCop } from '../../models/appointment.mapper';
+import { mergeDesignObsPlain } from '../../models/appointment-detail-text.mapper';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 import { appointmentRowDate } from '../../models/calendar.mapper';
 
@@ -86,12 +88,6 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
         }
       </p>
     }
-    @if (isExpress()) {
-      <p class="appt-dialog-caption">
-        Solo piercing, limpieza o cambio de piercing. Asigna un <strong>perforador</strong>.
-      </p>
-    }
-
     <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>
       <app-form-validation-summary [messages]="validationSummary()" />
       <section class="appt-book-section">
@@ -182,7 +178,10 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
         <p class="form-field__error">No hay franjas libres ese día para esta duración.</p>
       }
 
-      <app-form-field label="Observaciones / diseño" [control]="form.controls.observations">
+      <app-form-field label="Descripción del diseño (opcional)" [control]="form.controls.design">
+        <textarea formControlName="design" rows="2"></textarea>
+      </app-form-field>
+      <app-form-field label="Notas u observaciones (opcional)" [control]="form.controls.observations">
         <textarea formControlName="observations" rows="2"></textarea>
       </app-form-field>
 
@@ -190,8 +189,16 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
         <app-form-field label="Valor total (COP)" [control]="form.controls.total">
           <input type="number" formControlName="total" step="10000" />
         </app-form-field>
-        <app-form-field label="Abono inicial (COP)" [control]="form.controls.deposit">
-          <input type="number" formControlName="deposit" step="10000" />
+        <app-form-field
+          [label]="isExpress() ? 'Abono (igual al total) *' : 'Abono inicial (COP)'"
+          [control]="form.controls.deposit"
+        >
+          <input
+            type="number"
+            formControlName="deposit"
+            step="10000"
+            [readonly]="isExpress()"
+          />
         </app-form-field>
       </div>
 
@@ -200,13 +207,15 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
         Cita prioritaria
       </label>
 
-      <p class="appt-dialog-caption">
-        Mínimo abono y total: {{ formatCop(MIN_COP) }}
-      </p>
+      @if (!isExpress()) {
+        <p class="appt-dialog-caption">
+          Mínimo abono y total: {{ formatCop(MIN_COP) }}
+        </p>
+      }
 
       <div class="appt-dialog-actions">
         <app-button type="submit" variant="primary" [loading]="saving()" [disabled]="!docVerified()">
-          Crear cita
+          {{ isExpress() ? 'Crear cita e ir a firma' : 'Crear cita' }}
         </app-button>
         <app-button variant="ghost" type="button" (clicked)="close()">Cancelar</app-button>
       </div>
@@ -225,6 +234,7 @@ export class AppointmentBookDialogComponent {
   private readonly errors = inject(ErrorService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
 
   protected readonly formatCop = formatCop;
   protected readonly MIN_COP = MIN_APPOINTMENT_TOTAL_COP;
@@ -259,6 +269,7 @@ export class AppointmentBookDialogComponent {
       staffId: [0, Validators.min(1)],
       durationSlots: [2, [Validators.required, Validators.min(1), Validators.max(16)]],
       slot: ['09:00', Validators.required],
+      design: [''],
       observations: [''],
       total: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
       deposit: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
@@ -392,6 +403,17 @@ export class AppointmentBookDialogComponent {
         }
       });
 
+    this.form.controls.total.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((totalRaw) => {
+        if (!this.isExpress()) return;
+        const total = Math.round(Number(totalRaw ?? 0));
+        const deposit = Math.round(Number(this.form.controls.deposit.value));
+        if (total > 0 && deposit !== total) {
+          this.form.patchValue({ deposit: total }, { emitEvent: true });
+        }
+      });
+
     effect(() => {
       const need = this.needNewCustomer();
       const emailCtrl = this.form.controls.email;
@@ -448,6 +470,7 @@ export class AppointmentBookDialogComponent {
       staffId: 0,
       durationSlots: this.durationSlotsForWorkKind(workKind),
       slot: '09:00',
+      design: '',
       observations: '',
       total: MIN_APPOINTMENT_TOTAL_COP,
       deposit: MIN_APPOINTMENT_TOTAL_COP,
@@ -589,6 +612,19 @@ export class AppointmentBookDialogComponent {
     const total = Math.round(Number(this.form.controls.total.value));
     const deposit = Math.round(Number(this.form.controls.deposit.value));
 
+    if (this.isExpress()) {
+      if (total <= 0) {
+        this.toast.error('Indica un valor total mayor a cero.');
+        return;
+      }
+      if (Math.round((total - deposit) * 100) / 100 > 0.009) {
+        this.toast.error(
+          'En cita express el abono debe cubrir el valor total (saldo pendiente en cero) antes de firmar.',
+        );
+        return;
+      }
+    }
+
     const wk = this.form.controls.workKind.value as BookingWorkKind;
     if (this.isExpress() && wk === 'tatuaje') {
       this.toast.error('La cita express no admite tatuaje.');
@@ -606,8 +642,11 @@ export class AppointmentBookDialogComponent {
       return;
     }
 
-    const obs = this.form.controls.observations.value.trim();
-    const { service, detail } = serviceAndDetailForWorkKind(wk, obs);
+    const detailText = mergeDesignObsPlain(
+      this.form.controls.design.value,
+      this.form.controls.observations.value,
+    );
+    const { service, detail } = serviceAndDetailForWorkKind(wk, detailText);
     const dur = Number(this.form.controls.durationSlots.value);
     const detailApi = appendAgendaSlotsMarker(detail, dur);
     const dt = combineAppointmentDatetime(picked, slot);
@@ -666,14 +705,21 @@ export class AppointmentBookDialogComponent {
 
     this.saving.set(true);
     this.api.create(payload).subscribe({
-      next: () => {
+      next: (res) => {
         this.saving.set(false);
+        this.apptStore.invalidate();
+        const newId = Number(res?.id ?? 0);
+        if (this.isExpress() && newId > 0) {
+          this.toast.success('Cita creada. Completa el cuestionario y la firma del contrato.');
+          this.close();
+          void this.router.navigate(['/citas', 'firmar', newId]);
+          return;
+        }
         const msg =
           deposit > 0
             ? 'Cita creada. Si hubo abono, revisa Recibos para el PDF.'
             : 'Cita creada correctamente.';
         this.toast.success(msg);
-        this.apptStore.invalidate();
         this.close();
       },
       error: (err) => {
