@@ -40,6 +40,10 @@
 
   --shadow-panel: 0 20px 56px rgba(0, 0, 0, 0.12);
   --header-height: 3.25rem;
+
+  --panel-sidebar-width: 15.5rem;
+  --panel-sidebar-width-collapsed: 4.5rem;
+  --panel-watermark-opacity: 0.045;
 }
 
 [data-theme='dark'] {
