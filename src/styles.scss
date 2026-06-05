@@ -1,0 +1,28 @@
+@forward 'app/styles/tokens';
+@forward 'app/styles/typography';
+@forward 'app/styles/utilities';
+@forward 'app/styles/animations';
+@forward 'app/styles/components';
+@forward 'app/features/appointments/styles/calendar';
+@forward 'app/features/appointments/contract-signing/styles/contract-signing';
+@forward 'app/features/customers/styles/customers';
+@forward 'app/features/contracts/styles/contracts';
+@forward 'app/features/surveys/styles/surveys';
+@forward 'app/features/report/styles/report';
+@forward 'app/features/panel-users/styles/panel-users';
+@forward 'app/features/stores/styles/stores';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}

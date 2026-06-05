@@ -1,0 +1,130 @@
+.st-page-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+}
+
+.st-page-caption {
+  margin: 0 0 0.85rem;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.st-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.st-list-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.86rem;
+}
+
+.st-list-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.st-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th,
+  td {
+    padding: 0.45rem 0.55rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  tbody tr:nth-child(even) {
+    background: var(--surface-raised);
+  }
+}
+
+.st-row--inactive td {
+  opacity: 0.72;
+}
+
+.st-col-head {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.78rem;
+  background: #e5e7eb;
+  border-radius: 6px;
+  padding: 0.14rem 0.4rem;
+}
+
+.st-col-head--actions {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.st-table {
+  th:last-child,
+  td.st-row-actions {
+    width: 1%;
+    white-space: nowrap;
+  }
+}
+
+.st-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.st-active-pill {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.st-active-pill--on {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.st-dialog-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.st-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.65rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.st-form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  margin: 0.65rem 0;
+  cursor: pointer;
+}
