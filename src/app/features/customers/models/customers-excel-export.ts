@@ -146,7 +146,7 @@ function buildClientsSheet(
   const headerRow = 4;
   const firstDataRow = headerRow + 1;
 
-  applyReportTitleRow(ws, 'Informe de clientes — Cherry Ink · Rock City', ncol);
+  applyReportTitleRow(ws, 'Informe de clientes — Rock City', ncol);
   applyReportSubtitleRow(
     ws,
     `Generado: ${fechaEtiqueta}  ·  Filtro de búsqueda: ${filtro}  ·  Registros: ${rows.length}`,
@@ -262,7 +262,7 @@ export async function downloadCustomersExcel(
 ): Promise<void> {
   const { Workbook } = await import('exceljs');
   const workbook = new Workbook();
-  workbook.creator = 'Cherry Ink · Rock City';
+  workbook.creator = 'Rock City';
   workbook.created = generatedAt;
   workbook.modified = generatedAt;
   workbook.title = 'Informe de clientes';
