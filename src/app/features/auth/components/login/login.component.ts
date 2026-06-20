@@ -32,7 +32,7 @@ import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
             <span class="login-card__loading-text">Iniciando sesión…</span>
           </div>
         }
-        <h1>Cherry Ink · Rock City</h1>
+        <h1>Rock City</h1>
         <p>Panel de operaciones</p>
         <p class="login-card__hint">La sesión dura {{ sessionMinutes }} minutos por usuario.</p>
 

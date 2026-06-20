@@ -45,7 +45,7 @@ const NAV_ICONS: Record<string, AppIconName> = {
     >
       <aside class="panel-sidebar" [attr.aria-expanded]="!sidebarCollapsed()">
         <div class="panel-sidebar__head">
-          <a routerLink="/citas" class="panel-sidebar__brand" title="Cherry Ink · Rock City">
+          <a routerLink="/citas" class="panel-sidebar__brand" title="Rock City">
             <img
               class="panel-sidebar__logo"
               src="/assets/rock-city-logo.png"
@@ -54,8 +54,7 @@ const NAV_ICONS: Record<string, AppIconName> = {
               height="40"
             />
             <span class="panel-sidebar__brand-text">
-              <strong>Cherry Ink</strong>
-              <span class="panel-sidebar__subtitle">Rock City</span>
+              <strong>Rock City</strong>
             </span>
           </a>
           <button
