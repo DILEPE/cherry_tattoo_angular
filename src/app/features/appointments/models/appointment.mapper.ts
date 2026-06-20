@@ -8,6 +8,7 @@ import {
   AppointmentFilters,
 } from './appointment.model';
 import { appointmentRowDate } from './calendar.mapper';
+import { mergeDesignObsPlain } from './appointment-detail-text.mapper';
 
 function toFloat(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -109,6 +110,31 @@ export function serviceToBadgeVariant(
   return 'other';
 }
 
+function pickStr(...values: Array<string | null | undefined>): string {
+  for (const v of values) {
+    const s = (v ?? '').trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+/**
+ * Devuelve el detalle de la cita. Si `raw.detail` viene vacío, lo reconstruye
+ * a partir de los campos de diseño y observaciones que pueda enviar la API.
+ */
+function resolveDetail(raw: AppointmentApiRow): string {
+  const detail = (raw.detail ?? '').trim();
+  if (detail) return detail;
+  const design = pickStr(
+    raw.design_description,
+    raw.designDescription,
+    raw.descripcion_diseno,
+    raw.description,
+  );
+  const observations = pickStr(raw.observations, raw.observaciones, raw.notes);
+  return mergeDesignObsPlain(design, observations);
+}
+
 function assignedStaffLabel(raw: AppointmentApiRow): string {
   const fn = (raw.assigned_first_name ?? '').trim();
   const ln = (raw.assigned_last_name ?? '').trim();
@@ -128,7 +154,7 @@ export function mapAppointment(raw: AppointmentApiRow): Appointment {
     customerName: (raw.customer_name ?? '').trim() || '—',
     phone: (raw.phone ?? '').trim(),
     serviceType: (raw.service_type ?? '').trim() || '—',
-    detail: (raw.detail ?? '').trim(),
+    detail: resolveDetail(raw),
     appointmentDate: apptDate,
     appointmentDateRaw: rawDate != null ? String(rawDate) : null,
     status,
