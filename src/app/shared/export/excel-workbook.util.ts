@@ -1,6 +1,6 @@
 import type { Alignment, Borders, Fill, Font, Worksheet } from 'exceljs';
 
-/** Paleta alineada al panel Cherry Ink. */
+/** Paleta alineada al panel Rock City. */
 export const EXCEL_COLORS = {
   brand: 'FFD90064',
   brandDark: 'FFB80055',

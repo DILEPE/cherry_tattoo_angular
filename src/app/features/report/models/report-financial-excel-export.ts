@@ -106,7 +106,7 @@ function buildDataSheet(
   const headerRow = 4;
   const firstDataRow = headerRow + 1;
 
-  applyReportTitleRow(ws, 'Informe financiero — Citas Cherry Ink · Rock City', ncol);
+  applyReportTitleRow(ws, 'Informe financiero — Citas Rock City', ncol);
   applyReportSubtitleRow(
     ws,
     `Generado: ${fechaEtiqueta}  ·  Filtros: ${filtersLabel}  ·  Registros: ${rows.length}`,
@@ -230,7 +230,7 @@ export async function downloadReportFinancialExcel(
   const filtersLabel = buildReportFiltersLabel(filters);
   const { Workbook } = await import('exceljs');
   const workbook = new Workbook();
-  workbook.creator = 'Cherry Ink · Rock City';
+  workbook.creator = 'Rock City';
   workbook.created = generatedAt;
   workbook.modified = generatedAt;
   workbook.title = 'Informe financiero citas';

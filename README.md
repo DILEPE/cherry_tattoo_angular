@@ -1,6 +1,6 @@
 # Cherry Tattoo — Panel Angular
 
-Frontend del panel operativo Cherry Ink / Rock City. Consume la API Litestar del proyecto [cherry-tatto](https://github.com/DILEPE/cherry-tatto) (`/api/*`).
+Frontend del panel operativo Rock City. Consume la API Litestar del proyecto [cherry-tatto](https://github.com/DILEPE/cherry-tatto) (`/api/*`).
 
 ## Requisitos
 
