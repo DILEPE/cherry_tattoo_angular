@@ -6,6 +6,13 @@ export interface AppointmentApiRow {
   phone?: string | null;
   service_type?: string | null;
   detail?: string | null;
+  design_description?: string | null;
+  designDescription?: string | null;
+  descripcion_diseno?: string | null;
+  description?: string | null;
+  observations?: string | null;
+  observaciones?: string | null;
+  notes?: string | null;
   appointment_date?: string | null;
   deposit?: number | null;
   total_amount?: number | null;

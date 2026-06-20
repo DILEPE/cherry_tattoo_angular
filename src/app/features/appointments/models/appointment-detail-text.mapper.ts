@@ -1,6 +1,8 @@
 const AGENDA_SLOTS_PATTERN = /\s*\[agenda_slots:(\d+)\]\s*$/i;
 const LEADING_TAG = /^\s*\[([^\]\n]{1,64})\]\s*/i;
 const DESIGN_OBS_SEP = '\n---\n';
+const LABEL_DESIGN = /descripci[oó]n\s+del\s+dise[nñ]o\s*:/i;
+const LABEL_OBS = /observaciones\s*:/i;
 
 export function appointmentDetailPlainBody(detailFull: string): string {
   let core = (detailFull || '').trim();
@@ -11,12 +13,41 @@ export function appointmentDetailPlainBody(detailFull: string): string {
   return core;
 }
 
+const DESIGN_LABEL = /^\s*(?:descripci[oó]n del dise[nñ]o|dise[nñ]o)\s*:\s*/i;
+const OBS_LABEL_LINE = /(?:^|\n)\s*(?:observaciones|observaci[oó]n|notas)\s*:\s*/i;
+
+/**
+ * Detecta el formato con etiquetas:
+ *   Descripción del diseño: ...
+ *   Observaciones: ...
+ * Devuelve null si no hay ninguna etiqueta reconocible.
+ */
+function splitLabeledDesignObs(
+  c: string,
+): { design: string; observations: string } | null {
+  const obsMatch = OBS_LABEL_LINE.exec(c);
+  const hasDesignLabel = DESIGN_LABEL.test(c);
+  if (!obsMatch && !hasDesignLabel) return null;
+  if (obsMatch) {
+    const before = c.slice(0, obsMatch.index).trim();
+    const after = c.slice(obsMatch.index + obsMatch[0].length).trim();
+    return {
+      design: before.replace(DESIGN_LABEL, '').trim(),
+      observations: after,
+    };
+  }
+  return { design: c.replace(DESIGN_LABEL, '').trim(), observations: '' };
+}
+
 export function splitDesignObsPlain(core: string): { design: string; observations: string } {
   const c = (core || '').trim();
+  if (!c) return { design: '', observations: '' };
   if (c.includes(DESIGN_OBS_SEP)) {
-    const [a, , b] = c.split(DESIGN_OBS_SEP);
-    return { design: a.trim(), observations: b.trim() };
+    const [a, b] = c.split(DESIGN_OBS_SEP);
+    return { design: (a ?? '').trim(), observations: (b ?? '').trim() };
   }
+  const labeled = splitLabeledDesignObs(c);
+  if (labeled) return labeled;
   return { design: c, observations: '' };
 }
 
