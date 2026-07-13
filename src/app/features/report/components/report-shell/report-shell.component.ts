@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
 import { ReportStore } from '../../report.store';
 import { ReportFinancesComponent } from '../report-finances/report-finances.component';
 import { ReportSurveysComponent } from '../report-surveys/report-surveys.component';
@@ -50,7 +50,7 @@ export class ReportShellComponent {
     const u = this.appStore.user();
     if (!u) return;
     if (!maySeeAllAppointments(u.role)) {
-      this.store.setAssignedUserId(u.id);
+      untracked(() => this.store.setAssignedUserId(u.id));
     }
   });
 

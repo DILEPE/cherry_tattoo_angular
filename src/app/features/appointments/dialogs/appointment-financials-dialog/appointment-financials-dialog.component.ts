@@ -26,6 +26,8 @@ import { ErrorService } from '../../../../core/services/error.service';
 import { copToMiles, formatCopAbono, milesToCop } from '../../models/appointment.mapper';
 import { canEditFinancials } from '../../models/appointment-policy';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
+import { AppStore } from '../../../../store/app.store';
+import { canManageAppointmentAmounts } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-appointment-financials-dialog',
@@ -34,7 +36,12 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
   imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
   template: `
     @if (dlg.appointment(); as a) {
-      @if (!canEditFinancials(a)) {
+      @if (!canManageAmounts()) {
+        <p class="form-field__error">
+          Los profesionales no pueden ajustar montos; solo firmar el contrato.
+        </p>
+        <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
+      } @else if (!canEditFinancials(a)) {
         <p class="form-field__error">Solo puedes editar montos en estados Agendada o Reprogramada.</p>
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
       } @else {
@@ -110,6 +117,7 @@ export class AppointmentFinancialsDialogComponent {
   private readonly ui = inject(UiStore);
   private readonly api = inject(AppointmentsApiService);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly appStore = inject(AppStore);
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
   private readonly fb = inject(FormBuilder);
@@ -117,6 +125,8 @@ export class AppointmentFinancialsDialogComponent {
 
   protected readonly formatCopAbono = formatCopAbono;
   protected readonly canEditFinancials = canEditFinancials;
+  protected readonly canManageAmounts = () =>
+    canManageAppointmentAmounts(this.appStore.user()?.role ?? '');
 
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -172,6 +182,10 @@ export class AppointmentFinancialsDialogComponent {
   }
 
   onSubmit(): void {
+    if (!this.canManageAmounts()) {
+      this.saveError.set('Los profesionales no pueden ajustar montos.');
+      return;
+    }
     const a = this.dlg.appointment();
     if (!a) return;
     const minTotalMiles = copToMiles(Math.max(MIN_APPOINTMENT_TOTAL_COP, a.financials.deposit));

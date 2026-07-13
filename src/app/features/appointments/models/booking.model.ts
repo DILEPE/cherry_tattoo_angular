@@ -52,6 +52,29 @@ export const BOOKING_WORK_KIND_META: Record<BookingWorkKind, BookingWorkKindMeta
   },
 };
 
+/** Opciones del filtro «Tipo piercing» (colocación / limpieza / cambio). */
+export const PIERCING_WORK_KIND_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'Todos', label: 'Todos' },
+  ...EXPRESS_BOOKING_WORK_KIND_ORDER.map((k) => ({
+    value: k,
+    label: BOOKING_WORK_KIND_META[k].label,
+  })),
+];
+
+export function isPiercingServiceFilter(service: string): boolean {
+  const s = (service || '').trim().toLowerCase();
+  if (!s || s === 'todos') return false;
+  return s.includes('pierc') || s === 'perforación' || s === 'perforacion';
+}
+
+export function isPiercingWorkKindFilter(value: string): boolean {
+  return (
+    value === 'piercing' ||
+    value === 'limpieza_piercing' ||
+    value === 'cambio_piercing'
+  );
+}
+
 export interface PanelStaffOption {
   id: number;
   username: string;

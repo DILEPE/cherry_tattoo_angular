@@ -1,6 +1,9 @@
-import { Appointment } from '../../models/appointment.model';
+import { Appointment, AppointmentPayment } from '../../models/appointment.model';
 
-export function appointmentPaymentReadyForSignature(appt: Appointment): {
+export function appointmentPaymentReadyForSignature(
+  appt: Appointment,
+  payments: AppointmentPayment[] = [],
+): {
   ok: boolean;
   message: string | null;
 } {
@@ -17,6 +20,13 @@ export function appointmentPaymentReadyForSignature(appt: Appointment): {
       ok: false,
       message:
         'El abono debe cubrir el valor total (saldo pendiente en cero) antes de firmar el contrato.',
+    };
+  }
+  if (!payments.length || payments.some((p) => !p.isVerified)) {
+    return {
+      ok: false,
+      message:
+        'Hay abonos sin verificar. Un administrador debe confirmar cada abono en la ficha de la cita antes de firmar el contrato.',
     };
   }
   return { ok: true, message: null };

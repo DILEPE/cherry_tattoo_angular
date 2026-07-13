@@ -138,6 +138,35 @@
   margin: 0;
 }
 
+.cust-social-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+
+  input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+.cust-form-hint--beside {
+  grid-column: auto;
+  flex: 0 1 11rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 640px) {
+  .cust-social-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cust-form-hint--beside {
+    flex: none;
+  }
+}
+
 .cust-form--readonly {
   pointer-events: none;
 

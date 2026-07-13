@@ -22,6 +22,11 @@ import { AppointmentsApiService } from '../../../appointments/services/appointme
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
 import { LoadingService } from '../../../../core/services/loading.service';
+import {
+  isPiercingServiceFilter,
+  PIERCING_WORK_KIND_FILTER_OPTIONS,
+} from '../../../appointments/models/booking.model';
+import { buildPiercingFilterOptions } from '../../../appointments/models/piercing-type-catalog';
 import { firstValueFrom } from 'rxjs';
 
 
@@ -118,7 +123,7 @@ import { firstValueFrom } from 'rxjs';
 
             [ngModel]="store.filters().service"
 
-            (ngModelChange)="store.setFilters({ service: $event })"
+            (ngModelChange)="onServiceChange($event)"
 
           >
 
@@ -131,6 +136,34 @@ import { firstValueFrom } from 'rxjs';
           </select>
 
         </label>
+
+        @if (showPiercingKind()) {
+
+          <label class="report-search-panel__field">
+
+            <span class="report-search-panel__label">Tipo piercing</span>
+
+            <select
+
+              class="report-search-panel__select"
+
+              [ngModel]="store.filters().piercingWorkKind"
+
+              (ngModelChange)="store.setFilters({ piercingWorkKind: $event })"
+
+            >
+
+              @for (opt of piercingKindOptions; track opt.value) {
+
+                <option [value]="opt.value">{{ opt.label }}</option>
+
+              }
+
+            </select>
+
+          </label>
+
+        }
 
         <label class="report-search-panel__field">
 
@@ -389,11 +422,23 @@ export class ReportFinancesComponent {
 
   protected readonly statusToPillVariant = statusToPillVariant;
 
-
+  protected readonly piercingKindOptions = buildPiercingFilterOptions(
+    PIERCING_WORK_KIND_FILTER_OPTIONS,
+  );
 
   readonly exporting = signal(false);
 
+  showPiercingKind(): boolean {
+    return isPiercingServiceFilter(this.store.filters().service);
+  }
 
+  onServiceChange(service: string): void {
+    const patch: { service: string; piercingWorkKind?: string } = { service };
+    if (!isPiercingServiceFilter(service)) {
+      patch.piercingWorkKind = 'Todos';
+    }
+    this.store.setFilters(patch);
+  }
 
   async downloadExcel(): Promise<void> {
 

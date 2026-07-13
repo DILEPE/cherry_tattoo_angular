@@ -14,7 +14,12 @@ import { AppStore } from '../../../../store/app.store';
 import { PanelStaffApiService } from '../../services/panel-staff-api.service';
 import { StoresApiService } from '../../../../core/services/stores-api.service';
 import { StoreOption } from '../../../../core/models/store.model';
-import { PanelStaffOption } from '../../models/booking.model';
+import {
+  isPiercingServiceFilter,
+  PanelStaffOption,
+  PIERCING_WORK_KIND_FILTER_OPTIONS,
+} from '../../models/booking.model';
+import { buildPiercingFilterOptions } from '../../models/piercing-type-catalog';
 import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/utils/panel-roles';
 
 @Component({
@@ -36,19 +41,51 @@ import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/uti
               (ngModelChange)="store.setFilters({ nameSubstr: $event })"
             />
           </label>
+          <label class="appt-filters__field">
+            <span class="appt-filters__label">Desde</span>
+            <input
+              type="date"
+              class="appt-filters__control"
+              [ngModel]="store.filters().fromDate"
+              (ngModelChange)="store.setFilters({ fromDate: $event })"
+            />
+          </label>
+          <label class="appt-filters__field">
+            <span class="appt-filters__label">Hasta</span>
+            <input
+              type="date"
+              class="appt-filters__control"
+              [ngModel]="store.filters().toDate"
+              (ngModelChange)="store.setFilters({ toDate: $event })"
+            />
+          </label>
         }
         <label class="appt-filters__field">
           <span class="appt-filters__label">Servicio</span>
           <select
             class="appt-filters__control appt-filters__select"
             [ngModel]="store.filters().service"
-            (ngModelChange)="store.setFilters({ service: $event })"
+            (ngModelChange)="onServiceChange($event)"
           >
             @for (svc of store.serviceOptions(); track svc) {
               <option [value]="svc">{{ svc }}</option>
             }
           </select>
         </label>
+        @if (showPiercingKind()) {
+          <label class="appt-filters__field">
+            <span class="appt-filters__label">Tipo piercing</span>
+            <select
+              class="appt-filters__control appt-filters__select"
+              [ngModel]="store.filters().piercingWorkKind"
+              (ngModelChange)="store.setFilters({ piercingWorkKind: $event })"
+            >
+              @for (opt of piercingKindOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </label>
+        }
         <label class="appt-filters__field">
           <span class="appt-filters__label">Estado</span>
           <select
@@ -121,7 +158,11 @@ import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/uti
         </button>
       </div>
     </div>
-    @if (!canSeeAll()) {
+    @if (store.isTechnicianAgenda()) {
+      <p class="appt-scope-caption">
+        Solo ves tus citas de hoy y las reprogramadas.
+      </p>
+    } @else if (!canSeeAll()) {
       <p class="appt-scope-caption">
         Solo ves citas asignadas a tu usuario del panel.
       </p>
@@ -138,6 +179,10 @@ export class AppointmentsFiltersComponent {
   private readonly storesApi = inject(StoresApiService);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly piercingKindOptions = buildPiercingFilterOptions(
+    PIERCING_WORK_KIND_FILTER_OPTIONS,
+  );
+
   readonly storeOptions = signal<{ id: number; label: string }[]>([
     { id: 0, label: 'Todos' },
   ]);
@@ -152,10 +197,23 @@ export class AppointmentsFiltersComponent {
     return maySeeAllAppointments(role);
   };
 
+  showPiercingKind(): boolean {
+    return isPiercingServiceFilter(this.store.filters().service);
+  }
+
   constructor() {
     effect(() => {
       if (this.calendarMode() && this.store.filters().nameSubstr.trim()) {
         this.store.setFilters({ nameSubstr: '' });
+      }
+    });
+
+    effect(() => {
+      if (this.calendarMode()) {
+        const f = this.store.filters();
+        if (f.fromDate || f.toDate) {
+          this.store.setFilters({ fromDate: '', toDate: '' });
+        }
       }
     });
 
@@ -190,6 +248,14 @@ export class AppointmentsFiltersComponent {
           this.selectedStaffKey.set(key);
         });
     });
+  }
+
+  onServiceChange(service: string): void {
+    const patch: { service: string; piercingWorkKind?: string } = { service };
+    if (!isPiercingServiceFilter(service)) {
+      patch.piercingWorkKind = 'Todos';
+    }
+    this.store.setFilters(patch);
   }
 
   onStaffChange(key: string): void {

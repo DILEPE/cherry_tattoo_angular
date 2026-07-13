@@ -18,7 +18,7 @@ import {
   SurveySubmitPayload,
 } from '../../services/contract-signing-api.service';
 import { mapAppointment } from '../../../models/appointment.mapper';
-import { Appointment } from '../../../models/appointment.model';
+import { Appointment, AppointmentPayment } from '../../../models/appointment.model';
 import { Customer, CustomerWritePayload } from '../../../../customers/models/customer.model';
 import { ContractTemplate } from '../../../../contracts/models/contract-template.model';
 import { SurveyQuestion } from '../../../../surveys/models/survey-question.model';
@@ -364,6 +364,7 @@ export class ContractSigningPageComponent implements OnInit {
   readonly step = signal(1);
   readonly artistOnly = signal(false);
   readonly appointment = signal<Appointment | null>(null);
+  readonly payments = signal<AppointmentPayment[]>([]);
   readonly customer = signal<Customer | null>(null);
   readonly template = signal<ContractTemplate | null>(null);
   readonly questions = signal<SurveyQuestion[]>([]);
@@ -385,7 +386,7 @@ export class ContractSigningPageComponent implements OnInit {
   readonly paymentBlock = computed(() => {
     const a = this.appointment();
     if (!a) return null;
-    const { ok, message } = appointmentPaymentReadyForSignature(a);
+    const { ok, message } = appointmentPaymentReadyForSignature(a, this.payments());
     return ok ? null : message;
   });
 
@@ -457,7 +458,7 @@ export class ContractSigningPageComponent implements OnInit {
       );
       return;
     }
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
@@ -515,10 +516,14 @@ export class ContractSigningPageComponent implements OnInit {
   }
 
   private loadArtistOnly(apptId: number): void {
-    this.apptApi.get(apptId).subscribe({
-      next: (row) => {
+    forkJoin({
+      row: this.apptApi.get(apptId),
+      payments: this.apptApi.getPayments(apptId),
+    }).subscribe({
+      next: ({ row, payments }) => {
         const appt = mapAppointment(row);
         this.appointment.set(appt);
+        this.payments.set(payments);
         this.signingApi.latestSummary(apptId).subscribe({
           next: (s) => {
             this.summaryPendingArtist.set(s.pendingArtistSignature);
@@ -540,10 +545,14 @@ export class ContractSigningPageComponent implements OnInit {
   }
 
   private loadFullFlow(apptId: number): void {
-    this.apptApi.get(apptId).subscribe({
-      next: (row) => {
+    forkJoin({
+      row: this.apptApi.get(apptId),
+      payments: this.apptApi.getPayments(apptId),
+    }).subscribe({
+      next: ({ row, payments }) => {
         const appt = mapAppointment(row);
         this.appointment.set(appt);
+        this.payments.set(payments);
         const cid = appt.customerId;
         if (!cid || cid <= 0) {
           this.loadError.set('La cita no tiene cliente asociado.');
@@ -613,7 +622,7 @@ export class ContractSigningPageComponent implements OnInit {
       );
       return;
     }
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
@@ -663,12 +672,18 @@ export class ContractSigningPageComponent implements OnInit {
       next: (row) => {
         const fresh = mapAppointment(row);
         this.appointment.set(fresh);
-        const pay = appointmentPaymentReadyForSignature(fresh);
-        if (!pay.ok) {
-          this.toast.warn(pay.message ?? 'Completa el abono en Montos.');
-          return;
-        }
-        this.step.set(3);
+        this.apptApi.getPayments(a.id).subscribe({
+          next: (pays) => {
+            this.payments.set(pays);
+            const pay = appointmentPaymentReadyForSignature(fresh, pays);
+            if (!pay.ok) {
+              this.toast.warn(pay.message ?? 'Completa el abono en Montos.');
+              return;
+            }
+            this.step.set(3);
+          },
+          error: (err) => this.errors.handle(err),
+        });
       },
       error: (err) => this.errors.handle(err),
     });
@@ -692,7 +707,7 @@ export class ContractSigningPageComponent implements OnInit {
     const tpl = this.template();
     if (!a || !c || !tpl) return;
 
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Saldo pendiente.');
       return;
