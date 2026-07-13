@@ -2,7 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
-import { pipe, switchMap, tap } from 'rxjs';
+import { pipe, switchMap, tap, of, map, catchError } from 'rxjs';
 import { AppointmentsApiService } from '../appointments/services/appointments-api.service';
 import {
   Appointment,
@@ -13,6 +13,7 @@ import {
   mapAppointment,
   uniqueServices,
 } from '../appointments/models/appointment.mapper';
+import { piercingAppointmentIdsForLabels } from '../appointments/models/piercing-type-catalog';
 import { apiErrorMessage } from '../../core/services/api.service';
 import { LoadingService } from '../../core/services/loading.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
@@ -29,6 +30,7 @@ interface ReportState {
   subsection: ReportSubsection;
   page: number;
   pageSize: number;
+  piercingTypeLabels: Record<number, string>;
 }
 
 const initialFilters: AppointmentFilters = {
@@ -38,6 +40,7 @@ const initialFilters: AppointmentFilters = {
   storeId: 0,
   fromDate: '',
   toDate: '',
+  piercingWorkKind: 'Todos',
 };
 
 const initialState: ReportState = {
@@ -50,12 +53,15 @@ const initialState: ReportState = {
   subsection: 'finances',
   page: 0,
   pageSize: 10,
+  piercingTypeLabels: {},
 };
 
 export const ReportStore = signalStore(
   withState(initialState),
-  withComputed(({ items, filters, page, pageSize }) => {
-    const filteredItems = computed(() => filterAppointments(items(), filters()));
+  withComputed(({ items, filters, page, pageSize, piercingTypeLabels }) => {
+    const filteredItems = computed(() =>
+      filterAppointments(items(), filters(), piercingTypeLabels()),
+    );
     const totals = computed(() => {
       let trabajo = 0;
       let abonado = 0;
@@ -98,6 +104,7 @@ export const ReportStore = signalStore(
         patchState(store, { subsection: s });
       },
       setAssignedUserId(id: number | null): void {
+        if (store.assignedUserId() === id) return;
         patchState(store, { assignedUserId: id, reloadToken: store.reloadToken() + 1 });
       },
       setFilters(partial: Partial<AppointmentFilters>): void {
@@ -122,18 +129,34 @@ export const ReportStore = signalStore(
       },
       load: rxMethod<void>(
         pipe(
-          tap(() => patchState(store, { loading: true, error: null })),
+          tap(() =>
+            patchState(store, { loading: true, error: null, piercingTypeLabels: {} }),
+          ),
           switchMap(() =>
             api.list(store.assignedUserId()).pipe(
+              switchMap((rows) => {
+                const items = rows.map(mapAppointment);
+                const ids = piercingAppointmentIdsForLabels(items);
+                return api.getWorkPerformedLabels(ids).pipe(
+                  map((piercingTypeLabels) => ({ items, piercingTypeLabels })),
+                  catchError(() => of({ items, piercingTypeLabels: {} as Record<number, string> })),
+                );
+              }),
               tapResponse({
-                next: (rows) =>
+                next: ({ items, piercingTypeLabels }) =>
                   patchState(store, {
-                    items: rows.map(mapAppointment),
+                    items,
+                    piercingTypeLabels,
                     loading: false,
                   }),
                 error: (err) => {
                   const msg = apiErrorMessage(err);
-                  patchState(store, { items: [], loading: false, error: msg });
+                  patchState(store, {
+                    items: [],
+                    piercingTypeLabels: {},
+                    loading: false,
+                    error: msg,
+                  });
                   toast.error(msg);
                 },
               }),

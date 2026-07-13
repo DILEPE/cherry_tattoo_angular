@@ -18,7 +18,7 @@ import { CustomersApiService } from '../../services/customers-api.service';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { PanelStaffApiService } from '../../services/panel-staff-api.service';
 import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
-import { mapAppointment, statusToPillVariant } from '../../models/appointment.mapper';
+import { copToMiles, mapAppointment, milesToCop, statusToPillVariant } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
   firmarContratoDisabled,
@@ -28,7 +28,6 @@ import {
 } from '../../models/appointment-policy';
 import {
   appointmentDetailPlainBody,
-  formatAppointmentCreatedAtDisplay,
   rebuildDetailForPatch,
   splitDesignObsPlain,
 } from '../../models/appointment-detail-text.mapper';
@@ -58,6 +57,11 @@ import { AppointmentAbonosSectionComponent } from '../../components/appointment-
 import { apiErrorMessage } from '../../../../core/services/api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
+import { AppStore } from '../../../../store/app.store';
+import {
+  canManageAppointmentAmounts,
+  isTechnicianRole,
+} from '../../../../core/utils/panel-roles';
 import { of, switchMap } from 'rxjs';
 
 @Component({
@@ -83,9 +87,6 @@ import { of, switchMap } from 'rxjs';
         <header class="ap-ficha-header">
           <div>
             <h3 class="ap-ficha-title">Cita</h3>
-            <p class="ap-ficha-meta">
-              {{ formatCreated(a.createdAt) }} · Cita #{{ a.id }}
-            </p>
           </div>
           <div class="ap-ficha-header__status">
             <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
@@ -112,6 +113,7 @@ import { of, switchMap } from 'rxjs';
         </div>
 
         <p class="ap-ficha-section-band">Horario</p>
+        <p class="ap-ficha-caption">Fecha: {{ formatAppointmentDay(appointmentDay()) }}</p>
         <div class="ap-ficha-grid2">
           <label>
             <span class="ap-ficha-col-head ap-ficha-col-head--wide">Desde (inicio)</span>
@@ -175,12 +177,12 @@ import { of, switchMap } from 'rxjs';
               }
             </label>
             <label>
-              <span class="ap-ficha-col-head">Valor del tatuaje / trabajo (COP, entero)</span>
+              <span class="ap-ficha-col-head">Valor del tatuaje / trabajo</span>
               <input
                 class="ap-ficha-control"
                 type="number"
                 min="0"
-                step="1000"
+                step="1"
                 [ngModel]="totalValue()"
                 (ngModelChange)="totalValue.set(+$event || 0)"
                 [disabled]="montosLocked()"
@@ -227,7 +229,7 @@ import { of, switchMap } from 'rxjs';
 
         <app-appointment-abonos-section
           [montosLocked]="montosLocked()"
-          [totalOverride]="totalValue()"
+          [totalOverride]="totalValueCop()"
         />
 
         @if (a.contractPendingArtistSignature) {
@@ -235,7 +237,7 @@ import { of, switchMap } from 'rxjs';
         }
 
         <h4 class="ap-ficha-actions-title">Acciones</h4>
-        @if (!montosLocked()) {
+        @if (canManageFicha()) {
           <div class="ap-ficha-actions">
             <app-button variant="primary" [loading]="saving()" (clicked)="saveChanges()">
               Guardar cambios
@@ -254,6 +256,12 @@ import { of, switchMap } from 'rxjs';
               {{ firmarLabel() }}
             </app-button>
           </div>
+        } @else if (isTechnician()) {
+          <div class="ap-ficha-actions">
+            <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
+              {{ firmarLabel() }}
+            </app-button>
+          </div>
         }
         <div class="ap-ficha-actions-close">
           <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
@@ -268,6 +276,7 @@ export class AppointmentFocusDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly appStore = inject(AppStore);
   private readonly customersApi = inject(CustomersApiService);
   private readonly api = inject(AppointmentsApiService);
   private readonly staffApi = inject(PanelStaffApiService);
@@ -288,6 +297,8 @@ export class AppointmentFocusDialogComponent {
   readonly designText = signal('');
   readonly obsText = signal('');
   readonly totalValue = signal(0);
+  /** Total en COP para validaciones de abonos (input de trabajo está en miles). */
+  readonly totalValueCop = computed(() => milesToCop(this.totalValue()));
   readonly isPriority = signal(false);
   readonly saving = signal(false);
 
@@ -302,14 +313,28 @@ export class AppointmentFocusDialogComponent {
 
   readonly appt = this.dlg.appointment;
 
+  readonly isTechnician = computed(() =>
+    isTechnicianRole(this.appStore.user()?.role ?? ''),
+  );
+
+  /** Edición de ficha/montos (admin/vendedor y estado editable). */
+  readonly canManageFicha = computed(() => {
+    const a = this.appt();
+    if (!a) return false;
+    const role = this.appStore.user()?.role ?? '';
+    if (!canManageAppointmentAmounts(role)) return false;
+    return !montosLockedForAppointment(a);
+  });
+
   readonly montosLocked = computed(() => {
     const a = this.appt();
-    return a ? montosLockedForAppointment(a) : true;
+    if (!a) return true;
+    return montosLockedForAppointment(a, this.appStore.user()?.role ?? '');
   });
 
   readonly artistLocked = computed(() => {
     const a = this.appt();
-    return !a || a.hasSignedContract;
+    return !a || a.hasSignedContract || this.montosLocked();
   });
 
   readonly artistDirty = computed(() => {
@@ -399,7 +424,7 @@ export class AppointmentFocusDialogComponent {
 
   readonly firmarDisabled = computed(() => {
     const a = this.appt();
-    return !a || firmarContratoDisabled(a);
+    return !a || firmarContratoDisabled(a, this.dlg.payments());
   });
 
   readonly firmarLabel = computed(() => {
@@ -432,8 +457,8 @@ export class AppointmentFocusDialogComponent {
     this.baseDesign = design;
     this.baseObs = observations;
 
-    this.totalValue.set(Math.round(a.financials.total));
-    this.baseTotal = Math.round(a.financials.total);
+    this.totalValue.set(copToMiles(a.financials.total));
+    this.baseTotal = copToMiles(a.financials.total);
     this.isPriority.set(a.isPriority);
     this.basePriority = a.isPriority;
 
@@ -525,20 +550,24 @@ export class AppointmentFocusDialogComponent {
     }
   }
 
-  formatCreated(raw: string | null): string {
-    return formatAppointmentCreatedAtDisplay(raw);
+  formatAppointmentDay(day: Date): string {
+    if (!day || Number.isNaN(day.getTime())) return '—';
+    const dd = String(day.getDate()).padStart(2, '0');
+    const mm = String(day.getMonth() + 1).padStart(2, '0');
+    const yyyy = day.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   }
 
   saveChanges(): void {
     const a = this.appt();
     if (!a || this.montosLocked()) return;
 
-    const tot = Math.round(this.totalValue());
+    const tot = milesToCop(this.totalValue());
     const dep = a.financials.deposit;
     const credit = a.financials.credit;
     const dur = this.durationSlotsCount();
 
-    const totDirty = tot !== this.baseTotal;
+    const totDirty = this.totalValue() !== this.baseTotal;
     const schedDirty =
       this.scheduleEditable() &&
       (this.startSlot() !== this.baseStart ||

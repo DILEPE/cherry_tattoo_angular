@@ -2,7 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { tapResponse } from '@ngrx/operators';
-import { pipe, switchMap, tap } from 'rxjs';
+import { pipe, switchMap, tap, of, map, catchError } from 'rxjs';
 import { AppointmentsApiService } from './services/appointments-api.service';
 import {
   Appointment,
@@ -11,9 +11,13 @@ import {
 } from './models/appointment.model';
 import {
   filterAppointments,
+  filterTechnicianAgenda,
   mapAppointment,
   uniqueServices,
 } from './models/appointment.mapper';
+import { piercingAppointmentIdsForLabels } from './models/piercing-type-catalog';
+import { isTechnicianRole } from '../../core/utils/panel-roles';
+import { AppStore } from '../../store/app.store';
 import {
   AppointmentsViewMode,
   CalendarMonthState,
@@ -49,6 +53,8 @@ interface AppointmentsState {
   gotoDateIso: string;
   listPage: number;
   listPageSize: number;
+  /** appointmentId → etiqueta anatómica (encuesta). */
+  piercingTypeLabels: Record<number, string>;
 }
 
 const initialFilters: AppointmentFilters = {
@@ -58,6 +64,7 @@ const initialFilters: AppointmentFilters = {
   storeId: 0,
   fromDate: '',
   toDate: '',
+  piercingWorkKind: 'Todos',
 };
 
 const initialState: AppointmentsState = {
@@ -74,26 +81,38 @@ const initialState: AppointmentsState = {
   gotoDateIso: dateToIsoLocal(new Date()),
   listPage: 0,
   listPageSize: 10,
+  piercingTypeLabels: {},
 };
 
 export const AppointmentsStore = signalStore(
   withState(initialState),
-  withComputed(({ items, filters, listPage, listPageSize }) => {
-    const filteredItems = computed(() => filterAppointments(items(), filters()));
+  withComputed((store, appStore = inject(AppStore)) => {
+    const filteredItems = computed(() => {
+      let rows = filterAppointments(
+        store.items(),
+        store.filters(),
+        store.piercingTypeLabels(),
+      );
+      const role = appStore.user()?.role ?? '';
+      if (isTechnicianRole(role)) {
+        rows = filterTechnicianAgenda(rows);
+      }
+      return rows;
+    });
     const listTotalPages = computed(() => {
       const total = filteredItems().length;
-      const size = Math.max(1, listPageSize());
+      const size = Math.max(1, store.listPageSize());
       return Math.max(1, Math.ceil(total / size));
     });
     const paginatedListItems = computed(() => {
       const all = filteredItems();
-      const size = listPageSize();
+      const size = store.listPageSize();
       const pages = Math.max(1, Math.ceil(all.length / size) || 1);
-      const page = Math.min(listPage(), pages - 1);
+      const page = Math.min(store.listPage(), pages - 1);
       const start = page * size;
       return all.slice(start, start + size);
     });
-    const clientHistoryCounts = computed(() => buildClientHistoryCounts(items()));
+    const clientHistoryCounts = computed(() => buildClientHistoryCounts(store.items()));
     const appointmentsByDay = computed(() =>
       groupAppointmentsByDay(filteredItems()),
     );
@@ -103,8 +122,9 @@ export const AppointmentsStore = signalStore(
       listTotalPages,
       clientHistoryCounts,
       appointmentsByDay,
-      serviceOptions: computed(() => uniqueServices(items())),
-      hasItems: computed(() => items().length > 0),
+      serviceOptions: computed(() => uniqueServices(store.items())),
+      hasItems: computed(() => store.items().length > 0),
+      isTechnicianAgenda: computed(() => isTechnicianRole(appStore.user()?.role ?? '')),
     };
   }),
   withMethods(
@@ -176,6 +196,12 @@ export const AppointmentsStore = signalStore(
         patchState(store, { calendarMonth: currentCalendarMonth() });
       },
       setAssignedUserId(id: number | null): void {
+        if (store.assignedUserId() === id) {
+          if (id != null && id > 0 && store.calendarPeriod() === 'team') {
+            patchState(store, { calendarPeriod: 'month' });
+          }
+          return;
+        }
         const patch: Partial<AppointmentsState> = {
           assignedUserId: id,
           reloadToken: store.reloadToken() + 1,
@@ -231,18 +257,34 @@ export const AppointmentsStore = signalStore(
       },
       load: rxMethod<void>(
         pipe(
-          tap(() => patchState(store, { loading: true, error: null })),
+          tap(() =>
+            patchState(store, { loading: true, error: null, piercingTypeLabels: {} }),
+          ),
           switchMap(() =>
             api.list(store.assignedUserId()).pipe(
+              switchMap((rows) => {
+                const items = rows.map(mapAppointment);
+                const ids = piercingAppointmentIdsForLabels(items);
+                return api.getWorkPerformedLabels(ids).pipe(
+                  map((piercingTypeLabels) => ({ items, piercingTypeLabels })),
+                  catchError(() => of({ items, piercingTypeLabels: {} as Record<number, string> })),
+                );
+              }),
               tapResponse({
-                next: (rows) =>
+                next: ({ items, piercingTypeLabels }) =>
                   patchState(store, {
-                    items: rows.map(mapAppointment),
+                    items,
+                    piercingTypeLabels,
                     loading: false,
                   }),
                 error: (err) => {
                   const msg = apiErrorMessage(err);
-                  patchState(store, { items: [], loading: false, error: msg });
+                  patchState(store, {
+                    items: [],
+                    piercingTypeLabels: {},
+                    loading: false,
+                    error: msg,
+                  });
                   toast.error(msg);
                 },
               }),

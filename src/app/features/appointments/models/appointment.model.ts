@@ -72,6 +72,9 @@ export interface AppointmentPayment {
   note: string | null;
   paidOn: string | null;
   createdAt: string | null;
+  isVerified: boolean;
+  verifiedAt: string | null;
+  verifiedBy: number | null;
 }
 
 export interface AppointmentReceipt {
@@ -92,4 +95,8 @@ export interface AppointmentFilters {
   /** YYYY-MM-DD o vacío. */
   fromDate: string;
   toDate: string;
+  /**
+   * Subtipo cuando servicio es Piercing: Todos | piercing | limpieza_piercing | cambio_piercing.
+   */
+  piercingWorkKind: string;
 }

@@ -5,6 +5,13 @@ export interface SignedContract {
   contractText: string | null;
   isMinor: boolean;
   createdAt: string | null;
+  clientSignature: string | null;
+  tutorSignature: string | null;
+  artistSignature: string | null;
+  tutorDocumentFront: string | null;
+  tutorDocumentBack: string | null;
+  minorDocumentFront: string | null;
+  minorDocumentBack: string | null;
 }
 
 export interface CustomerSignedContractRow {

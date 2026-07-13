@@ -9,6 +9,16 @@ import {
 } from './appointment.model';
 import { appointmentRowDate } from './calendar.mapper';
 import { mergeDesignObsPlain } from './appointment-detail-text.mapper';
+import { inferWorkKindFromAppointment } from './booking.mapper';
+import {
+  BookingWorkKind,
+  isPiercingServiceFilter,
+  isPiercingWorkKindFilter,
+} from './booking.model';
+import {
+  isPiercingAnatomyFilter,
+  resolvePiercingTypeCanonical,
+} from './piercing-type-catalog';
 
 function toFloat(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -18,6 +28,11 @@ function toFloat(v: unknown, fallback = 0): number {
 export function formatCop(value: number): string {
   const amount = Math.round(value);
   return `COP $${amount.toLocaleString('es-CO').replace(/,/g, '.')}`;
+}
+
+/** COP visual en miles (50000 → COP $50). Entrada/guardado siguen en pesos. */
+export function formatCopAbono(value: number): string {
+  return `COP $${Math.round(Math.max(value, 0) / 1000)}`;
 }
 
 function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
@@ -35,10 +50,10 @@ function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
     deposit,
     pending,
     credit,
-    totalFmt: formatCop(total),
-    depositFmt: formatCop(deposit),
-    pendingFmt: formatCop(pending),
-    creditFmt: formatCop(credit),
+    totalFmt: formatCopAbono(total),
+    depositFmt: formatCopAbono(deposit),
+    pendingFmt: formatCopAbono(pending),
+    creditFmt: formatCopAbono(credit),
   };
 }
 
@@ -50,6 +65,17 @@ export function mapPayment(raw: Record<string, unknown>): AppointmentPayment {
     note: raw['note'] != null ? String(raw['note']) : null,
     paidOn: raw['paid_on'] != null ? String(raw['paid_on']) : null,
     createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
+    isVerified: Boolean(raw['is_verified'] ?? raw['isVerified'] ?? false),
+    verifiedAt:
+      raw['verified_at'] != null
+        ? String(raw['verified_at'])
+        : raw['verifiedAt'] != null
+          ? String(raw['verifiedAt'])
+          : null,
+    verifiedBy: (() => {
+      const v = raw['verified_by'] ?? raw['verifiedBy'];
+      return v != null && Number(v) > 0 ? Number(v) : null;
+    })(),
   };
 }
 
@@ -66,9 +92,19 @@ export function mapReceipt(raw: Record<string, unknown>): AppointmentReceipt {
   };
 }
 
-/** Valor en tabla de abonos (60.000) sin prefijo COP. */
+/** Valor en tabla de abonos: visual en miles (50000 → 50). */
 export function formatAmountTable(value: number): string {
-  return Math.round(value).toLocaleString('es-CO').replace(/,/g, '.');
+  return String(Math.round(Math.max(value, 0) / 1000));
+}
+
+/** Convierte miles a COP (50 → 50000). */
+export function milesToCop(miles: number): number {
+  return Math.round(Math.max(Number(miles) || 0, 0) * 1000);
+}
+
+/** Convierte COP a miles (50000 → 50). */
+export function copToMiles(value: number): number {
+  return Math.round(Math.max(value, 0) / 1000);
 }
 
 export function normalizeStatus(status: string | null | undefined): AppointmentStatus {
@@ -189,6 +225,7 @@ function parseFilterDate(iso: string): Date | null {
 export function filterAppointments(
   items: Appointment[],
   filters: AppointmentFilters,
+  piercingTypeLabels: Readonly<Record<number, string>> = {},
 ): Appointment[] {
   const name = filters.nameSubstr.trim().toLowerCase();
   const service = filters.service;
@@ -196,12 +233,32 @@ export function filterAppointments(
   const from = parseFilterDate(filters.fromDate);
   const to = parseFilterDate(filters.toDate);
   const storeId = filters.storeId ?? 0;
+  const piercingKind = (filters.piercingWorkKind || 'Todos').trim();
   return items.filter((row) => {
     if (name && !row.customerName.toLowerCase().includes(name)) return false;
     if (storeId > 0 && (row.assignedStoreId ?? 0) !== storeId) return false;
-    if (service !== 'Todos' && row.serviceType !== service) return false;
+    if (service !== 'Todos') {
+      if (isPiercingServiceFilter(service)) {
+        const kind = inferWorkKindFromAppointment(row);
+        const piercingFamily =
+          kind === 'piercing' ||
+          kind === 'limpieza_piercing' ||
+          kind === 'cambio_piercing' ||
+          (row.serviceType || '').toLowerCase().includes('pierc') ||
+          (row.serviceType || '').toLowerCase() === 'cambio' ||
+          (row.serviceType || '').toLowerCase() === 'limpieza';
+        if (!piercingFamily) return false;
+      } else if (row.serviceType !== service) {
+        return false;
+      }
+    }
     if (status !== 'Todos' && row.statusLabel.toLowerCase() !== status.toLowerCase()) {
       return false;
+    }
+    if (piercingKind !== 'Todos') {
+      if (!appointmentMatchesPiercingSubtype(row, piercingKind, piercingTypeLabels)) {
+        return false;
+      }
     }
     const d = row.appointmentDate;
     if (from && d) {
@@ -213,6 +270,42 @@ export function filterAppointments(
       if (day > to) return false;
     }
     return true;
+  });
+}
+
+export function appointmentMatchesPiercingSubtype(
+  row: Appointment,
+  subtype: string,
+  piercingTypeLabels: Readonly<Record<number, string>> = {},
+): boolean {
+  const kind = inferWorkKindFromAppointment(row);
+  if (isPiercingWorkKindFilter(subtype)) {
+    return kind === (subtype as BookingWorkKind);
+  }
+  if (!isPiercingAnatomyFilter(subtype)) return false;
+  // Tipos anatómicos solo aplican a colocación de piercing.
+  if (kind !== 'piercing') return false;
+  const survey = piercingTypeLabels[row.id] ?? '';
+  const fromSurvey = resolvePiercingTypeCanonical(survey);
+  if (fromSurvey === subtype) return true;
+  const fromDetail = resolvePiercingTypeCanonical(row.detail);
+  return fromDetail === subtype;
+}
+
+/**
+ * Agenda de tatuador/perforador: solo citas del día en curso o con estado reprogramada.
+ */
+export function filterTechnicianAgenda(items: Appointment[]): Appointment[] {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const day = now.getDate();
+  return items.filter((row) => {
+    if (row.status === 'cancelada' || row.status === 'finalizada') return false;
+    if (row.status === 'reprogramada') return true;
+    const d = row.appointmentDate;
+    if (!d) return false;
+    return d.getFullYear() === y && d.getMonth() === m && d.getDate() === day;
   });
 }
 

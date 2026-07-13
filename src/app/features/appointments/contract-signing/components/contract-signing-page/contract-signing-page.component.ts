@@ -18,12 +18,13 @@ import {
   SurveySubmitPayload,
 } from '../../services/contract-signing-api.service';
 import { mapAppointment } from '../../../models/appointment.mapper';
-import { Appointment } from '../../../models/appointment.model';
+import { Appointment, AppointmentPayment } from '../../../models/appointment.model';
 import { Customer, CustomerWritePayload } from '../../../../customers/models/customer.model';
 import { ContractTemplate } from '../../../../contracts/models/contract-template.model';
 import { SurveyQuestion } from '../../../../surveys/models/survey-question.model';
 import { CustomerFormComponent } from '../../../../customers/components/customer-form/customer-form.component';
 import { ContractSigningSurveyStepComponent } from '../contract-signing-survey-step/contract-signing-survey-step.component';
+import { DocumentCaptureComponent } from '../document-capture/document-capture.component';
 import { AppSignaturePadComponent } from '../../../../../shared/ui/signature-pad/app-signature-pad.component';
 import { AppButtonComponent } from '../../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../../shared/ui/skeleton/app-skeleton.component';
@@ -39,7 +40,7 @@ import {
 import {
   isDocumentCaptureAcceptable,
   isSignatureAcceptable,
-  readImageFileAsDataUrl,
+  signatureImageSrc,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
 import { FormsModule } from '@angular/forms';
@@ -54,6 +55,7 @@ import { DocumentType } from '../../../../customers/models/customer.model';
     FormsModule,
     CustomerFormComponent,
     ContractSigningSurveyStepComponent,
+    DocumentCaptureComponent,
     AppSignaturePadComponent,
     AppButtonComponent,
     AppSkeletonComponent,
@@ -161,7 +163,89 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                     {{ todayLabel() }}</span
                   >
                 </div>
-                <div class="ctsig-contract-body" [innerHTML]="contractPreviewHtml()"></div>
+                <div class="ctsig-contract-preview">
+                  <div class="ctsig-contract-body" [innerHTML]="contractPreviewHtml()"></div>
+                  @if (isMinor() && customer() && appointment()) {
+                    <div
+                      class="ctsig-declaration-preview"
+                      [innerHTML]="guardianPreviewHtml()"
+                    ></div>
+                  }
+                  <div class="ctsig-preview-evidence">
+                    <h4 class="ctsig-preview-evidence__title">Firmas</h4>
+                    <div
+                      class="ctsig-view-sigs"
+                      [class.ctsig-view-sigs--pair]="!previewIsMinor()"
+                    >
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Cliente</span>
+                        @if (clientSigSrc()) {
+                          <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
+                        }
+                      </div>
+                      @if (previewIsMinor()) {
+                        <div class="ctsig-view-sig">
+                          <span class="ctsig-view-sig__label">Tutor</span>
+                          @if (tutorSigSrc()) {
+                            <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
+                          } @else {
+                            <p class="ctsig-view-sig__empty">Pendiente de firma</p>
+                          }
+                        </div>
+                      }
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Profesional</span>
+                        @if (artistSigSrc()) {
+                          <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
+                        }
+                      </div>
+                    </div>
+                    @if (previewIsMinor()) {
+                      <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
+                      <div class="ctsig-view-docs">
+                        <div class="ctsig-view-sig">
+                          <span class="ctsig-view-sig__label">Anverso</span>
+                          @if (tutorFrontSrc()) {
+                            <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
+                          } @else {
+                            <p class="ctsig-view-sig__empty">Pendiente</p>
+                          }
+                        </div>
+                        <div class="ctsig-view-sig">
+                          <span class="ctsig-view-sig__label">Reverso</span>
+                          @if (tutorBackSrc()) {
+                            <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
+                          } @else {
+                            <p class="ctsig-view-sig__empty">Pendiente</p>
+                          }
+                        </div>
+                      </div>
+                      <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
+                      <div class="ctsig-view-docs">
+                        <div class="ctsig-view-sig">
+                          <span class="ctsig-view-sig__label">Anverso</span>
+                          @if (minorFrontSrc()) {
+                            <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
+                          } @else {
+                            <p class="ctsig-view-sig__empty">Pendiente</p>
+                          }
+                        </div>
+                        <div class="ctsig-view-sig">
+                          <span class="ctsig-view-sig__label">Reverso</span>
+                          @if (minorBackSrc()) {
+                            <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
+                          } @else {
+                            <p class="ctsig-view-sig__empty">Pendiente</p>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
                 <p class="ctsig-notice">{{ refundNotice }}</p>
               }
 
@@ -189,12 +273,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                     <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssue" />
                   </label>
                 </div>
-                @if (customer() && appointment()) {
-                  <div
-                    class="ctsig-declaration-preview"
-                    [innerHTML]="guardianPreviewHtml()"
-                  ></div>
-                }
               }
 
               <h3>Firmas</h3>
@@ -218,14 +296,34 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               @if (isMinor()) {
                 <h3>Documento del tutor</h3>
                 <div class="ctsig-doc-upload">
-                  <label>
-                    Foto anverso *
-                    <input type="file" accept="image/*" (change)="onTutorFront($event)" />
-                  </label>
-                  <label>
-                    Foto reverso *
-                    <input type="file" accept="image/*" (change)="onTutorBack($event)" />
-                  </label>
+                  <app-document-capture
+                    label="Foto anverso *"
+                    [value]="tutorDocFront()"
+                    (valueChange)="tutorDocFront.set($event)"
+                  />
+                  <app-document-capture
+                    label="Foto reverso *"
+                    [value]="tutorDocBack()"
+                    (valueChange)="tutorDocBack.set($event)"
+                  />
+                </div>
+
+                <h3>Documento del menor</h3>
+                <p class="ctsig-doc-hint">
+                  Usa «Abrir cámara» para tomar la foto, o «Elegir archivo» si prefieres una imagen
+                  guardada.
+                </p>
+                <div class="ctsig-doc-upload">
+                  <app-document-capture
+                    label="Foto anverso *"
+                    [value]="minorDocFront()"
+                    (valueChange)="minorDocFront.set($event)"
+                  />
+                  <app-document-capture
+                    label="Foto reverso *"
+                    [value]="minorDocBack()"
+                    (valueChange)="minorDocBack.set($event)"
+                  />
                 </div>
               }
 
@@ -265,7 +363,89 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                   {{ todayLabel() }}</span
                 >
               </div>
-              <div class="ctsig-contract-body" [innerHTML]="contractPreviewHtml()"></div>
+              <div class="ctsig-contract-preview">
+                <div class="ctsig-contract-body" [innerHTML]="contractPreviewHtml()"></div>
+                @if (showTutorSection() && customer() && appointment()) {
+                  <div
+                    class="ctsig-declaration-preview"
+                    [innerHTML]="guardianPreviewHtml()"
+                  ></div>
+                }
+                <div class="ctsig-preview-evidence">
+                  <h4 class="ctsig-preview-evidence__title">Firmas</h4>
+                  <div
+                    class="ctsig-view-sigs"
+                    [class.ctsig-view-sigs--pair]="!previewIsMinor()"
+                  >
+                    <div class="ctsig-view-sig">
+                      <span class="ctsig-view-sig__label">Cliente</span>
+                      @if (clientSigSrc()) {
+                        <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
+                      } @else {
+                        <p class="ctsig-view-sig__empty">Pendiente de firma</p>
+                      }
+                    </div>
+                    @if (previewIsMinor()) {
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Tutor</span>
+                        @if (tutorSigSrc()) {
+                          <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
+                        }
+                      </div>
+                    }
+                    <div class="ctsig-view-sig">
+                      <span class="ctsig-view-sig__label">Profesional</span>
+                      @if (artistSigSrc()) {
+                        <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
+                      } @else {
+                        <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
+                      }
+                    </div>
+                  </div>
+                  @if (previewIsMinor()) {
+                    <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
+                    <div class="ctsig-view-docs">
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Anverso</span>
+                        @if (tutorFrontSrc()) {
+                          <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente</p>
+                        }
+                      </div>
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Reverso</span>
+                        @if (tutorBackSrc()) {
+                          <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente</p>
+                        }
+                      </div>
+                    </div>
+                    <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
+                    <div class="ctsig-view-docs">
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Anverso</span>
+                        @if (minorFrontSrc()) {
+                          <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente</p>
+                        }
+                      </div>
+                      <div class="ctsig-view-sig">
+                        <span class="ctsig-view-sig__label">Reverso</span>
+                        @if (minorBackSrc()) {
+                          <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
+                        } @else {
+                          <p class="ctsig-view-sig__empty">Pendiente</p>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
               <p class="ctsig-notice">{{ refundNotice }}</p>
             }
             @if (showTutorSection()) {
@@ -292,12 +472,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                   <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssueSingle" />
                 </label>
               </div>
-              @if (customer() && appointment()) {
-                <div
-                  class="ctsig-declaration-preview"
-                  [innerHTML]="guardianPreviewHtml()"
-                ></div>
-              }
             }
             <h3 class="ctsig-subsection">Firmas</h3>
             <div class="ctsig-sig-grid" [class.ctsig-sig-grid--minor]="showTutorSection()">
@@ -319,14 +493,34 @@ import { DocumentType } from '../../../../customers/models/customer.model';
             @if (showTutorSection()) {
               <h3 class="ctsig-subsection">Documento del tutor</h3>
               <div class="ctsig-doc-upload">
-                <label>
-                  Foto anverso *
-                  <input type="file" accept="image/*" (change)="onTutorFront($event)" />
-                </label>
-                <label>
-                  Foto reverso *
-                  <input type="file" accept="image/*" (change)="onTutorBack($event)" />
-                </label>
+                <app-document-capture
+                  label="Foto anverso *"
+                  [value]="tutorDocFront()"
+                  (valueChange)="tutorDocFront.set($event)"
+                />
+                <app-document-capture
+                  label="Foto reverso *"
+                  [value]="tutorDocBack()"
+                  (valueChange)="tutorDocBack.set($event)"
+                />
+              </div>
+
+              <h3 class="ctsig-subsection">Documento del menor</h3>
+              <p class="ctsig-doc-hint">
+                Usa «Abrir cámara» para tomar la foto, o «Elegir archivo» si prefieres una imagen
+                guardada.
+              </p>
+              <div class="ctsig-doc-upload">
+                <app-document-capture
+                  label="Foto anverso *"
+                  [value]="minorDocFront()"
+                  (valueChange)="minorDocFront.set($event)"
+                />
+                <app-document-capture
+                  label="Foto reverso *"
+                  [value]="minorDocBack()"
+                  (valueChange)="minorDocBack.set($event)"
+                />
               </div>
             }
             <div class="ctsig-step-actions">
@@ -364,6 +558,7 @@ export class ContractSigningPageComponent implements OnInit {
   readonly step = signal(1);
   readonly artistOnly = signal(false);
   readonly appointment = signal<Appointment | null>(null);
+  readonly payments = signal<AppointmentPayment[]>([]);
   readonly customer = signal<Customer | null>(null);
   readonly template = signal<ContractTemplate | null>(null);
   readonly questions = signal<SurveyQuestion[]>([]);
@@ -374,6 +569,8 @@ export class ContractSigningPageComponent implements OnInit {
   readonly artistSig = signal<string | null>(null);
   readonly tutorDocFront = signal<string | null>(null);
   readonly tutorDocBack = signal<string | null>(null);
+  readonly minorDocFront = signal<string | null>(null);
+  readonly minorDocBack = signal<string | null>(null);
 
   tutorName = '';
   tutorDocType: DocumentType = 'CC';
@@ -385,7 +582,7 @@ export class ContractSigningPageComponent implements OnInit {
   readonly paymentBlock = computed(() => {
     const a = this.appointment();
     if (!a) return null;
-    const { ok, message } = appointmentPaymentReadyForSignature(a);
+    const { ok, message } = appointmentPaymentReadyForSignature(a, this.payments());
     return ok ? null : message;
   });
 
@@ -413,6 +610,17 @@ export class ContractSigningPageComponent implements OnInit {
       minorGuardianDeclarationHtml(c, a, this.tutorName),
     );
   });
+
+  /** En flujo single el menor puede detectarse desde el formulario; en phased desde el cliente. */
+  readonly previewIsMinor = computed(() => this.showTutorSection());
+
+  readonly clientSigSrc = computed(() => signatureImageSrc(this.clientSig()));
+  readonly tutorSigSrc = computed(() => signatureImageSrc(this.tutorSig()));
+  readonly artistSigSrc = computed(() => signatureImageSrc(this.artistSig()));
+  readonly tutorFrontSrc = computed(() => signatureImageSrc(this.tutorDocFront()));
+  readonly tutorBackSrc = computed(() => signatureImageSrc(this.tutorDocBack()));
+  readonly minorFrontSrc = computed(() => signatureImageSrc(this.minorDocFront()));
+  readonly minorBackSrc = computed(() => signatureImageSrc(this.minorDocBack()));
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('appointmentId'));
@@ -457,7 +665,7 @@ export class ContractSigningPageComponent implements OnInit {
       );
       return;
     }
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
@@ -515,10 +723,14 @@ export class ContractSigningPageComponent implements OnInit {
   }
 
   private loadArtistOnly(apptId: number): void {
-    this.apptApi.get(apptId).subscribe({
-      next: (row) => {
+    forkJoin({
+      row: this.apptApi.get(apptId),
+      payments: this.apptApi.getPayments(apptId),
+    }).subscribe({
+      next: ({ row, payments }) => {
         const appt = mapAppointment(row);
         this.appointment.set(appt);
+        this.payments.set(payments);
         this.signingApi.latestSummary(apptId).subscribe({
           next: (s) => {
             this.summaryPendingArtist.set(s.pendingArtistSignature);
@@ -540,10 +752,14 @@ export class ContractSigningPageComponent implements OnInit {
   }
 
   private loadFullFlow(apptId: number): void {
-    this.apptApi.get(apptId).subscribe({
-      next: (row) => {
+    forkJoin({
+      row: this.apptApi.get(apptId),
+      payments: this.apptApi.getPayments(apptId),
+    }).subscribe({
+      next: ({ row, payments }) => {
         const appt = mapAppointment(row);
         this.appointment.set(appt);
+        this.payments.set(payments);
         const cid = appt.customerId;
         if (!cid || cid <= 0) {
           this.loadError.set('La cita no tiene cliente asociado.');
@@ -613,7 +829,7 @@ export class ContractSigningPageComponent implements OnInit {
       );
       return;
     }
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
@@ -663,27 +879,21 @@ export class ContractSigningPageComponent implements OnInit {
       next: (row) => {
         const fresh = mapAppointment(row);
         this.appointment.set(fresh);
-        const pay = appointmentPaymentReadyForSignature(fresh);
-        if (!pay.ok) {
-          this.toast.warn(pay.message ?? 'Completa el abono en Montos.');
-          return;
-        }
-        this.step.set(3);
+        this.apptApi.getPayments(a.id).subscribe({
+          next: (pays) => {
+            this.payments.set(pays);
+            const pay = appointmentPaymentReadyForSignature(fresh, pays);
+            if (!pay.ok) {
+              this.toast.warn(pay.message ?? 'Completa el abono en Montos.');
+              return;
+            }
+            this.step.set(3);
+          },
+          error: (err) => this.errors.handle(err),
+        });
       },
       error: (err) => this.errors.handle(err),
     });
-  }
-
-  onTutorFront(ev: Event): void {
-    const file = (ev.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    void readImageFileAsDataUrl(file).then((url) => this.tutorDocFront.set(url));
-  }
-
-  onTutorBack(ev: Event): void {
-    const file = (ev.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    void readImageFileAsDataUrl(file).then((url) => this.tutorDocBack.set(url));
   }
 
   saveContract(): void {
@@ -692,7 +902,7 @@ export class ContractSigningPageComponent implements OnInit {
     const tpl = this.template();
     if (!a || !c || !tpl) return;
 
-    const pay = appointmentPaymentReadyForSignature(a);
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
     if (!pay.ok) {
       this.toast.warn(pay.message ?? 'Saldo pendiente.');
       return;
@@ -717,6 +927,14 @@ export class ContractSigningPageComponent implements OnInit {
       }
       if (!isDocumentCaptureAcceptable(this.tutorDocBack())) {
         this.toast.warn('Adjunta foto reverso del documento del tutor.');
+        return;
+      }
+      if (!isDocumentCaptureAcceptable(this.minorDocFront())) {
+        this.toast.warn('Toma o adjunta la foto anverso del documento del menor.');
+        return;
+      }
+      if (!isDocumentCaptureAcceptable(this.minorDocBack())) {
+        this.toast.warn('Toma o adjunta la foto reverso del documento del menor.');
         return;
       }
       if (this.tutorName.trim().length < 3) {
@@ -744,6 +962,8 @@ export class ContractSigningPageComponent implements OnInit {
         artist_signature: this.artistSig(),
         tutor_document_front: minor ? this.tutorDocFront() : null,
         tutor_document_back: minor ? this.tutorDocBack() : null,
+        minor_document_front: minor ? this.minorDocFront() : null,
+        minor_document_back: minor ? this.minorDocBack() : null,
         contract_text: body,
         template_id: tpl.id,
       };

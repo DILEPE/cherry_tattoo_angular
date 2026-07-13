@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsListComponent } from '../appointments-list/appointments-list.component';
@@ -63,7 +63,7 @@ export class AppointmentsShellComponent {
     const u = this.appStore.user();
     if (!u) return;
     if (!maySeeAllAppointments(u.role)) {
-      this.store.setAssignedUserId(u.id);
+      untracked(() => this.store.setAssignedUserId(u.id));
     }
   });
 

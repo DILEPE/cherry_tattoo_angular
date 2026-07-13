@@ -16,7 +16,6 @@ import {
   documentNumberValidator,
   minCopAmountValidator,
   mobilePhoneCo10Validator,
-  optionalEmailValidator,
   trimRequiredValidator,
 } from '../../../../shared/forms/form-validators';
 import { BOOKING_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
@@ -61,7 +60,7 @@ import {
   busySlotIndices,
 } from '../../models/schedule.mapper';
 import { combineAppointmentDatetime, timeSlotOptions } from '../../models/appointment-slots';
-import { formatCop } from '../../models/appointment.mapper';
+import { copToMiles, formatCopAbono, milesToCop } from '../../models/appointment.mapper';
 import { mergeDesignObsPlain } from '../../models/appointment-detail-text.mapper';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 import { appointmentRowDate } from '../../models/calendar.mapper';
@@ -132,7 +131,7 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
           <input formControlName="phone" />
         </app-form-field>
         <app-form-field label="Correo" [control]="form.controls.email">
-          <input type="email" formControlName="email" />
+          <input type="text" formControlName="email" autocomplete="off" />
         </app-form-field>
       </div>
 
@@ -186,17 +185,18 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       </app-form-field>
 
       <div class="appt-book-row">
-        <app-form-field label="Valor total (COP)" [control]="form.controls.total">
-          <input type="number" formControlName="total" step="10000" />
+        <app-form-field label="Valor total" [control]="form.controls.total">
+          <input type="number" formControlName="total" step="1" min="0" />
         </app-form-field>
         <app-form-field
-          [label]="isExpress() ? 'Abono (igual al total) *' : 'Abono inicial (COP)'"
+          [label]="isExpress() ? 'Abono (igual al total) *' : 'Abono inicial'"
           [control]="form.controls.deposit"
         >
           <input
             type="number"
             formControlName="deposit"
-            step="10000"
+            step="1"
+            min="0"
             [readonly]="isExpress()"
           />
         </app-form-field>
@@ -209,7 +209,7 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
 
       @if (!isExpress()) {
         <p class="appt-dialog-caption">
-          Mínimo abono y total: {{ formatCop(MIN_COP) }}
+          Mínimo abono y total: {{ formatCopAbono(MIN_COP) }}
         </p>
       }
 
@@ -236,8 +236,9 @@ export class AppointmentBookDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
 
-  protected readonly formatCop = formatCop;
+  protected readonly formatCopAbono = formatCopAbono;
   protected readonly MIN_COP = MIN_APPOINTMENT_TOTAL_COP;
+  private readonly minMiles = copToMiles(MIN_APPOINTMENT_TOTAL_COP);
   readonly slotOptions = timeSlotOptions();
 
   readonly staffList = signal<PanelStaffOption[]>([]);
@@ -264,15 +265,15 @@ export class AppointmentBookDialogComponent {
       firstName: ['', trimRequiredValidator()],
       lastName: ['', trimRequiredValidator()],
       phone: ['', mobilePhoneCo10Validator()],
-      email: ['', optionalEmailValidator()],
+      email: [''],
       workKind: ['piercing' as BookingWorkKind],
       staffId: [0, Validators.min(1)],
       durationSlots: [2, [Validators.required, Validators.min(1), Validators.max(16)]],
       slot: ['09:00', Validators.required],
       design: [''],
       observations: [''],
-      total: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
-      deposit: [MIN_APPOINTMENT_TOTAL_COP, minCopAmountValidator(MIN_APPOINTMENT_TOTAL_COP)],
+      total: [this.minMiles, minCopAmountValidator(this.minMiles)],
+      deposit: [this.minMiles, minCopAmountValidator(this.minMiles)],
       isPriority: [false],
     },
     { validators: [bookingAmountsValidator()] },
@@ -413,17 +414,6 @@ export class AppointmentBookDialogComponent {
           this.form.patchValue({ deposit: total }, { emitEvent: true });
         }
       });
-
-    effect(() => {
-      const need = this.needNewCustomer();
-      const emailCtrl = this.form.controls.email;
-      if (need) {
-        emailCtrl.setValidators([trimRequiredValidator(), Validators.email]);
-      } else {
-        emailCtrl.setValidators([optionalEmailValidator()]);
-      }
-      emailCtrl.updateValueAndValidity({ emitEvent: false });
-    });
   }
 
   workKindLabel(wk: BookingWorkKind): string {
@@ -472,8 +462,8 @@ export class AppointmentBookDialogComponent {
       slot: '09:00',
       design: '',
       observations: '',
-      total: MIN_APPOINTMENT_TOTAL_COP,
-      deposit: MIN_APPOINTMENT_TOTAL_COP,
+      total: this.minMiles,
+      deposit: this.minMiles,
       isPriority: false,
     });
     this.form.markAsPristine();
@@ -538,7 +528,7 @@ export class AppointmentBookDialogComponent {
           this.needNewCustomer.set(true);
           this.verifyLevel.set('warning');
           this.verifyMessage.set(
-            'Cliente no registrado. Completa nombre, apellido, celular y correo.',
+            'Cliente no registrado. Completa nombre, apellido y celular.',
           );
         } else {
           this.customerId.set(row.id);
@@ -609,8 +599,8 @@ export class AppointmentBookDialogComponent {
       return;
     }
 
-    const total = Math.round(Number(this.form.controls.total.value));
-    const deposit = Math.round(Number(this.form.controls.deposit.value));
+    const total = milesToCop(Number(this.form.controls.total.value));
+    const deposit = milesToCop(Number(this.form.controls.deposit.value));
 
     if (this.isExpress()) {
       if (total <= 0) {

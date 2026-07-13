@@ -11,6 +11,8 @@ export interface ContractDetail {
   artistSignature: string | null;
   tutorDocumentFront: string | null;
   tutorDocumentBack: string | null;
+  minorDocumentFront: string | null;
+  minorDocumentBack: string | null;
 }
 
 export function mapContractDetail(raw: Record<string, unknown>): ContractDetail {
@@ -33,5 +35,9 @@ export function mapContractDetail(raw: Record<string, unknown>): ContractDetail 
       typeof raw['tutor_document_front'] === 'string' ? raw['tutor_document_front'] : null,
     tutorDocumentBack:
       typeof raw['tutor_document_back'] === 'string' ? raw['tutor_document_back'] : null,
+    minorDocumentFront:
+      typeof raw['minor_document_front'] === 'string' ? raw['minor_document_front'] : null,
+    minorDocumentBack:
+      typeof raw['minor_document_back'] === 'string' ? raw['minor_document_back'] : null,
   };
 }

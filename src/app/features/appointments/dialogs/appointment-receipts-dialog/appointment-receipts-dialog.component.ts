@@ -5,7 +5,7 @@ import { AppButtonComponent } from '../../../../shared/ui/button/app-button.comp
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
-import { formatCop } from '../../models/appointment.mapper';
+import { formatCopAbono } from '../../models/appointment.mapper';
 import { AppointmentReceipt } from '../../models/appointment.model';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 
@@ -33,7 +33,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
             <div>
               <strong>{{ kindLabel(r) }}</strong>
               · {{ (r.createdAt ?? '').slice(0, 19) || '—' }}
-              · <strong>{{ formatCop(r.amount) }}</strong>
+              · <strong>{{ formatCopAbono(r.amount) }}</strong>
             </div>
             <div class="appt-dialog-actions">
               <app-button variant="ghost" (clicked)="download(r)">Descargar PDF</app-button>
@@ -55,7 +55,7 @@ export class AppointmentReceiptsDialogComponent {
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
 
-  protected readonly formatCop = formatCop;
+  protected readonly formatCopAbono = formatCopAbono;
   readonly resendingId = signal<number | null>(null);
 
   private readonly _load = effect(() => {

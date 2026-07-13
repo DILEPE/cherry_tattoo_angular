@@ -992,10 +992,12 @@
 
 .ap-pay-pdf-frame {
   width: 100%;
-  min-height: 280px;
+  height: 420px;
+  min-height: 320px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   margin-bottom: 0.5rem;
+  background: #fff;
 }
 
 .ap-pay-receipt-actions {
@@ -1162,6 +1164,18 @@
   justify-content: center;
   gap: 0.2rem;
   white-space: nowrap;
+}
+
+.ap-pay-verified {
+  color: #1b7a3d;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ap-pay-unverified {
+  color: #a15c00;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 // Botones de icono monocromáticos en tablas (clientes, abonos, etc.)

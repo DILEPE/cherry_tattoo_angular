@@ -134,6 +134,17 @@ export class AppointmentsApiService {
     );
   }
 
+  verifyPayment(
+    appointmentId: number,
+    paymentId: number,
+    verifiedBy: number,
+  ): Observable<unknown> {
+    return this.api.post(
+      `/api/appointments/${appointmentId}/payments/${paymentId}/verify`,
+      { verified_by: verifiedBy },
+    );
+  }
+
   getReceipts(appointmentId: number): Observable<AppointmentReceipt[]> {
     return this.api
       .get<Record<string, unknown>[]>(`/api/appointments/${appointmentId}/receipts`)

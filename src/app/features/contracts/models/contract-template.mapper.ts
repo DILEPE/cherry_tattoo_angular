@@ -6,7 +6,10 @@ import {
 } from './contract-template.model';
 
 function toKind(v: unknown): ContractKind {
-  return String(v ?? 'tattoo').trim() === 'piercing' ? 'piercing' : 'tattoo';
+  const k = String(v ?? 'tattoo').trim().toLowerCase();
+  if (k === 'piercing') return 'piercing';
+  if (k === 'recibo') return 'recibo';
+  return 'tattoo';
 }
 
 function toSigningFlow(v: unknown): ContractSigningFlow {

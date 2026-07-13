@@ -6,6 +6,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
@@ -14,10 +15,13 @@ import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppIconActionButtonComponent } from '../../../../shared/ui/icon-button/app-icon-action-button.component';
 import {
+  copToMiles,
   formatAmountTable,
   mapAppointment,
+  milesToCop,
 } from '../../models/appointment.mapper';
 import { mapPaymentsToReceipts } from '../../models/payment-receipt.mapper';
+import { AppStore } from '../../../../store/app.store';
 import { AppointmentPayment } from '../../models/appointment.model';
 import { apiErrorMessage } from '../../../../core/services/api.service';
 
@@ -82,8 +86,8 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   class="ap-ficha-control"
                   type="number"
                   min="0"
-                  step="1000"
-                  [max]="pendingForPay()"
+                  step="1"
+                  [max]="pendingMiles()"
                   [ngModel]="newPayAmount()"
                   (ngModelChange)="newPayAmount.set(+$event || 0)"
                   [disabled]="!canAddPay() || adding()"
@@ -114,6 +118,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                 <tr>
                   <th><span class="ap-pay-col-head">Fecha</span></th>
                   <th><span class="ap-pay-col-head">Valor</span></th>
+                  <th><span class="ap-pay-col-head">Estado</span></th>
                   <th>
                     <span class="ap-pay-col-head ap-pay-col-head--actions">Acciones</span>
                   </th>
@@ -122,13 +127,20 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
               <tbody>
                 @if (!dlg.payments().length) {
                   <tr>
-                    <td colspan="3" class="ap-pay-empty">Aún no hay abonos registrados.</td>
+                    <td colspan="4" class="ap-pay-empty">Aún no hay abonos registrados.</td>
                   </tr>
                 } @else {
                   @for (p of dlg.payments(); track p.id) {
                     <tr>
                       <td>{{ paidOnDisplay(p) }}</td>
                       <td>{{ formatAmountTable(p.amount) }}</td>
+                      <td>
+                        @if (p.isVerified) {
+                          <span class="ap-pay-verified">Verificado</span>
+                        } @else {
+                          <span class="ap-pay-unverified">Sin verificar</span>
+                        }
+                      </td>
                       <td class="ap-pay-actions">
                         <button
                           appIconAction="document"
@@ -148,6 +160,14 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                           [disabled]="montosLocked()"
                           (click)="startEdit(p)"
                         ></button>
+                        @if (isAdmin()) {
+                          <button
+                            appIconAction="check"
+                            title="Verificar abono realizado"
+                            [disabled]="p.isVerified || verifyingPayId() === p.id"
+                            (click)="verifyPayment(p)"
+                          ></button>
+                        }
                       </td>
                     </tr>
                   }
@@ -171,12 +191,12 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   />
                 </label>
                 <label class="ap-pay-field">
-                  <span class="ap-ficha-col-head">Valor del abono (COP)</span>
+                  <span class="ap-ficha-col-head">Valor del abono</span>
                   <input
                     class="ap-ficha-control"
                     type="number"
                     min="1"
-                    step="1000"
+                    step="1"
                     [ngModel]="editPayAmount()"
                     (ngModelChange)="editPayAmount.set(+$event || 0)"
                   />
@@ -200,8 +220,14 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                 <p class="ap-ficha-caption">Cargando PDF…</p>
               } @else if (pdfError()) {
                 <p class="form-field__error">{{ pdfError() }}</p>
-              } @else if (pdfBlobUrl()) {
-                <iframe class="ap-pay-pdf-frame" [src]="pdfBlobUrl()" title="Vista previa recibo"></iframe>
+              } @else {
+                @if (pdfSafeUrl(); as safeUrl) {
+                  <iframe
+                    class="ap-pay-pdf-frame"
+                    [src]="safeUrl"
+                    title="Vista previa recibo"
+                  ></iframe>
+                }
               }
               <div class="ap-pay-receipt-actions">
                 @if (pdfBlob()) {
@@ -237,10 +263,13 @@ export class AppointmentAbonosSectionComponent {
   private readonly api = inject(AppointmentsApiService);
   private readonly apptStore = inject(AppointmentsStore);
   private readonly toast = inject(ToastService);
+  private readonly appStore = inject(AppStore);
+  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly formatAmountTable = formatAmountTable;
   protected readonly paidOnDisplay = paidOnTableDisplay;
   protected readonly todayIso = todayIso();
+  protected readonly isAdmin = this.appStore.isAdmin;
 
   readonly expanded = signal(true);
   readonly newPayDate = signal(todayIso());
@@ -253,9 +282,11 @@ export class AppointmentAbonosSectionComponent {
   readonly pdfError = signal<string | null>(null);
   readonly pdfBlob = signal<Blob | null>(null);
   readonly pdfBlobUrl = signal<string | null>(null);
+  readonly pdfSafeUrl = signal<SafeResourceUrl | null>(null);
   readonly pdfFileName = signal(`recibo.pdf`);
   readonly adding = signal(false);
   readonly patching = signal(false);
+  readonly verifyingPayId = signal<number | null>(null);
   readonly resendingPayId = signal<number | null>(null);
   readonly resendingReceipt = signal(false);
 
@@ -272,6 +303,8 @@ export class AppointmentAbonosSectionComponent {
     return Math.max(Math.round((tot - dep - credit) * 100) / 100, 0);
   });
 
+  readonly pendingMiles = computed(() => copToMiles(this.pendingForPay()));
+
   readonly canAddPay = computed(
     () => !this.montosLocked() && this.pendingForPay() > 0.009,
   );
@@ -282,9 +315,13 @@ export class AppointmentAbonosSectionComponent {
   }
 
   addPayment(): void {
+    if (this.montosLocked()) {
+      this.toast.warn('No puedes registrar abonos con este perfil.');
+      return;
+    }
     const aid = this.dlg.appointmentId();
     if (aid == null || aid <= 0) return;
-    const amt = Math.round(this.newPayAmount());
+    const amt = milesToCop(this.newPayAmount());
     const pend = this.pendingForPay();
     if (amt <= 0) {
       this.toast.warn('El abono debe ser mayor a cero.');
@@ -314,18 +351,40 @@ export class AppointmentAbonosSectionComponent {
     const raw = p.paidOn ?? p.createdAt ?? todayIso();
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw));
     this.editPayDate.set(m ? `${m[1]}-${m[2]}-${m[3]}` : todayIso());
-    this.editPayAmount.set(Math.round(p.amount));
+    this.editPayAmount.set(copToMiles(p.amount));
   }
 
   cancelEdit(): void {
     this.editingPaymentId.set(null);
   }
 
+  verifyPayment(p: AppointmentPayment): void {
+    const aid = this.dlg.appointmentId();
+    const uid = this.appStore.user()?.id;
+    if (aid == null || aid <= 0 || !uid || p.isVerified) return;
+    this.verifyingPayId.set(p.id);
+    this.api.verifyPayment(aid, p.id, uid).subscribe({
+      next: () => {
+        this.verifyingPayId.set(null);
+        this.toast.success('Abono verificado: se confirma que el abono ha sido realizado.');
+        this.refreshAfterPaymentChange();
+      },
+      error: (err) => {
+        this.verifyingPayId.set(null);
+        this.toast.error(apiErrorMessage(err));
+      },
+    });
+  }
+
   saveEdit(): void {
+    if (this.montosLocked()) {
+      this.toast.warn('No puedes editar abonos con este perfil.');
+      return;
+    }
     const aid = this.dlg.appointmentId();
     const pid = this.editingPaymentId();
     if (aid == null || pid == null || pid <= 0) return;
-    const amt = Math.round(this.editPayAmount());
+    const amt = milesToCop(this.editPayAmount());
     if (amt <= 0) {
       this.toast.warn('El abono debe ser mayor a cero.');
       return;
@@ -352,13 +411,22 @@ export class AppointmentAbonosSectionComponent {
     this.viewReceiptId.set(rid);
     this.pdfLoading.set(true);
     this.pdfError.set(null);
-    const aid = this.dlg.appointmentId();
-    if (aid == null) return;
+    const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
+    if (aid == null || aid <= 0) {
+      this.pdfLoading.set(false);
+      this.pdfError.set('No se pudo identificar la cita del recibo.');
+      return;
+    }
     this.api.getReceiptPdf(aid, rid).subscribe({
       next: (blob) => {
-        this.pdfBlob.set(blob);
-        const url = URL.createObjectURL(blob);
+        const pdf =
+          blob.type === 'application/pdf'
+            ? blob
+            : new Blob([blob], { type: 'application/pdf' });
+        this.pdfBlob.set(pdf);
+        const url = URL.createObjectURL(pdf);
         this.pdfBlobUrl.set(url);
+        this.pdfSafeUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(url));
         this.pdfFileName.set(`recibo_${aid}_${rid}.pdf`);
         this.pdfLoading.set(false);
       },
@@ -426,6 +494,7 @@ export class AppointmentAbonosSectionComponent {
     const url = this.pdfBlobUrl();
     if (url) URL.revokeObjectURL(url);
     this.pdfBlobUrl.set(null);
+    this.pdfSafeUrl.set(null);
     this.pdfBlob.set(null);
     this.pdfError.set(null);
   }

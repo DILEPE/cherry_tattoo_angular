@@ -109,6 +109,26 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
             }
           </div>
         </div>
+
+        <h4 class="ctsig-view-section">Documento del menor</h4>
+        <div class="ctsig-view-docs">
+          <div class="ctsig-view-sig">
+            <span class="ctsig-view-sig__label">Anverso</span>
+            @if (minorFrontSrc()) {
+              <img [src]="minorFrontSrc()!" alt="Anverso documento menor" class="ctsig-view-sig__img" />
+            } @else {
+              <p class="ctsig-view-sig__empty">Sin imagen.</p>
+            }
+          </div>
+          <div class="ctsig-view-sig">
+            <span class="ctsig-view-sig__label">Reverso</span>
+            @if (minorBackSrc()) {
+              <img [src]="minorBackSrc()!" alt="Reverso documento menor" class="ctsig-view-sig__img" />
+            } @else {
+              <p class="ctsig-view-sig__empty">Sin imagen.</p>
+            }
+          </div>
+        </div>
       }
 
       <div class="appt-dialog-actions">
@@ -150,6 +170,12 @@ export class AppointmentContractViewDialogComponent {
   );
   readonly tutorBackSrc = computed(() =>
     signatureImageSrc(this.contract()?.tutorDocumentBack),
+  );
+  readonly minorFrontSrc = computed(() =>
+    signatureImageSrc(this.contract()?.minorDocumentFront),
+  );
+  readonly minorBackSrc = computed(() =>
+    signatureImageSrc(this.contract()?.minorDocumentBack),
   );
 
   private readonly _load = effect(() => {
