@@ -2,14 +2,16 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  computed,
   effect,
   inject,
   input,
   output,
-  signal,
   viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { startWith } from 'rxjs';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
 import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
 import { FormErrorPipe } from '../../../../shared/forms/form-errors.pipe';
@@ -17,11 +19,15 @@ import { validateFormBeforeSubmit } from '../../../../shared/forms/form-submit.u
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import {
   CONTRACT_KIND_LABEL_ES,
+  CONTRACT_KINDS,
+  CONTRACT_PLACEHOLDER_CHIPS,
   CONTRACT_PLACEHOLDERS_HINT,
   CONTRACT_SIGNING_FLOW_LABELS,
   ContractKind,
   ContractSigningFlow,
   ContractTemplate,
+  RECEIPT_PLACEHOLDER_CHIPS,
+  RECEIPT_PLACEHOLDERS_HINT,
 } from '../../models/contract-template.model';
 import { trimRequiredValidator } from '../../../../shared/forms/form-validators';
 import { richHtmlRequiredValidator } from '../../../../shared/forms/rich-html-validators';
@@ -53,7 +59,7 @@ export interface TemplateFormValue {
         <app-form-field label="Nombre *" [control]="form.controls.name">
           <input formControlName="name" autocomplete="off" />
         </app-form-field>
-        <app-form-field label="Tipo de trabajo *" [control]="form.controls.contractKind">
+        <app-form-field label="Tipo *" [control]="form.controls.contractKind">
           <select formControlName="contractKind">
             @for (k of kinds; track k) {
               <option [value]="k">{{ kindLabel(k) }}</option>
@@ -63,20 +69,30 @@ export interface TemplateFormValue {
         <app-form-field label="Versión *" [control]="form.controls.version">
           <input formControlName="version" placeholder="Ej. 1.0.0" autocomplete="off" />
         </app-form-field>
-        <app-form-field label="Flujo al firmar *" [control]="form.controls.signingFlow">
-          <select formControlName="signingFlow">
-            @for (f of signingFlows; track f) {
-              <option [value]="f">{{ signingFlowLabel(f) }}</option>
-            }
-          </select>
-        </app-form-field>
+        @if (!isReceiptKind()) {
+          <app-form-field label="Flujo al firmar *" [control]="form.controls.signingFlow">
+            <select formControlName="signingFlow">
+              @for (f of signingFlows; track f) {
+                <option [value]="f">{{ signingFlowLabel(f) }}</option>
+              }
+            </select>
+          </app-form-field>
+        }
         <label class="ct-form-check">
           <input type="checkbox" formControlName="isActive" />
           Plantilla activa
         </label>
-        <p class="ct-form-flow-hint">
-          Sin fases: datos, cuestionario y firma en una sola pantalla. Con fases: tres pasos como hasta ahora.
-        </p>
+        @if (isReceiptKind()) {
+          <p class="ct-form-flow-hint">
+            Tipo Recibo: el HTML entra en la zona de condiciones del mismo PDF de orden de trabajo
+            (cabecera y datos del cliente no se duplican). Solo una plantilla activa.
+          </p>
+        } @else {
+          <p class="ct-form-flow-hint">
+            Sin fases: datos, cuestionario y firma en una sola pantalla. Con fases: tres pasos como
+            hasta ahora.
+          </p>
+        }
       </div>
       <section
         class="ct-editor-panel"
@@ -86,11 +102,14 @@ export interface TemplateFormValue {
         "
       >
         <header class="ct-editor-panel__header">
-          <h4 class="ct-editor-panel__title">Texto del contrato *</h4>
-          <p class="ct-editor-panel__hint">{{ placeholdersHint }}</p>
+          <h4 class="ct-editor-panel__title">
+            {{ isReceiptKind() ? 'Texto del recibo *' : 'Texto del contrato *' }}
+          </h4>
+          <p class="ct-editor-panel__hint">{{ placeholdersHint() }}</p>
         </header>
         <app-contract-rich-editor
           formControlName="content"
+          [placeholderChips]="placeholderChips()"
           [showError]="
             form.controls.content.invalid &&
             (form.controls.content.touched || form.controls.content.dirty)
@@ -110,9 +129,8 @@ export class TemplateFormComponent {
   readonly initial = input<ContractTemplate | null>(null);
   readonly submitted = output<TemplateFormValue>();
 
-  protected readonly kinds: ContractKind[] = ['tattoo', 'piercing'];
+  protected readonly kinds = CONTRACT_KINDS;
   protected readonly signingFlows: ContractSigningFlow[] = ['phased', 'single'];
-  protected readonly placeholdersHint = CONTRACT_PLACEHOLDERS_HINT;
   protected readonly kindLabel = (k: ContractKind) => CONTRACT_KIND_LABEL_ES[k];
   protected readonly signingFlowLabel = (f: ContractSigningFlow) =>
     CONTRACT_SIGNING_FLOW_LABELS[f];
@@ -130,6 +148,21 @@ export class TemplateFormComponent {
     isActive: [true],
     signingFlow: ['phased' as ContractSigningFlow, Validators.required],
   });
+
+  private readonly kindValue = toSignal(
+    this.form.controls.contractKind.valueChanges.pipe(
+      startWith(this.form.controls.contractKind.value),
+    ),
+    { initialValue: this.form.controls.contractKind.value },
+  );
+
+  readonly isReceiptKind = computed(() => this.kindValue() === 'recibo');
+  readonly placeholdersHint = computed(() =>
+    this.isReceiptKind() ? RECEIPT_PLACEHOLDERS_HINT : CONTRACT_PLACEHOLDERS_HINT,
+  );
+  readonly placeholderChips = computed(() =>
+    this.isReceiptKind() ? RECEIPT_PLACEHOLDER_CHIPS : CONTRACT_PLACEHOLDER_CHIPS,
+  );
 
   private readonly _patch = effect(() => {
     const t = this.initial();
@@ -161,9 +194,9 @@ export class TemplateFormComponent {
         toast: this.toast,
         fieldLabels: {
           name: 'Nombre',
-          contractKind: 'Tipo de trabajo',
+          contractKind: 'Tipo',
           version: 'Versión',
-          content: 'Texto del contrato',
+          content: this.isReceiptKind() ? 'Texto del recibo' : 'Texto del contrato',
           signingFlow: 'Flujo al firmar',
         },
         onInvalid: () => this.formShowErrors()?.activate(),
@@ -180,8 +213,7 @@ export class TemplateFormComponent {
       version: v.version,
       content: v.content,
       isActive: v.isActive,
-      signingFlow: v.signingFlow,
+      signingFlow: v.contractKind === 'recibo' ? 'single' : v.signingFlow,
     });
   }
-
 }

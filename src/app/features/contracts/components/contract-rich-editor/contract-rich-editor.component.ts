@@ -39,7 +39,7 @@ const EDITOR_TOOLBAR = [
       <div class="ct-rich-editor__vars">
         <span class="ct-rich-editor__vars-label">Insertar variable</span>
         <div class="ct-rich-editor__vars-chips">
-          @for (p of placeholders; track p.value) {
+          @for (p of placeholderChips(); track p.value) {
             <button
               type="button"
               class="ct-rich-editor__chip"
@@ -59,8 +59,7 @@ const EDITOR_TOOLBAR = [
 })
 export class ContractRichEditorComponent implements ControlValueAccessor, AfterViewInit, OnDestroy {
   readonly showError = input(false);
-
-  protected readonly placeholders = CONTRACT_PLACEHOLDER_CHIPS;
+  readonly placeholderChips = input(CONTRACT_PLACEHOLDER_CHIPS);
 
   @ViewChild('editorHost', { static: true }) private readonly editorHost!: ElementRef<HTMLDivElement>;
 
