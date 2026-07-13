@@ -144,10 +144,10 @@ function isMinorByBirthIso(iso: string): boolean {
 
       <h4 class="cust-form-section">Emergencia</h4>
       <div class="cust-form-grid">
-        <app-form-field label="Contacto emergencia" [control]="form.controls.emergencyContactName">
+        <app-form-field label="Contacto emergencia (nombre)" [control]="form.controls.emergencyContactName">
           <input formControlName="emergencyContactName" />
         </app-form-field>
-        <app-form-field label="Teléfono emergencia" [control]="form.controls.emergencyContactPhone">
+        <app-form-field label="Contacto emergencia (teléfono)" [control]="form.controls.emergencyContactPhone">
           <input formControlName="emergencyContactPhone" placeholder="10 dígitos" />
         </app-form-field>
       </div>

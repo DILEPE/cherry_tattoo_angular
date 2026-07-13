@@ -13,6 +13,8 @@ export interface ContractSignPayload {
   artist_signature?: string | null;
   tutor_document_front?: string | null;
   tutor_document_back?: string | null;
+  minor_document_front?: string | null;
+  minor_document_back?: string | null;
   contract_text?: string | null;
   template_id?: number | null;
 }
