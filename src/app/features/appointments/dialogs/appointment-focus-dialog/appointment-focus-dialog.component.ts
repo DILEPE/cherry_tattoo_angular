@@ -18,7 +18,7 @@ import { CustomersApiService } from '../../services/customers-api.service';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { PanelStaffApiService } from '../../services/panel-staff-api.service';
 import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
-import { mapAppointment, statusToPillVariant } from '../../models/appointment.mapper';
+import { copToMiles, mapAppointment, milesToCop, statusToPillVariant } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
   firmarContratoDisabled,
@@ -28,7 +28,6 @@ import {
 } from '../../models/appointment-policy';
 import {
   appointmentDetailPlainBody,
-  formatAppointmentCreatedAtDisplay,
   rebuildDetailForPatch,
   splitDesignObsPlain,
 } from '../../models/appointment-detail-text.mapper';
@@ -83,9 +82,6 @@ import { of, switchMap } from 'rxjs';
         <header class="ap-ficha-header">
           <div>
             <h3 class="ap-ficha-title">Cita</h3>
-            <p class="ap-ficha-meta">
-              {{ formatCreated(a.createdAt) }} · Cita #{{ a.id }}
-            </p>
           </div>
           <div class="ap-ficha-header__status">
             <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
@@ -112,6 +108,7 @@ import { of, switchMap } from 'rxjs';
         </div>
 
         <p class="ap-ficha-section-band">Horario</p>
+        <p class="ap-ficha-caption">Fecha: {{ formatAppointmentDay(appointmentDay()) }}</p>
         <div class="ap-ficha-grid2">
           <label>
             <span class="ap-ficha-col-head ap-ficha-col-head--wide">Desde (inicio)</span>
@@ -175,12 +172,12 @@ import { of, switchMap } from 'rxjs';
               }
             </label>
             <label>
-              <span class="ap-ficha-col-head">Valor del tatuaje / trabajo (COP, entero)</span>
+              <span class="ap-ficha-col-head">Valor del tatuaje / trabajo</span>
               <input
                 class="ap-ficha-control"
                 type="number"
                 min="0"
-                step="1000"
+                step="1"
                 [ngModel]="totalValue()"
                 (ngModelChange)="totalValue.set(+$event || 0)"
                 [disabled]="montosLocked()"
@@ -227,7 +224,7 @@ import { of, switchMap } from 'rxjs';
 
         <app-appointment-abonos-section
           [montosLocked]="montosLocked()"
-          [totalOverride]="totalValue()"
+          [totalOverride]="totalValueCop()"
         />
 
         @if (a.contractPendingArtistSignature) {
@@ -288,6 +285,8 @@ export class AppointmentFocusDialogComponent {
   readonly designText = signal('');
   readonly obsText = signal('');
   readonly totalValue = signal(0);
+  /** Total en COP para validaciones de abonos (input de trabajo está en miles). */
+  readonly totalValueCop = computed(() => milesToCop(this.totalValue()));
   readonly isPriority = signal(false);
   readonly saving = signal(false);
 
@@ -432,8 +431,8 @@ export class AppointmentFocusDialogComponent {
     this.baseDesign = design;
     this.baseObs = observations;
 
-    this.totalValue.set(Math.round(a.financials.total));
-    this.baseTotal = Math.round(a.financials.total);
+    this.totalValue.set(copToMiles(a.financials.total));
+    this.baseTotal = copToMiles(a.financials.total);
     this.isPriority.set(a.isPriority);
     this.basePriority = a.isPriority;
 
@@ -525,20 +524,24 @@ export class AppointmentFocusDialogComponent {
     }
   }
 
-  formatCreated(raw: string | null): string {
-    return formatAppointmentCreatedAtDisplay(raw);
+  formatAppointmentDay(day: Date): string {
+    if (!day || Number.isNaN(day.getTime())) return '—';
+    const dd = String(day.getDate()).padStart(2, '0');
+    const mm = String(day.getMonth() + 1).padStart(2, '0');
+    const yyyy = day.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   }
 
   saveChanges(): void {
     const a = this.appt();
     if (!a || this.montosLocked()) return;
 
-    const tot = Math.round(this.totalValue());
+    const tot = milesToCop(this.totalValue());
     const dep = a.financials.deposit;
     const credit = a.financials.credit;
     const dur = this.durationSlotsCount();
 
-    const totDirty = tot !== this.baseTotal;
+    const totDirty = this.totalValue() !== this.baseTotal;
     const schedDirty =
       this.scheduleEditable() &&
       (this.startSlot() !== this.baseStart ||
