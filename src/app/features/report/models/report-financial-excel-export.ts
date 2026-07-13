@@ -1,6 +1,7 @@
 import type { Worksheet } from 'exceljs';
 import { Appointment, AppointmentFilters } from '../../appointments/models/appointment.model';
 import { reportWorkPerformedLabel } from './work-performed-label.util';
+import { piercingTypeDisplayLabel } from '../../appointments/models/piercing-type-catalog';
 import {
   EXCEL_COLORS,
   applyReportSubtitleRow,
@@ -50,6 +51,18 @@ export function buildReportFiltersLabel(filters: AppointmentFilters): string {
   const name = filters.nameSubstr.trim();
   if (name) parts.push(`Nombre: ${name}`);
   if (filters.service !== 'Todos') parts.push(`Servicio: ${filters.service}`);
+  const piercingKind = (filters.piercingWorkKind || 'Todos').trim();
+  if (piercingKind !== 'Todos') {
+    const workLabels: Record<string, string> = {
+      piercing: 'Piercing (colocación)',
+      limpieza_piercing: 'Limpieza (piercing)',
+      cambio_piercing: 'Cambio de piercing',
+    };
+    const label =
+      workLabels[piercingKind] ??
+      piercingTypeDisplayLabel(piercingKind);
+    parts.push(`Tipo piercing: ${label}`);
+  }
   if (filters.status !== 'Todos') parts.push(`Estado: ${filters.status}`);
   if (filters.fromDate) parts.push(`Desde: ${filters.fromDate}`);
   if (filters.toDate) parts.push(`Hasta: ${filters.toDate}`);

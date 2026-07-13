@@ -133,7 +133,12 @@ function isMinorByBirthIso(iso: string): boolean {
           <input formControlName="profession" />
         </app-form-field>
         <app-form-field label="Redes / contacto social" [control]="form.controls.socialMedia">
-          <input formControlName="socialMedia" maxlength="50" />
+          <div class="cust-social-row">
+            <input formControlName="socialMedia" maxlength="50" />
+            <span class="cust-form-hint cust-form-hint--beside">
+              Tus cuidados llegarán a tus redes sociales.
+            </span>
+          </div>
         </app-form-field>
       </div>
 

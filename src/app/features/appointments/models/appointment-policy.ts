@@ -1,4 +1,5 @@
-import { Appointment } from './appointment.model';
+import { Appointment, AppointmentPayment } from './appointment.model';
+import { canManageAppointmentAmounts } from '../../../core/utils/panel-roles';
 
 export function reprogramDisabledForRow(appt: Appointment): boolean {
   if (appt.id <= 0 || appt.status === 'cancelada') return true;
@@ -7,7 +8,8 @@ export function reprogramDisabledForRow(appt: Appointment): boolean {
   return false;
 }
 
-export function canEditFinancials(appt: Appointment): boolean {
+export function canEditFinancials(appt: Appointment, role?: string): boolean {
+  if (role != null && !canManageAppointmentAmounts(role)) return false;
   return appt.status === 'agendada' || appt.status === 'reprogramada';
 }
 
@@ -19,10 +21,25 @@ export function contractBlockedByBalance(appt: Appointment): boolean {
   return appt.financials.total > 0 && appt.financials.pending > 0.009;
 }
 
-export function firmarContratoDisabled(appt: Appointment): boolean {
+/** Con trabajo pagado completo, bloquea si falta verificar algún abono. */
+export function contractBlockedByUnverifiedPayments(
+  appt: Appointment,
+  payments: AppointmentPayment[],
+): boolean {
+  if (appt.financials.total <= 0.009) return false;
+  if (contractBlockedByBalance(appt)) return false;
+  if (!payments.length) return true;
+  return payments.some((p) => !p.isVerified);
+}
+
+export function firmarContratoDisabled(
+  appt: Appointment,
+  payments: AppointmentPayment[] = [],
+): boolean {
   if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return true;
   if (appt.status === 'cancelada' || appt.status === 'finalizada') return true;
   if (contractBlockedByBalance(appt)) return true;
+  if (contractBlockedByUnverifiedPayments(appt, payments)) return true;
   if (appt.hasSignedContract && !appt.contractPendingArtistSignature) return true;
   return false;
 }
@@ -33,6 +50,6 @@ export function firmarContratoLabel(appt: Appointment): string {
   return 'Contrato firmado';
 }
 
-export function montosLockedForAppointment(appt: Appointment): boolean {
-  return !canEditFinancials(appt);
+export function montosLockedForAppointment(appt: Appointment, role?: string): boolean {
+  return !canEditFinancials(appt, role);
 }

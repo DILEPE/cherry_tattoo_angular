@@ -5,6 +5,7 @@ export type AppIconName =
   | 'trash'
   | 'document'
   | 'send'
+  | 'check'
   | 'userOff'
   | 'userPlus'
   | 'calendar'
@@ -55,6 +56,9 @@ export type AppIconName =
         @case ('send') {
           <path d="m22 2-7 20-4-9-9-4Z" />
           <path d="M22 2 11 13" />
+        }
+        @case ('check') {
+          <path d="M20 6 9 17l-5-5" />
         }
         @case ('userOff') {
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

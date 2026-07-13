@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
+import { AppStore } from '../../../../store/app.store';
 import { AppPillComponent } from '../../../../shared/ui/pill/app-pill.component';
 import { AppBadgeComponent } from '../../../../shared/ui/badge/app-badge.component';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
@@ -16,8 +17,10 @@ import {
   firmarContratoLabel,
   reprogramDisabledForRow,
 } from '../../models/appointment-policy';
+import { canManageAppointmentAmounts, isTechnicianRole } from '../../../../core/utils/panel-roles';
 import { appointmentTimeHm } from '../../models/calendar.mapper';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
+import { Appointment } from '../../models/appointment.model';
 @Component({
   selector: 'app-appointment-detail-dialog',
   standalone: true,
@@ -100,33 +103,37 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
         </dl>
 
         <div class="appt-detail__actions">
-          <app-button
-            variant="primary"
-            [disabled]="reprogramDisabled(a)"
-            (clicked)="openSub('appointment-reschedule')"
-          >
-            Reprogramar
-          </app-button>
+          @if (!isTechnician()) {
+            <app-button
+              variant="primary"
+              [disabled]="reprogramDisabled(a)"
+              (clicked)="openSub('appointment-reschedule')"
+            >
+              Reprogramar
+            </app-button>
+            @if (canManageAmounts()) {
+              <app-button
+                variant="ghost"
+                [disabled]="!canEditAmounts(a)"
+                (clicked)="openSub('appointment-financials')"
+              >
+                Ajustar montos
+              </app-button>
+            }
+            <app-button variant="ghost" (clicked)="openSub('appointment-receipts')">
+              Recibos PDF
+            </app-button>
+            <app-button
+              variant="ghost"
+              [disabled]="!canCancelAppointment(a)"
+              (clicked)="openSub('appointment-cancel')"
+            >
+              Anular cita
+            </app-button>
+          }
           <app-button
             variant="ghost"
-            [disabled]="!canEditFinancials(a)"
-            (clicked)="openSub('appointment-financials')"
-          >
-            Ajustar montos
-          </app-button>
-          <app-button variant="ghost" (clicked)="openSub('appointment-receipts')">
-            Recibos PDF
-          </app-button>
-          <app-button
-            variant="ghost"
-            [disabled]="!canCancelAppointment(a)"
-            (clicked)="openSub('appointment-cancel')"
-          >
-            Anular cita
-          </app-button>
-          <app-button
-            variant="ghost"
-            [disabled]="firmarContratoDisabled(a)"
+            [disabled]="firmarContratoDisabled(a, dlg.payments())"
             (clicked)="openSignContract()"
           >
             {{ firmarContratoLabel(a) }}
@@ -142,16 +149,28 @@ export class AppointmentDetailDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly appStore = inject(AppStore);
   private readonly router = inject(Router);
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly serviceToBadgeVariant = serviceToBadgeVariant;
   protected readonly reprogramDisabled = reprogramDisabledForRow;
-  protected readonly canEditFinancials = canEditFinancials;
   protected readonly canCancelAppointment = canCancelAppointment;
   protected readonly firmarContratoDisabled = firmarContratoDisabled;
   protected readonly firmarContratoLabel = firmarContratoLabel;
 
   readonly appt = this.dlg.appointment;
+
+  readonly isTechnician = computed(() =>
+    isTechnicianRole(this.appStore.user()?.role ?? ''),
+  );
+
+  readonly canManageAmounts = computed(() =>
+    canManageAppointmentAmounts(this.appStore.user()?.role ?? ''),
+  );
+
+  canEditAmounts(a: Appointment): boolean {
+    return canEditFinancials(a, this.appStore.user()?.role ?? '');
+  }
 
   private readonly _load = effect(() => {
     const id = resolveAppointmentModalId(this.ui);
@@ -163,6 +182,7 @@ export class AppointmentDetailDialogComponent {
         this.dlg.patchAppointmentLocal(cached);
       }
       this.dlg.loadAppointment(id);
+      this.dlg.loadPayments(id);
     }
   });
 
@@ -186,7 +206,7 @@ export class AppointmentDetailDialogComponent {
 
   openSignContract(): void {
     const a = this.appt();
-    if (!a || firmarContratoDisabled(a)) return;
+    if (!a || firmarContratoDisabled(a, this.dlg.payments())) return;
     const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
     void this.router.navigate(['/citas', 'firmar', a.id], {
       queryParams: artistOnly ? { artistOnly: '1' } : {},

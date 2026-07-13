@@ -57,6 +57,11 @@ import { AppointmentAbonosSectionComponent } from '../../components/appointment-
 import { apiErrorMessage } from '../../../../core/services/api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
+import { AppStore } from '../../../../store/app.store';
+import {
+  canManageAppointmentAmounts,
+  isTechnicianRole,
+} from '../../../../core/utils/panel-roles';
 import { of, switchMap } from 'rxjs';
 
 @Component({
@@ -232,7 +237,7 @@ import { of, switchMap } from 'rxjs';
         }
 
         <h4 class="ap-ficha-actions-title">Acciones</h4>
-        @if (!montosLocked()) {
+        @if (canManageFicha()) {
           <div class="ap-ficha-actions">
             <app-button variant="primary" [loading]="saving()" (clicked)="saveChanges()">
               Guardar cambios
@@ -251,6 +256,12 @@ import { of, switchMap } from 'rxjs';
               {{ firmarLabel() }}
             </app-button>
           </div>
+        } @else if (isTechnician()) {
+          <div class="ap-ficha-actions">
+            <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
+              {{ firmarLabel() }}
+            </app-button>
+          </div>
         }
         <div class="ap-ficha-actions-close">
           <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
@@ -265,6 +276,7 @@ export class AppointmentFocusDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly appStore = inject(AppStore);
   private readonly customersApi = inject(CustomersApiService);
   private readonly api = inject(AppointmentsApiService);
   private readonly staffApi = inject(PanelStaffApiService);
@@ -301,14 +313,28 @@ export class AppointmentFocusDialogComponent {
 
   readonly appt = this.dlg.appointment;
 
+  readonly isTechnician = computed(() =>
+    isTechnicianRole(this.appStore.user()?.role ?? ''),
+  );
+
+  /** Edición de ficha/montos (admin/vendedor y estado editable). */
+  readonly canManageFicha = computed(() => {
+    const a = this.appt();
+    if (!a) return false;
+    const role = this.appStore.user()?.role ?? '';
+    if (!canManageAppointmentAmounts(role)) return false;
+    return !montosLockedForAppointment(a);
+  });
+
   readonly montosLocked = computed(() => {
     const a = this.appt();
-    return a ? montosLockedForAppointment(a) : true;
+    if (!a) return true;
+    return montosLockedForAppointment(a, this.appStore.user()?.role ?? '');
   });
 
   readonly artistLocked = computed(() => {
     const a = this.appt();
-    return !a || a.hasSignedContract;
+    return !a || a.hasSignedContract || this.montosLocked();
   });
 
   readonly artistDirty = computed(() => {
@@ -398,7 +424,7 @@ export class AppointmentFocusDialogComponent {
 
   readonly firmarDisabled = computed(() => {
     const a = this.appt();
-    return !a || firmarContratoDisabled(a);
+    return !a || firmarContratoDisabled(a, this.dlg.payments());
   });
 
   readonly firmarLabel = computed(() => {
