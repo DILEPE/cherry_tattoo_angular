@@ -20,6 +20,11 @@ export function formatCop(value: number): string {
   return `COP $${amount.toLocaleString('es-CO').replace(/,/g, '.')}`;
 }
 
+/** COP visual en miles (50000 → COP $50). Entrada/guardado siguen en pesos. */
+export function formatCopAbono(value: number): string {
+  return `COP $${Math.round(Math.max(value, 0) / 1000)}`;
+}
+
 function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
   const deposit = Math.max(toFloat(raw.deposit), 0);
   const totalRaw = Math.max(toFloat(raw.total_amount), 0);
@@ -35,10 +40,10 @@ function mapFinancials(raw: AppointmentApiRow): AppointmentFinancials {
     deposit,
     pending,
     credit,
-    totalFmt: formatCop(total),
-    depositFmt: formatCop(deposit),
-    pendingFmt: formatCop(pending),
-    creditFmt: formatCop(credit),
+    totalFmt: formatCopAbono(total),
+    depositFmt: formatCopAbono(deposit),
+    pendingFmt: formatCopAbono(pending),
+    creditFmt: formatCopAbono(credit),
   };
 }
 
@@ -66,9 +71,19 @@ export function mapReceipt(raw: Record<string, unknown>): AppointmentReceipt {
   };
 }
 
-/** Valor en tabla de abonos (60.000) sin prefijo COP. */
+/** Valor en tabla de abonos: visual en miles (50000 → 50). */
 export function formatAmountTable(value: number): string {
-  return Math.round(value).toLocaleString('es-CO').replace(/,/g, '.');
+  return String(Math.round(Math.max(value, 0) / 1000));
+}
+
+/** Convierte miles a COP (50 → 50000). */
+export function milesToCop(miles: number): number {
+  return Math.round(Math.max(Number(miles) || 0, 0) * 1000);
+}
+
+/** Convierte COP a miles (50000 → 50). */
+export function copToMiles(value: number): number {
+  return Math.round(Math.max(value, 0) / 1000);
 }
 
 export function normalizeStatus(status: string | null | undefined): AppointmentStatus {

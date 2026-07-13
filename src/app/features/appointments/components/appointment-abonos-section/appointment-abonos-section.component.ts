@@ -14,8 +14,10 @@ import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppIconActionButtonComponent } from '../../../../shared/ui/icon-button/app-icon-action-button.component';
 import {
+  copToMiles,
   formatAmountTable,
   mapAppointment,
+  milesToCop,
 } from '../../models/appointment.mapper';
 import { mapPaymentsToReceipts } from '../../models/payment-receipt.mapper';
 import { AppointmentPayment } from '../../models/appointment.model';
@@ -82,8 +84,8 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   class="ap-ficha-control"
                   type="number"
                   min="0"
-                  step="1000"
-                  [max]="pendingForPay()"
+                  step="1"
+                  [max]="pendingMiles()"
                   [ngModel]="newPayAmount()"
                   (ngModelChange)="newPayAmount.set(+$event || 0)"
                   [disabled]="!canAddPay() || adding()"
@@ -171,12 +173,12 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   />
                 </label>
                 <label class="ap-pay-field">
-                  <span class="ap-ficha-col-head">Valor del abono (COP)</span>
+                  <span class="ap-ficha-col-head">Valor del abono</span>
                   <input
                     class="ap-ficha-control"
                     type="number"
                     min="1"
-                    step="1000"
+                    step="1"
                     [ngModel]="editPayAmount()"
                     (ngModelChange)="editPayAmount.set(+$event || 0)"
                   />
@@ -272,6 +274,8 @@ export class AppointmentAbonosSectionComponent {
     return Math.max(Math.round((tot - dep - credit) * 100) / 100, 0);
   });
 
+  readonly pendingMiles = computed(() => copToMiles(this.pendingForPay()));
+
   readonly canAddPay = computed(
     () => !this.montosLocked() && this.pendingForPay() > 0.009,
   );
@@ -284,7 +288,7 @@ export class AppointmentAbonosSectionComponent {
   addPayment(): void {
     const aid = this.dlg.appointmentId();
     if (aid == null || aid <= 0) return;
-    const amt = Math.round(this.newPayAmount());
+    const amt = milesToCop(this.newPayAmount());
     const pend = this.pendingForPay();
     if (amt <= 0) {
       this.toast.warn('El abono debe ser mayor a cero.');
@@ -314,7 +318,7 @@ export class AppointmentAbonosSectionComponent {
     const raw = p.paidOn ?? p.createdAt ?? todayIso();
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw));
     this.editPayDate.set(m ? `${m[1]}-${m[2]}-${m[3]}` : todayIso());
-    this.editPayAmount.set(Math.round(p.amount));
+    this.editPayAmount.set(copToMiles(p.amount));
   }
 
   cancelEdit(): void {
@@ -325,7 +329,7 @@ export class AppointmentAbonosSectionComponent {
     const aid = this.dlg.appointmentId();
     const pid = this.editingPaymentId();
     if (aid == null || pid == null || pid <= 0) return;
-    const amt = Math.round(this.editPayAmount());
+    const amt = milesToCop(this.editPayAmount());
     if (amt <= 0) {
       this.toast.warn('El abono debe ser mayor a cero.');
       return;
