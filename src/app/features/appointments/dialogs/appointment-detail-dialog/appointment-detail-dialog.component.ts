@@ -1,26 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
-import { AppStore } from '../../../../store/app.store';
 import { AppPillComponent } from '../../../../shared/ui/pill/app-pill.component';
 import { AppBadgeComponent } from '../../../../shared/ui/badge/app-badge.component';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
 import { statusToPillVariant, serviceToBadgeVariant } from '../../models/appointment.mapper';
-import {
-  canCancelAppointment,
-  canEditFinancials,
-  firmarContratoDisabled,
-  firmarContratoLabel,
-  reprogramDisabledForRow,
-} from '../../models/appointment-policy';
-import { canManageAppointmentAmounts, isTechnicianRole } from '../../../../core/utils/panel-roles';
 import { appointmentTimeHm } from '../../models/calendar.mapper';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
-import { Appointment } from '../../models/appointment.model';
+
 @Component({
   selector: 'app-appointment-detail-dialog',
   standalone: true,
@@ -40,107 +30,69 @@ import { Appointment } from '../../models/appointment.model';
       <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
     } @else {
       @if (appt(); as a) {
-      <div class="appt-detail">
-        <div class="appt-detail__header">
-          <h3>Cita #{{ a.id }}</h3>
-          <div class="appt-detail__status">
-            <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
-            @if (a.hasSignedContract) {
-              <app-button variant="ghost" (clicked)="openContractView()">Ver contrato</app-button>
-            }
-          </div>
-        </div>
-
-        <dl class="appt-detail__grid">
-          <dt>Cliente</dt>
-          <dd>{{ a.customerName }}</dd>
-          <dt>Teléfono</dt>
-          <dd>{{ a.phone || '—' }}</dd>
-          <dt>Servicio</dt>
-          <dd>
-            <app-badge [variant]="serviceToBadgeVariant(a.serviceType)" [label]="a.serviceType" />
-          </dd>
-          <dt>Fecha</dt>
-          <dd>
-            {{ a.appointmentDate | dateEs }}
-            @if (timeLabel()) {
-              · {{ timeLabel() }}
-            }
-          </dd>
-          <dt>Artista</dt>
-          <dd>{{ a.assignedLabel }}</dd>
-        </dl>
-
-        <div class="appt-fin-summary">
-          <div class="appt-fin-summary__item">
-            <span class="appt-fin-summary__label">Total servicio</span>
-            <strong>{{ a.financials.totalFmt }}</strong>
-          </div>
-          <div class="appt-fin-summary__item">
-            <span class="appt-fin-summary__label">Abonado</span>
-            <strong>{{ a.financials.depositFmt }}</strong>
-          </div>
-          <div class="appt-fin-summary__item" [class.appt-fin-summary__item--pending]="a.financials.pending > 0">
-            <span class="appt-fin-summary__label">Pendiente</span>
-            <strong>{{ a.financials.pendingFmt }}</strong>
-          </div>
-          @if (a.financials.credit > 0) {
-            <div class="appt-fin-summary__item">
-              <span class="appt-fin-summary__label">Saldo a favor</span>
-              <strong>{{ a.financials.creditFmt }}</strong>
+        <div class="appt-detail">
+          <div class="appt-detail__header">
+            <div class="appt-detail__status">
+              <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+              @if (a.hasSignedContract) {
+                <app-button variant="ghost" (clicked)="openContractView()">Ver contrato</app-button>
+              }
             </div>
-          }
-        </div>
-        @if (a.contractPendingArtistSignature) {
-          <p class="cal-overflow-fire-pending appt-detail-fire">Firma profesional pendiente</p>
-        }
+          </div>
 
-        <dl class="appt-detail__grid appt-detail__grid--after-fin">
-          @if (a.detail) {
-            <dt>Detalle</dt>
-            <dd>{{ a.detail }}</dd>
-          }
-        </dl>
+          <dl class="appt-detail__grid">
+            <dt>Cliente</dt>
+            <dd>{{ a.customerName }}</dd>
+            <dt>Teléfono</dt>
+            <dd>{{ a.phone || '—' }}</dd>
+            <dt>Servicio</dt>
+            <dd>
+              <app-badge [variant]="serviceToBadgeVariant(a.serviceType)" [label]="a.serviceType" />
+            </dd>
+            <dt>Fecha</dt>
+            <dd>
+              {{ a.appointmentDate | dateEs }}
+              @if (timeLabel()) {
+                · {{ timeLabel() }}
+              }
+            </dd>
+            <dt>Artista</dt>
+            <dd>{{ a.assignedLabel }}</dd>
+          </dl>
 
-        <div class="appt-detail__actions">
-          @if (!isTechnician()) {
-            <app-button
-              variant="primary"
-              [disabled]="reprogramDisabled(a)"
-              (clicked)="openSub('appointment-reschedule')"
-            >
-              Reprogramar
-            </app-button>
-            @if (canManageAmounts()) {
-              <app-button
-                variant="ghost"
-                [disabled]="!canEditAmounts(a)"
-                (clicked)="openSub('appointment-financials')"
-              >
-                Ajustar montos
-              </app-button>
+          <div class="appt-fin-summary">
+            <div class="appt-fin-summary__item">
+              <span class="appt-fin-summary__label">Total servicio</span>
+              <strong>{{ a.financials.totalFmt }}</strong>
+            </div>
+            <div class="appt-fin-summary__item">
+              <span class="appt-fin-summary__label">Abonado</span>
+              <strong>{{ a.financials.depositFmt }}</strong>
+            </div>
+            <div class="appt-fin-summary__item" [class.appt-fin-summary__item--pending]="a.financials.pending > 0">
+              <span class="appt-fin-summary__label">Pendiente</span>
+              <strong>{{ a.financials.pendingFmt }}</strong>
+            </div>
+            @if (a.financials.credit > 0) {
+              <div class="appt-fin-summary__item">
+                <span class="appt-fin-summary__label">Saldo a favor</span>
+                <strong>{{ a.financials.creditFmt }}</strong>
+              </div>
             }
-            <app-button variant="ghost" (clicked)="openSub('appointment-receipts')">
-              Recibos PDF
-            </app-button>
-            <app-button
-              variant="ghost"
-              [disabled]="!canCancelAppointment(a)"
-              (clicked)="openSub('appointment-cancel')"
-            >
-              Anular cita
-            </app-button>
+          </div>
+          @if (a.contractPendingArtistSignature) {
+            <p class="cal-overflow-fire-pending appt-detail-fire">Firma profesional pendiente</p>
           }
-          <app-button
-            variant="ghost"
-            [disabled]="firmarContratoDisabled(a, dlg.payments())"
-            (clicked)="openSignContract()"
-          >
-            {{ firmarContratoLabel(a) }}
-          </app-button>
+
+          <dl class="appt-detail__grid appt-detail__grid--after-fin">
+            @if (a.detail) {
+              <dt>Detalle</dt>
+              <dd>{{ a.detail }}</dd>
+            }
+          </dl>
+
+          <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
         </div>
-        <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
-      </div>
       }
     }
   `,
@@ -149,35 +101,15 @@ export class AppointmentDetailDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
-  private readonly appStore = inject(AppStore);
-  private readonly router = inject(Router);
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly serviceToBadgeVariant = serviceToBadgeVariant;
-  protected readonly reprogramDisabled = reprogramDisabledForRow;
-  protected readonly canCancelAppointment = canCancelAppointment;
-  protected readonly firmarContratoDisabled = firmarContratoDisabled;
-  protected readonly firmarContratoLabel = firmarContratoLabel;
 
   readonly appt = this.dlg.appointment;
-
-  readonly isTechnician = computed(() =>
-    isTechnicianRole(this.appStore.user()?.role ?? ''),
-  );
-
-  readonly canManageAmounts = computed(() =>
-    canManageAppointmentAmounts(this.appStore.user()?.role ?? ''),
-  );
-
-  canEditAmounts(a: Appointment): boolean {
-    return canEditFinancials(a, this.appStore.user()?.role ?? '');
-  }
 
   private readonly _load = effect(() => {
     const id = resolveAppointmentModalId(this.ui);
     if (id > 0 && this.ui.activeModal()?.id === 'appointment-detail') {
-      const cached = this.apptStore
-        .filteredItems()
-        .find((x) => x.id === id);
+      const cached = this.apptStore.filteredItems().find((x) => x.id === id);
       if (cached) {
         this.dlg.patchAppointmentLocal(cached);
       }
@@ -196,22 +128,6 @@ export class AppointmentDetailDialogComponent {
     const a = this.appt();
     if (!a?.hasSignedContract) return;
     this.ui.openModal('appointment-contract-view', { appointmentId: a.id });
-  }
-
-  openSub(modalId: string): void {
-    const a = this.appt();
-    if (!a) return;
-    this.ui.openModal(modalId, { appointmentId: a.id });
-  }
-
-  openSignContract(): void {
-    const a = this.appt();
-    if (!a || firmarContratoDisabled(a, this.dlg.payments())) return;
-    const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
-    void this.router.navigate(['/citas', 'firmar', a.id], {
-      queryParams: artistOnly ? { artistOnly: '1' } : {},
-    });
-    this.close();
   }
 
   close(): void {

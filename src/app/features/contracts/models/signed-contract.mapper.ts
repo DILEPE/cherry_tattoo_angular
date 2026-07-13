@@ -1,5 +1,9 @@
 import { CustomerSignedContractRow, SignedContract } from './signed-contract.model';
 
+function strOrNull(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() ? v : null;
+}
+
 export function mapCustomerSignedContract(raw: Record<string, unknown>): CustomerSignedContractRow {
   return {
     id: Number(raw['id'] ?? 0),
@@ -18,5 +22,12 @@ export function mapSignedContract(raw: Record<string, unknown>): SignedContract 
     contractText: raw['contract_text'] != null ? String(raw['contract_text']) : null,
     isMinor: Boolean(raw['is_minor']),
     createdAt: raw['created_at'] != null ? String(raw['created_at']) : null,
+    clientSignature: strOrNull(raw['client_signature']),
+    tutorSignature: strOrNull(raw['tutor_signature']),
+    artistSignature: strOrNull(raw['artist_signature']),
+    tutorDocumentFront: strOrNull(raw['tutor_document_front']),
+    tutorDocumentBack: strOrNull(raw['tutor_document_back']),
+    minorDocumentFront: strOrNull(raw['minor_document_front']),
+    minorDocumentBack: strOrNull(raw['minor_document_back']),
   };
 }
