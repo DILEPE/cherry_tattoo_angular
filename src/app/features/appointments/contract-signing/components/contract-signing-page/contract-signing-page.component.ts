@@ -43,6 +43,13 @@ import {
   signatureImageSrc,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
+import {
+  PIERCING_TYPE_OPTIONS,
+  PROCEDURE_CONSENT_SURVEY_QUESTION_ID,
+  inferPiercingTypeFromAppointmentDetail,
+  piercingTypeDisplayLabel,
+  withPiercingTypeSurveyAnswer,
+} from '../../models/piercing-type-signing.util';
 import { FormsModule } from '@angular/forms';
 import { DocumentType } from '../../../../customers/models/customer.model';
 
@@ -276,6 +283,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               }
 
               <h3>Firmas</h3>
+              @if (isPiercingContract()) {
+                <label class="ctsig-piercing-type">
+                  Tipo de piercing *
+                  <select
+                    [ngModel]="piercingType()"
+                    (ngModelChange)="piercingType.set($event)"
+                    name="piercingTypePhased"
+                  >
+                    <option value="">Selecciona el tipo…</option>
+                    @for (opt of piercingTypeOptions; track opt) {
+                      <option [value]="opt">{{ piercingTypeLabel(opt) }}</option>
+                    }
+                  </select>
+                </label>
+              }
               <div class="ctsig-sig-grid" [class.ctsig-sig-grid--minor]="isMinor()">
                 <app-signature-pad
                   label="Firma del cliente *"
@@ -474,6 +496,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               </div>
             }
             <h3 class="ctsig-subsection">Firmas</h3>
+            @if (isPiercingContract()) {
+              <label class="ctsig-piercing-type">
+                Tipo de piercing *
+                <select
+                  [ngModel]="piercingType()"
+                  (ngModelChange)="piercingType.set($event)"
+                  name="piercingTypeSingle"
+                >
+                  <option value="">Selecciona el tipo…</option>
+                  @for (opt of piercingTypeOptions; track opt) {
+                    <option [value]="opt">{{ piercingTypeLabel(opt) }}</option>
+                  }
+                </select>
+              </label>
+            }
             <div class="ctsig-sig-grid" [class.ctsig-sig-grid--minor]="showTutorSection()">
               <app-signature-pad
                 label="Firma del cliente *"
@@ -571,6 +608,13 @@ export class ContractSigningPageComponent implements OnInit {
   readonly tutorDocBack = signal<string | null>(null);
   readonly minorDocFront = signal<string | null>(null);
   readonly minorDocBack = signal<string | null>(null);
+  /** Tipo anatómico de piercing (Helix, Septum, …) al firmar contratos piercing. */
+  readonly piercingType = signal('');
+  /** Último cuestionario enviado (flujo por fases) para poder actualizar el tipo al firmar. */
+  private lastSurveyPayload: SurveySubmitPayload | null = null;
+
+  protected readonly piercingTypeOptions = PIERCING_TYPE_OPTIONS;
+  protected readonly piercingTypeLabel = piercingTypeDisplayLabel;
 
   tutorName = '';
   tutorDocType: DocumentType = 'CC';
@@ -578,6 +622,11 @@ export class ContractSigningPageComponent implements OnInit {
   tutorDocIssue = '';
 
   readonly appointmentId = computed(() => this.appointment()?.id ?? 0);
+
+  readonly isPiercingContract = computed(() => {
+    const a = this.appointment();
+    return !!a && appointmentToContractKind(a) === 'piercing';
+  });
 
   readonly paymentBlock = computed(() => {
     const a = this.appointment();
@@ -671,11 +720,23 @@ export class ContractSigningPageComponent implements OnInit {
       return;
     }
 
+    if (this.isPiercingContract() && !this.piercingType().trim()) {
+      this.toast.warn('Selecciona el tipo de piercing antes de guardar el contrato.');
+      return;
+    }
+
     const qs = this.questions();
     let surveyPayload: SurveySubmitPayload | null = null;
     if (qs.length) {
       surveyPayload = this.surveyStepRef()?.tryBuildPayload() ?? null;
       if (!surveyPayload) return;
+    }
+    if (this.isPiercingContract()) {
+      surveyPayload = withPiercingTypeSurveyAnswer(
+        surveyPayload,
+        a.id,
+        this.piercingType().trim(),
+      );
     }
 
     this.saving.set(true);
@@ -698,6 +759,7 @@ export class ContractSigningPageComponent implements OnInit {
               });
             };
             if (surveyPayload) {
+              this.lastSurveyPayload = surveyPayload;
               this.signingApi.submitSurvey(surveyPayload).subscribe({
                 next: () => afterSurvey(),
                 error: (err) => {
@@ -760,6 +822,8 @@ export class ContractSigningPageComponent implements OnInit {
         const appt = mapAppointment(row);
         this.appointment.set(appt);
         this.payments.set(payments);
+        const inferred = inferPiercingTypeFromAppointmentDetail(appt.detail);
+        if (inferred) this.piercingType.set(inferred);
         const cid = appt.customerId;
         if (!cid || cid <= 0) {
           this.loadError.set('La cita no tiene cliente asociado.');
@@ -858,8 +922,22 @@ export class ContractSigningPageComponent implements OnInit {
   }
 
   onSurveySubmitted(payload: SurveySubmitPayload): void {
+    this.lastSurveyPayload = payload;
+    const fromSurvey = payload.answers.find(
+      (a) =>
+        Number(a.question_id) === PROCEDURE_CONSENT_SURVEY_QUESTION_ID &&
+        typeof a.text === 'string' &&
+        a.text.trim(),
+    );
+    if (fromSurvey?.text && !this.piercingType().trim()) {
+      this.piercingType.set(inferPiercingTypeFromAppointmentDetail(fromSurvey.text) ?? '');
+    }
+    const piercing = this.piercingType().trim();
+    if (this.isPiercingContract() && piercing) {
+      this.lastSurveyPayload = withPiercingTypeSurveyAnswer(payload, this.appointmentId(), piercing);
+    }
     this.saving.set(true);
-    this.signingApi.submitSurvey(payload).subscribe({
+    this.signingApi.submitSurvey(this.lastSurveyPayload!).subscribe({
       next: () => {
         this.saving.set(false);
         this.toast.success('Cuestionario guardado.');
@@ -908,6 +986,11 @@ export class ContractSigningPageComponent implements OnInit {
       return;
     }
 
+    if (this.isPiercingContract() && !this.piercingType().trim()) {
+      this.toast.warn('Selecciona el tipo de piercing antes de guardar el contrato.');
+      return;
+    }
+
     const minor = this.showTutorSection();
     const client = this.clientSig();
     if (!isSignatureAcceptable(client)) {
@@ -948,7 +1031,8 @@ export class ContractSigningPageComponent implements OnInit {
     }
 
     this.saving.set(true);
-    const saveMinorTutor = (): void => {
+
+    const doSign = (): void => {
       let body = renderContractHtml(tpl.content, c);
       if (minor) {
         body += minorGuardianDeclarationHtml(c, a, this.tutorName);
@@ -981,38 +1065,58 @@ export class ContractSigningPageComponent implements OnInit {
       });
     };
 
-    if (minor) {
-      this.customersApi
-        .update(c.id, {
-          first_name: c.firstName,
-          last_name: c.lastName,
-          birth_date: c.birthDate,
-          document_type: c.documentType,
-          document_number: c.documentNumber,
-          document_issue_date: c.documentIssueDate,
-          email: c.email,
-          phone_number: c.phoneNumber,
-          address: c.address,
-          nationality: c.nationality,
-          profession: c.profession,
-          social_media: c.socialMedia,
-          emergency_contact_name: c.emergencyContactName,
-          emergency_contact_phone: c.emergencyContactPhone,
-          is_minor: true,
-          guardian_name: this.tutorName.trim(),
-          guardian_document_type: this.tutorDocType,
-          guardian_document_number: this.tutorDocNumber.trim(),
-          guardian_document_issue_date: this.tutorDocIssue || null,
-        })
-        .subscribe({
-          next: () => saveMinorTutor(),
-          error: (err) => {
-            this.saving.set(false);
-            this.errors.handle(err);
-          },
-        });
+    const afterPiercingSurvey = (): void => {
+      if (minor) {
+        this.customersApi
+          .update(c.id, {
+            first_name: c.firstName,
+            last_name: c.lastName,
+            birth_date: c.birthDate,
+            document_type: c.documentType,
+            document_number: c.documentNumber,
+            document_issue_date: c.documentIssueDate,
+            email: c.email,
+            phone_number: c.phoneNumber,
+            address: c.address,
+            nationality: c.nationality,
+            profession: c.profession,
+            social_media: c.socialMedia,
+            emergency_contact_name: c.emergencyContactName,
+            emergency_contact_phone: c.emergencyContactPhone,
+            is_minor: true,
+            guardian_name: this.tutorName.trim(),
+            guardian_document_type: this.tutorDocType,
+            guardian_document_number: this.tutorDocNumber.trim(),
+            guardian_document_issue_date: this.tutorDocIssue || null,
+          })
+          .subscribe({
+            next: () => doSign(),
+            error: (err) => {
+              this.saving.set(false);
+              this.errors.handle(err);
+            },
+          });
+      } else {
+        doSign();
+      }
+    };
+
+    if (this.isPiercingContract()) {
+      const surveyPayload = withPiercingTypeSurveyAnswer(
+        this.lastSurveyPayload,
+        a.id,
+        this.piercingType().trim(),
+      );
+      this.lastSurveyPayload = surveyPayload;
+      this.signingApi.submitSurvey(surveyPayload).subscribe({
+        next: () => afterPiercingSurvey(),
+        error: (err) => {
+          this.saving.set(false);
+          this.errors.handle(err);
+        },
+      });
     } else {
-      saveMinorTutor();
+      afterPiercingSurvey();
     }
   }
 
