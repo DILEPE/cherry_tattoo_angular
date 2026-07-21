@@ -9,7 +9,6 @@ import { AppStore } from '../../../../store/app.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
 import { FormShowErrorsDirective } from '../../../../shared/forms/form-show-errors.directive';
-import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
 
 @Component({
   selector: 'app-login',
@@ -34,7 +33,6 @@ import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
         }
         <h1>Rock City</h1>
         <p>Panel de operaciones</p>
-        <p class="login-card__hint">La sesión dura {{ sessionMinutes }} minutos por usuario.</p>
 
         <form
           [formGroup]="form"
@@ -74,7 +72,6 @@ import { PANEL_SESSION_TTL_MS } from '../../models/panel-session.util';
 })
 export class LoginComponent {
   protected readonly appStore = inject(AppStore);
-  protected readonly sessionMinutes = PANEL_SESSION_TTL_MS / 60_000;
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);

@@ -1,10 +1,17 @@
 import { PanelUserSession } from './panel-auth.model';
 
-/** Debe coincidir con `PANEL_SESSION_LIFETIME_MINUTES` del backend (60 min). */
-export const PANEL_SESSION_TTL_MS = 60 * 60 * 1000;
+/**
+ * Tiempo máximo de **inactividad** antes de cerrar sesión.
+ * Debe coincidir con `PANEL_SESSION_LIFETIME_MINUTES` del backend (valor inicial al login).
+ * La actividad del usuario renueva el plazo en el cliente.
+ */
+export const PANEL_SESSION_IDLE_TTL_MS = 60 * 60 * 1000;
+
+/** @deprecated Usar `PANEL_SESSION_IDLE_TTL_MS`. */
+export const PANEL_SESSION_TTL_MS = PANEL_SESSION_IDLE_TTL_MS;
 
 export function panelSessionExpiresAtMs(fromMs: number = Date.now()): number {
-  return fromMs + PANEL_SESSION_TTL_MS;
+  return fromMs + PANEL_SESSION_IDLE_TTL_MS;
 }
 
 export function isPanelSessionExpired(

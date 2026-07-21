@@ -9,12 +9,14 @@ import {
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AppStore } from '../../../../store/app.store';
 import { PANEL_MODULE_LABELS } from '../../../auth/models/panel-auth.model';
-import { PANEL_SESSION_TTL_MS } from '../../../auth/models/panel-session.util';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppIconComponent, AppIconName } from '../../../../shared/ui/icon/app-icon.component';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 
 const SIDEBAR_COLLAPSED_KEY = 'cherry_panel_sidebar_collapsed';
+
+/** Evita persistir la sesión en cada movimiento del ratón. */
+const ACTIVITY_TOUCH_THROTTLE_MS = 30_000;
 
 interface NavItem {
   key: string;
@@ -74,9 +76,6 @@ const NAV_ICONS: Record<string, AppIconName> = {
               <span class="panel-sidebar__user-name">{{ u.username }}</span>
               <span class="panel-sidebar__user-role">{{ u.role }}</span>
             </p>
-            <p class="panel-sidebar__session" [title]="'Sesión: ' + sessionMinutesLeft() + ' min'">
-              {{ sessionMinutesLeft() }} min
-            </p>
           </div>
         }
 
@@ -121,16 +120,27 @@ export class PanelShellComponent implements OnInit, OnDestroy {
   readonly sidebarCollapsed = signal(this.readSidebarCollapsed());
 
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
+  private lastActivityTouchMs = 0;
+  private readonly onUserActivity = (): void => this.handleUserActivity();
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible') {
+      this.handleUserActivity();
+      this.checkSessionExpiry();
+    }
+  };
 
   ngOnInit(): void {
     this.appStore.initFromSession();
     this.sessionTimer = setInterval(() => this.checkSessionExpiry(), 30_000);
+    this.bindActivityListeners();
+    this.handleUserActivity();
   }
 
   ngOnDestroy(): void {
     if (this.sessionTimer !== null) {
       clearInterval(this.sessionTimer);
     }
+    this.unbindActivityListeners();
   }
 
   toggleSidebar(): void {
@@ -143,17 +153,41 @@ export class PanelShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  sessionMinutesLeft(): number {
-    const exp = this.user()?.sessionExpiresAt;
-    if (!exp) return 0;
-    return Math.max(0, Math.ceil((exp - Date.now()) / 60_000));
-  }
-
   private checkSessionExpiry(): void {
     if (!this.appStore.user()) return;
     if (this.appStore.ensureSessionValid()) return;
-    this.toast.warn('Tu sesión expiró (60 min). Inicia sesión de nuevo.');
+    this.toast.warn('Tu sesión expiró por inactividad. Inicia sesión de nuevo.');
     void this.router.navigateByUrl('/login');
+  }
+
+  private handleUserActivity(): void {
+    if (!this.appStore.user()) return;
+    if (!this.appStore.ensureSessionValid()) {
+      this.toast.warn('Tu sesión expiró por inactividad. Inicia sesión de nuevo.');
+      void this.router.navigateByUrl('/login');
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastActivityTouchMs < ACTIVITY_TOUCH_THROTTLE_MS) return;
+    this.lastActivityTouchMs = now;
+    this.appStore.touchSessionActivity();
+  }
+
+  private bindActivityListeners(): void {
+    const opts: AddEventListenerOptions = { capture: true, passive: true };
+    window.addEventListener('pointerdown', this.onUserActivity, opts);
+    window.addEventListener('keydown', this.onUserActivity, opts);
+    window.addEventListener('scroll', this.onUserActivity, opts);
+    window.addEventListener('touchstart', this.onUserActivity, opts);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+  }
+
+  private unbindActivityListeners(): void {
+    window.removeEventListener('pointerdown', this.onUserActivity, true);
+    window.removeEventListener('keydown', this.onUserActivity, true);
+    window.removeEventListener('scroll', this.onUserActivity, true);
+    window.removeEventListener('touchstart', this.onUserActivity, true);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   navItems(): NavItem[] {
