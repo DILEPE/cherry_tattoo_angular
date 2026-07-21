@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { UiStore } from '../../../../store/ui.store';
@@ -14,12 +15,19 @@ import { CustomersApiService } from '../../../customers/services/customers-api.s
 import { ContractSigningApiService } from '../../contract-signing/services/contract-signing-api.service';
 import { mapContractDetail, ContractDetail } from '../../contract-signing/models/contract-detail.mapper';
 import { signatureImageSrc } from '../../contract-signing/models/signature.util';
+import { appointmentToContractKind } from '../../contract-signing/models/contract-kind.util';
+import {
+  PIERCING_TYPE_OPTIONS,
+  piercingTypeDisplayLabel,
+  resolvePiercingTypeCanonical,
+} from '../../models/piercing-type-catalog';
 import { mapAppointment } from '../../models/appointment.mapper';
 import { Customer } from '../../../customers/models/customer.model';
 import { CustomerFormComponent } from '../../../customers/components/customer-form/customer-form.component';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { ErrorService } from '../../../../core/services/error.service';
+import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
 
@@ -28,6 +36,7 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     CustomerFormComponent,
     AppButtonComponent,
     AppSkeletonComponent,
@@ -50,6 +59,35 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
           · {{ ct.appointmentDate | dateEs }}
         }
       </p>
+
+      @if (showPiercingEditor()) {
+        <h4 class="ctsig-view-section">Tipo de piercing</h4>
+        <div class="ctsig-piercing-type-edit">
+          <label class="ctsig-piercing-type">
+            Tipo de piercing
+            <select
+              [ngModel]="piercingType()"
+              (ngModelChange)="piercingType.set($event)"
+              name="piercingTypeView"
+            >
+              <option value="">Selecciona…</option>
+              @for (opt of piercingTypeOptions; track opt) {
+                <option [value]="opt">{{ piercingTypeLabel(opt) }}</option>
+              }
+            </select>
+          </label>
+          <app-button
+            [disabled]="
+              savingPiercing() ||
+              !piercingType().trim() ||
+              piercingType() === savedPiercingType()
+            "
+            (clicked)="savePiercingType()"
+          >
+            {{ savingPiercing() ? 'Guardando…' : 'Guardar tipo' }}
+          </app-button>
+        </div>
+      }
 
       @if (customer(); as c) {
         <h4 class="ctsig-view-section">Datos personales del cliente</h4>
@@ -143,12 +181,29 @@ export class AppointmentContractViewDialogComponent {
   private readonly customersApi = inject(CustomersApiService);
   private readonly contractApi = inject(ContractSigningApiService);
   private readonly errors = inject(ErrorService);
+  private readonly toast = inject(ToastService);
   private readonly sanitizer = inject(DomSanitizer);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly customer = signal<Customer | null>(null);
   readonly contract = signal<ContractDetail | null>(null);
+  readonly isPiercing = signal(false);
+  readonly piercingType = signal('');
+  readonly savedPiercingType = signal('');
+  readonly savingPiercing = signal(false);
+
+  /** Visible si el contrato/cita no es tatuaje (usa el mismo serviceType del meta). */
+  readonly showPiercingEditor = computed(() => {
+    const svc = (this.contract()?.serviceType || '').trim().toLowerCase();
+    if (svc) {
+      return !(svc.includes('tatu') || svc === 'tattoo');
+    }
+    return this.isPiercing();
+  });
+
+  protected readonly piercingTypeOptions = PIERCING_TYPE_OPTIONS;
+  protected readonly piercingTypeLabel = piercingTypeDisplayLabel;
 
   readonly contractHtml = computed((): SafeHtml => {
     const text = (this.contract()?.contractText ?? '').trim();
@@ -190,6 +245,9 @@ export class AppointmentContractViewDialogComponent {
     this.error.set(null);
     this.contract.set(null);
     this.customer.set(null);
+    this.isPiercing.set(false);
+    this.piercingType.set('');
+    this.savedPiercingType.set('');
 
     this.contractApi.latestSummary(appointmentId).pipe(
       switchMap((summary) => {
@@ -202,16 +260,41 @@ export class AppointmentContractViewDialogComponent {
             .getContract(contractId)
             .pipe(map((row) => mapContractDetail(row))),
           appt: this.apptApi.get(appointmentId),
+          labels: this.apptApi.getWorkPerformedLabels([appointmentId]).pipe(
+            catchError(() => of({} as Record<number, string>)),
+          ),
         });
       }),
-      switchMap(({ contract, appt }) => {
+      switchMap(({ contract, appt, labels }) => {
         const mapped = mapAppointment(appt);
+        // Usar serviceType del contrato/cita (como en el meta), no el detalle:
+        // el detalle a veces contiene «tatu» y ocultaría el selector por error.
+        const serviceType = (contract.serviceType || mapped.serviceType || '').trim();
+        const piercing =
+          appointmentToContractKind({
+            ...mapped,
+            serviceType: serviceType || mapped.serviceType,
+            detail: '',
+          }) === 'piercing';
+        const fromLabel = resolvePiercingTypeCanonical(labels[appointmentId] ?? '');
+        const fromDetail = resolvePiercingTypeCanonical(mapped.detail ?? '');
+        const current = fromLabel ?? fromDetail ?? '';
         const cid = mapped.customerId;
         if (!cid || cid <= 0) {
-          return of({ contract, customer: null as Customer | null });
+          return of({
+            contract,
+            customer: null as Customer | null,
+            piercing,
+            piercingType: current,
+          });
         }
         return this.customersApi.getById(cid).pipe(
-          switchMap((c) => of({ contract, customer: c })),
+          map((c) => ({
+            contract,
+            customer: c,
+            piercing,
+            piercingType: current,
+          })),
         );
       }),
       catchError((err) => {
@@ -229,10 +312,41 @@ export class AppointmentContractViewDialogComponent {
         if (!pack) return;
         this.contract.set(pack.contract);
         if (pack.customer) this.customer.set(pack.customer);
+        this.isPiercing.set(pack.piercing);
+        this.piercingType.set(pack.piercingType);
+        this.savedPiercingType.set(pack.piercingType);
       },
       error: () => {
         this.loading.set(false);
         this.error.set('No se pudo cargar el contrato.');
+      },
+    });
+  }
+
+  savePiercingType(): void {
+    const appointmentId = this.contract()?.appointmentId ?? 0;
+    const value = this.piercingType().trim();
+    if (appointmentId <= 0 || !value) {
+      this.toast.warn('Selecciona el tipo de piercing.');
+      return;
+    }
+    if (value === this.savedPiercingType()) return;
+
+    this.savingPiercing.set(true);
+    this.contractApi.updatePiercingType(appointmentId, value).subscribe({
+      next: (res) => {
+        this.savingPiercing.set(false);
+        const canonical =
+          resolvePiercingTypeCanonical(res.piercing_type_canonical || res.piercing_type) ||
+          value;
+        this.piercingType.set(canonical);
+        this.savedPiercingType.set(canonical);
+        this.toast.success('Tipo de piercing actualizado.');
+      },
+      error: (err) => {
+        this.savingPiercing.set(false);
+        this.errors.handle(err);
+        this.toast.error('No se pudo actualizar el tipo de piercing.');
       },
     });
   }

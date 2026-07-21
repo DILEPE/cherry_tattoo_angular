@@ -70,6 +70,17 @@ export class ContractSigningApiService {
     return this.api.post('/api/surveys', body);
   }
 
+  /** Actualiza solo el tipo de piercing (encuesta Q3) sin reenviar toda la encuesta. */
+  updatePiercingType(
+    appointmentId: number,
+    piercingType: string,
+  ): Observable<{ piercing_type: string; piercing_type_canonical: string }> {
+    return this.api.patch<{ piercing_type: string; piercing_type_canonical: string }>(
+      `/api/surveys/appointment/${appointmentId}/piercing-type`,
+      { piercing_type: piercingType },
+    );
+  }
+
   signContract(body: ContractSignPayload): Observable<{ message?: string }> {
     return this.api.post<{ message?: string }>('/api/contracts', body);
   }
