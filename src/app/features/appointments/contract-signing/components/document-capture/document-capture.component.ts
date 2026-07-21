@@ -12,8 +12,9 @@ import {
 } from '@angular/core';
 import { AppButtonComponent } from '../../../../../shared/ui/button/app-button.component';
 import {
+  applyDocumentCaptureWatermark,
   isDocumentCaptureAcceptable,
-  readImageFileAsDataUrl,
+  readDocumentCaptureImage,
 } from '../../models/signature.util';
 import { ToastService } from '../../../../../shared/ui/toast/toast.service';
 
@@ -190,15 +191,17 @@ export class DocumentCaptureComponent implements OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-    if (!isDocumentCaptureAcceptable(dataUrl)) {
-      this.toast.warn('No se pudo capturar la foto. Intenta de nuevo.');
-      return;
-    }
-    this.previewUrl.set(dataUrl);
-    this.valueChange.emit(dataUrl);
-    this.stopCamera();
-    this.toast.success('Foto capturada.');
+    const raw = canvas.toDataURL('image/jpeg', 0.88);
+    void applyDocumentCaptureWatermark(raw).then((dataUrl) => {
+      if (!dataUrl || !isDocumentCaptureAcceptable(dataUrl)) {
+        this.toast.warn('No se pudo capturar la foto. Intenta de nuevo.');
+        return;
+      }
+      this.previewUrl.set(dataUrl);
+      this.valueChange.emit(dataUrl);
+      this.stopCamera();
+      this.toast.success('Foto capturada.');
+    });
   }
 
   stopCamera(): void {
@@ -214,7 +217,7 @@ export class DocumentCaptureComponent implements OnDestroy {
   onFile(ev: Event): void {
     const file = (ev.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    void readImageFileAsDataUrl(file).then((url) => {
+    void readDocumentCaptureImage(file).then((url) => {
       if (!url) {
         this.toast.warn('El archivo no es una imagen válida.');
         return;

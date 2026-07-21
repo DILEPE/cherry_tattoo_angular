@@ -261,6 +261,36 @@
   }
 }
 
+.ctsig-piercing-type {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 22rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  select {
+    font-weight: 400;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+  }
+}
+
+.ctsig-piercing-type-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0 0 1rem;
+
+  .ctsig-piercing-type {
+    margin-bottom: 0;
+  }
+}
+
 .ctsig-doc-upload {
   display: grid;
   grid-template-columns: 1fr 1fr;
