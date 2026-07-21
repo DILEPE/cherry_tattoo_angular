@@ -28,7 +28,7 @@ export interface PanelUserPublic {
 
 export interface PanelUserSession extends PanelUserPublic {
   effectiveModules?: PanelModuleKey[];
-  /** Unix epoch en milisegundos (vida útil 60 min desde el login). */
+  /** Unix epoch en ms: se renueva con actividad; expira tras inactividad prolongada. */
   sessionExpiresAt: number;
 }
 

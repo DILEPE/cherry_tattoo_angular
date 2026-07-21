@@ -9,6 +9,7 @@ import { apiErrorMessage } from '../core/services/api.service';
 import { PanelModuleKey, PanelUserSession } from '../features/auth/models/panel-auth.model';
 import {
   isPanelSessionExpired,
+  panelSessionExpiresAtMs,
   sessionFromApiUser,
 } from '../features/auth/models/panel-session.util';
 
@@ -128,6 +129,21 @@ export const AppStore = signalStore(
           return false;
         }
         return true;
+      },
+      /** Renueva el plazo de sesión ante actividad del usuario (no cuenta como inactividad). */
+      touchSessionActivity(): void {
+        const u = store.user();
+        if (!u) return;
+        if (isPanelSessionExpired(u)) {
+          clearSession();
+          return;
+        }
+        const next: PanelUserSession = {
+          ...u,
+          sessionExpiresAt: panelSessionExpiresAtMs(),
+        };
+        patchState(store, { user: next });
+        persist(next);
       },
       login: rxMethod<{ username: string; password: string }>(
         pipe(
