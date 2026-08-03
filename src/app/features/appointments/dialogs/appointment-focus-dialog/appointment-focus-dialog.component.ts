@@ -35,7 +35,6 @@ import {
   appointmentBlockEndSlot,
   combineAppointmentDatetime,
   durationSlotsFromStartEnd,
-  endBlockSlotOptions,
   parseExistingAppointmentSlot,
   timeSlotOptions,
 } from '../../models/appointment-slots';
@@ -47,7 +46,8 @@ import {
 } from '../../models/booking.mapper';
 import {
   appointmentsForArtistSchedule,
-  availableStartSlots,
+  availableEndTimes,
+  availableStartTimes,
   busySlotIndices,
 } from '../../models/schedule.mapper';
 import { clientPillKind } from '../../models/calendar.mapper';
@@ -116,7 +116,7 @@ import { of, switchMap } from 'rxjs';
         <p class="ap-ficha-caption">Fecha: {{ formatAppointmentDay(appointmentDay()) }}</p>
         <div class="ap-ficha-grid2">
           <label>
-            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Desde (inicio)</span>
+            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Hora de inicio</span>
             <select
               class="ap-ficha-control"
               [ngModel]="startSlot()"
@@ -129,7 +129,7 @@ import { of, switchMap } from 'rxjs';
             </select>
           </label>
           <label>
-            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Hasta (fin del bloque)</span>
+            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Hora de fin</span>
             <select
               class="ap-ficha-control"
               [ngModel]="endSlot()"
@@ -144,7 +144,7 @@ import { of, switchMap } from 'rxjs';
         </div>
         @if (!scheduleEditable() && scheduleLocked()) {
           <p class="ap-ficha-hint">
-            Horario bloqueado: estado cerrado o la cita no admite cambio de franja desde aquí.
+            Horario bloqueado: estado cerrado o la cita no admite cambio de horario desde aquí.
           </p>
         }
         @if (artistDirty() && scheduleEditable()) {
@@ -365,9 +365,8 @@ export class AppointmentFocusDialogComponent {
         ? [this.startSlot()]
         : this.slotOptions;
     }
-    const need = this.durationSlotsCount();
     const busy = this.busyIndices();
-    const avail = availableStartSlots(this.slotOptions, need, busy);
+    const avail = availableStartTimes(this.slotOptions, busy, 1);
     const cur = this.startSlot();
     if (cur && !avail.includes(cur)) return [cur, ...avail];
     return avail.length ? avail : this.slotOptions;
@@ -377,7 +376,11 @@ export class AppointmentFocusDialogComponent {
     if (!this.scheduleEditable()) {
       return [this.endSlot()];
     }
-    return this.validEndOptions();
+    return availableEndTimes(
+      this.startSlot(),
+      this.slotOptions,
+      this.busyIndices(),
+    );
   });
 
   readonly staffForAppt = computed(() => {
@@ -494,7 +497,7 @@ export class AppointmentFocusDialogComponent {
 
   onStartSlotChange(hm: string): void {
     this.startSlot.set(hm);
-    const ends = this.validEndOptions();
+    const ends = availableEndTimes(hm, this.slotOptions, this.busyIndices());
     if (!ends.includes(this.endSlot())) {
       const prevDur = durationSlotsFromStartEnd(this.baseStart, this.baseEnd, this.slotOptions);
       const preferred = appointmentBlockEndSlot(hm, prevDur, this.slotOptions);
@@ -519,33 +522,18 @@ export class AppointmentFocusDialogComponent {
     return busySlotIndices(dayRows, this.slotOptions);
   }
 
-  private validEndOptions(): string[] {
-    const baseEnds = endBlockSlotOptions(this.startSlot(), this.slotOptions);
-    const si = this.slotOptions.indexOf(this.startSlot());
-    if (si < 0) return baseEnds;
-    const busy = this.busyIndices();
-    return baseEnds.filter((endHm) => {
-      const dur = durationSlotsFromStartEnd(this.startSlot(), endHm, this.slotOptions);
-      for (let j = si; j < si + dur; j++) {
-        if (busy.has(j)) return false;
-      }
-      return true;
-    });
-  }
-
   private adjustScheduleForArtist(): void {
-    const need = this.durationSlotsCount();
     const busy = this.busyIndices();
-    const starts = availableStartSlots(this.slotOptions, need, busy);
+    const starts = availableStartTimes(this.slotOptions, busy, 1);
     if (starts.length && !starts.includes(this.startSlot())) {
       this.startSlot.set(starts[0]);
     }
-    const ends = this.validEndOptions();
+    const ends = availableEndTimes(this.startSlot(), this.slotOptions, busy);
     if (ends.length && !ends.includes(this.endSlot())) {
       this.endSlot.set(ends[0]);
     } else if (!ends.length) {
       this.toast.warn(
-        'No hay franjas libres para este artista en el día de la cita; elige otra hora.',
+        'No hay horario libre para este artista en el día de la cita; elige otra hora.',
       );
     }
   }
@@ -599,7 +587,7 @@ export class AppointmentFocusDialogComponent {
       const busy = this.busyIndices();
       for (let j = si; j < si + dur; j++) {
         if (busy.has(j)) {
-          this.toast.warn('La franja elegida no está disponible para el artista seleccionado.');
+          this.toast.warn('El horario elegido no está disponible para el artista seleccionado.');
           return;
         }
       }

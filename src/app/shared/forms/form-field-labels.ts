@@ -28,8 +28,8 @@ export const BOOKING_FIELD_LABELS: Record<string, string> = {
   email: 'Correo electrónico',
   workKind: 'Tipo de trabajo',
   staffId: 'Profesional',
-  durationSlots: 'Franjas de 30 min',
   slot: 'Hora de inicio',
+  endSlot: 'Hora de fin',
   design: 'Descripción del diseño',
   observations: 'Notas u observaciones',
   total: 'Valor total',
@@ -43,7 +43,8 @@ export const LOGIN_FIELD_LABELS: Record<string, string> = {
 
 export const RESCHEDULE_FIELD_LABELS: Record<string, string> = {
   date: 'Nueva fecha',
-  slot: 'Nueva franja horaria',
+  slot: 'Hora de inicio',
+  endSlot: 'Hora de fin',
 };
 
 export const FINANCIALS_FIELD_LABELS: Record<string, string> = {

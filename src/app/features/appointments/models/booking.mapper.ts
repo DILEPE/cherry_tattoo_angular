@@ -48,11 +48,17 @@ export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind
 export const MIN_BOOKING_DURATION_SLOTS = 1;
 export const MAX_BOOKING_DURATION_SLOTS = 16;
 
+const AGENDA_SLOTS_MARKER = /\s*\[agenda_slots:\d+\]\s*$/i;
+
+export function stripAgendaSlotsMarker(detail: string | null | undefined): string {
+  return (detail || '').replace(AGENDA_SLOTS_MARKER, '').trim();
+}
+
 export function appendAgendaSlotsMarker(detail: string | null, slots: number): string {
   const n = Math.max(
     MIN_BOOKING_DURATION_SLOTS,
     Math.min(MAX_BOOKING_DURATION_SLOTS, Math.round(slots)),
   );
-  const base = (detail || '').trim();
+  const base = stripAgendaSlotsMarker(detail);
   return base ? `${base} [agenda_slots:${n}]` : `[agenda_slots:${n}]`;
 }
