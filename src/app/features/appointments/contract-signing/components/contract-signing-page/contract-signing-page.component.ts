@@ -8,11 +8,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AppointmentsApiService } from '../../../services/appointments-api.service';
 import { CustomersApiService } from '../../../../customers/services/customers-api.service';
 import { TemplatesApiService } from '../../../../contracts/services/templates-api.service';
+import { SignedContractsApiService } from '../../../../contracts/services/signed-contracts-api.service';
 import {
   ContractSigningApiService,
   SurveySubmitPayload,
@@ -20,6 +22,7 @@ import {
 import { mapAppointment } from '../../../models/appointment.mapper';
 import { Appointment, AppointmentPayment } from '../../../models/appointment.model';
 import { Customer, CustomerWritePayload } from '../../../../customers/models/customer.model';
+import { customerToWritePayload } from '../../../../customers/models/customer.mapper';
 import { ContractTemplate } from '../../../../contracts/models/contract-template.model';
 import { SurveyQuestion } from '../../../../surveys/models/survey-question.model';
 import { CustomerFormComponent } from '../../../../customers/components/customer-form/customer-form.component';
@@ -123,17 +126,40 @@ import { DocumentType } from '../../../../customers/models/customer.model';
           @case (1) {
             <section class="ctsig-step">
               <h2>Etapa 1 — Datos del cliente</h2>
+              @if (customerFichaLocked()) {
+                <p class="ctsig-notice">
+                  Este cliente ya firmó un contrato antes: los datos de la ficha se mantienen y no
+                  se pueden modificar aquí.
+                </p>
+              }
               @if (customer(); as c) {
-                <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
-                  <div actions class="ctsig-step-actions">
+                @if (customerFichaLocked()) {
+                  <app-customer-form [initial]="c" [readonly]="true" />
+                  <div class="ctsig-step-actions">
                     <app-button type="button" variant="ghost" routerLink="/citas">
                       Cancelar
                     </app-button>
-                    <app-button type="submit" variant="primary" [loading]="saving()">
-                      Guardar y continuar
+                    <app-button
+                      type="button"
+                      variant="primary"
+                      [loading]="saving()"
+                      (clicked)="continueWithLockedFicha()"
+                    >
+                      Continuar
                     </app-button>
                   </div>
-                </app-customer-form>
+                } @else {
+                  <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
+                    <div actions class="ctsig-step-actions">
+                      <app-button type="button" variant="ghost" routerLink="/citas">
+                        Cancelar
+                      </app-button>
+                      <app-button type="submit" variant="primary" [loading]="saving()">
+                        Guardar y continuar
+                      </app-button>
+                    </div>
+                  </app-customer-form>
+                }
               }
             </section>
           }
@@ -366,7 +392,16 @@ import { DocumentType } from '../../../../customers/models/customer.model';
           }
           @if (customer(); as c) {
             <h3 class="ctsig-subsection">Datos personales del cliente</h3>
-            <app-customer-form #customerForm [initial]="c" />
+            @if (customerFichaLocked()) {
+              <p class="ctsig-notice">
+                Este cliente ya firmó un contrato antes: la ficha se muestra en solo lectura.
+              </p>
+            }
+            <app-customer-form
+              #customerForm
+              [initial]="c"
+              [readonly]="customerFichaLocked()"
+            />
             @if (questions().length) {
               <h3 class="ctsig-subsection">Cuestionario</h3>
               <app-contract-signing-survey-step
@@ -578,6 +613,7 @@ export class ContractSigningPageComponent implements OnInit {
   private readonly apptApi = inject(AppointmentsApiService);
   private readonly customersApi = inject(CustomersApiService);
   private readonly templatesApi = inject(TemplatesApiService);
+  private readonly signedContractsApi = inject(SignedContractsApiService);
   private readonly signingApi = inject(ContractSigningApiService);
   private readonly apptStore = inject(AppointmentsStore);
   private readonly toast = inject(ToastService);
@@ -600,6 +636,8 @@ export class ContractSigningPageComponent implements OnInit {
   readonly template = signal<ContractTemplate | null>(null);
   readonly questions = signal<SurveyQuestion[]>([]);
   readonly summaryPendingArtist = signal(true);
+  /** Ya existe al menos un contrato firmado previo para este cliente. */
+  readonly hasPriorSignedContract = signal(false);
 
   readonly clientSig = signal<string | null>(null);
   readonly tutorSig = signal<string | null>(null);
@@ -642,6 +680,19 @@ export class ContractSigningPageComponent implements OnInit {
 
   /** Según la plantilla activa de la cita (persistido en BD). */
   readonly signingPhased = computed(() => this.template()?.signingFlow !== 'single');
+
+  /**
+   * Ficha bloqueada si ya firmó algún contrato y la ficha está completa
+   * (nacimiento real + expedición del documento).
+   */
+  readonly customerFichaLocked = computed(() => {
+    if (!this.hasPriorSignedContract()) return false;
+    const c = this.customer();
+    if (!c) return false;
+    if (c.birthDatePending) return false;
+    if (!c.documentIssueDate?.trim()) return false;
+    return true;
+  });
 
   readonly contractPreviewHtml = computed((): SafeHtml => {
     const tpl = this.template();
@@ -706,7 +757,10 @@ export class ContractSigningPageComponent implements OnInit {
     const a = this.appointment();
     if (!c || !a) return;
 
-    const payload = this.customerFormRef()?.tryGetWritePayload();
+    const locked = this.customerFichaLocked();
+    const payload = locked
+      ? customerToWritePayload(c)
+      : this.customerFormRef()?.tryGetWritePayload();
     if (!payload) return;
     if (!payload.document_issue_date) {
       this.toast.warn(
@@ -740,43 +794,50 @@ export class ContractSigningPageComponent implements OnInit {
     }
 
     this.saving.set(true);
+    const afterCustomer = (): void => {
+      this.customersApi.getById(c.id).subscribe({
+        next: (fresh) => {
+          if (fresh) this.customer.set(fresh);
+          const afterSurvey = () => {
+            this.apptApi.get(a.id).subscribe({
+              next: (row) => {
+                this.appointment.set(mapAppointment(row));
+                this.saving.set(false);
+                this.saveContract();
+              },
+              error: (err) => {
+                this.saving.set(false);
+                this.errors.handle(err);
+              },
+            });
+          };
+          if (surveyPayload) {
+            this.lastSurveyPayload = surveyPayload;
+            this.signingApi.submitSurvey(surveyPayload).subscribe({
+              next: () => afterSurvey(),
+              error: (err) => {
+                this.saving.set(false);
+                this.errors.handle(err);
+              },
+            });
+          } else {
+            afterSurvey();
+          }
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.errors.handle(err);
+        },
+      });
+    };
+
+    if (locked) {
+      afterCustomer();
+      return;
+    }
+
     this.customersApi.update(c.id, payload).subscribe({
-      next: () => {
-        this.customersApi.getById(c.id).subscribe({
-          next: (fresh) => {
-            if (fresh) this.customer.set(fresh);
-            const afterSurvey = () => {
-              this.apptApi.get(a.id).subscribe({
-                next: (row) => {
-                  this.appointment.set(mapAppointment(row));
-                  this.saving.set(false);
-                  this.saveContract();
-                },
-                error: (err) => {
-                  this.saving.set(false);
-                  this.errors.handle(err);
-                },
-              });
-            };
-            if (surveyPayload) {
-              this.lastSurveyPayload = surveyPayload;
-              this.signingApi.submitSurvey(surveyPayload).subscribe({
-                next: () => afterSurvey(),
-                error: (err) => {
-                  this.saving.set(false);
-                  this.errors.handle(err);
-                },
-              });
-            } else {
-              afterSurvey();
-            }
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.errors.handle(err);
-          },
-        });
-      },
+      next: () => afterCustomer(),
       error: (err) => {
         this.saving.set(false);
         this.errors.handle(err);
@@ -835,14 +896,18 @@ export class ContractSigningPageComponent implements OnInit {
           customer: this.customersApi.getById(cid),
           questions: this.signingApi.listActiveSurveyQuestions(kind),
           templates: this.templatesApi.list({ onlyActive: true, contractKind: kind }),
+          priorContracts: this.signedContractsApi.listByCustomer(cid).pipe(
+            catchError(() => of([])),
+          ),
         }).subscribe({
-          next: ({ customer, questions, templates }) => {
+          next: ({ customer, questions, templates, priorContracts }) => {
             if (!customer) {
               this.loadError.set('Cliente no encontrado.');
               this.loading.set(false);
               return;
             }
             this.customer.set(customer);
+            this.hasPriorSignedContract.set((priorContracts?.length ?? 0) > 0);
             this.questions.set(questions);
             if (!templates.length) {
               this.loadError.set(
@@ -881,6 +946,24 @@ export class ContractSigningPageComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  continueWithLockedFicha(): void {
+    const c = this.customer();
+    const a = this.appointment();
+    if (!c || !a || !this.customerFichaLocked()) return;
+    if (!c.documentIssueDate?.trim()) {
+      this.toast.warn(
+        'Para firmar debes registrar la fecha de expedición del documento del cliente.',
+      );
+      return;
+    }
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
+    if (!pay.ok) {
+      this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
+      return;
+    }
+    this.step.set(2);
   }
 
   onCustomerSaved(payload: CustomerWritePayload): void {
