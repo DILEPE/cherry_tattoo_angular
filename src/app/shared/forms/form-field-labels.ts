@@ -28,12 +28,12 @@ export const BOOKING_FIELD_LABELS: Record<string, string> = {
   email: 'Correo electrónico',
   workKind: 'Tipo de trabajo',
   staffId: 'Profesional',
-  slot: 'Hora de inicio',
+  startSlot: 'Hora de inicio',
   endSlot: 'Hora de fin',
   design: 'Descripción del diseño',
   observations: 'Notas u observaciones',
-  total: 'Valor total',
-  deposit: 'Abono inicial',
+  total: 'Valor del trabajo',
+  deposit: 'Valor del abono',
 };
 
 export const LOGIN_FIELD_LABELS: Record<string, string> = {
@@ -43,8 +43,7 @@ export const LOGIN_FIELD_LABELS: Record<string, string> = {
 
 export const RESCHEDULE_FIELD_LABELS: Record<string, string> = {
   date: 'Nueva fecha',
-  slot: 'Hora de inicio',
-  endSlot: 'Hora de fin',
+  slot: 'Nueva franja horaria',
 };
 
 export const FINANCIALS_FIELD_LABELS: Record<string, string> = {

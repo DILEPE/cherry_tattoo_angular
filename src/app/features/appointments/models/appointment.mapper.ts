@@ -293,19 +293,25 @@ export function appointmentMatchesPiercingSubtype(
 }
 
 /**
- * Agenda de tatuador/perforador: solo citas del día en curso o con estado reprogramada.
+ * Agenda de tatuador/perforador:
+ * - citas del día en curso (agendada, etc.)
+ * - reprogramadas solo si la fecha es hoy o futura (no fechas pasadas).
  */
 export function filterTechnicianAgenda(items: Appointment[]): Appointment[] {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
   const day = now.getDate();
+  const todayStart = new Date(y, m, day).getTime();
   return items.filter((row) => {
     if (row.status === 'cancelada' || row.status === 'finalizada') return false;
-    if (row.status === 'reprogramada') return true;
     const d = row.appointmentDate;
     if (!d) return false;
-    return d.getFullYear() === y && d.getMonth() === m && d.getDate() === day;
+    const rowDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    if (row.status === 'reprogramada') {
+      return rowDay >= todayStart;
+    }
+    return rowDay === todayStart;
   });
 }
 

@@ -160,7 +160,7 @@ import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/uti
     </div>
     @if (store.isTechnicianAgenda()) {
       <p class="appt-scope-caption">
-        Solo ves tus citas de hoy y las reprogramadas.
+        Solo ves tus citas de hoy y las reprogramadas con fecha de hoy o posterior.
       </p>
     } @else if (!canSeeAll()) {
       <p class="appt-scope-caption">
