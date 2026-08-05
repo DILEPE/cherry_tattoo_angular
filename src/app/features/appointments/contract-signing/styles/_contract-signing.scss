@@ -4,6 +4,25 @@
   padding: 1rem 1.25rem 2rem;
 }
 
+/** Labels de formularios del contrato: negrita y color principal (no muted). */
+.ctsig-page,
+.ctsig-dialog {
+  .form-field > label,
+  .ctsig-tutor-grid > label,
+  .ctsig-doc-upload > label,
+  .ctsig-piercing-type,
+  .ctsig-survey-q-label,
+  .ctsig-view-sig__label,
+  .cust-form-section,
+  .cust-form-check,
+  .ctsig-subsection,
+  .ctsig-view-section,
+  .sig-pad__label {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+}
+
 .ctsig-page__header {
   margin-bottom: 1.25rem;
 
@@ -117,8 +136,8 @@
 .ctsig-view-sig__label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--text-primary);
   margin-bottom: 0.35rem;
 }
 
@@ -249,7 +268,8 @@
     flex-direction: column;
     gap: 0.25rem;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
   }
 
   input,
@@ -268,7 +288,8 @@
   max-width: 22rem;
   margin: 0 0 1rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text-primary);
 
   select {
     font-weight: 400;
@@ -289,6 +310,13 @@
   .ctsig-piercing-type {
     margin-bottom: 0;
   }
+
+  > .ctsig-control,
+  > select {
+    min-width: 14rem;
+    max-width: 22rem;
+    font-weight: 400;
+  }
 }
 
 .ctsig-doc-upload {
@@ -302,7 +330,8 @@
     flex-direction: column;
     gap: 0.35rem;
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
   }
 }
 
@@ -368,7 +397,7 @@
   margin: 0;
   padding: 0.85rem 1rem 0.65rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.45;
   color: var(--text-primary);
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
@@ -505,7 +534,8 @@ textarea.ctsig-control {
   &__label {
     margin: 0 0 0.35rem;
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
   }
 
   &__canvas {
