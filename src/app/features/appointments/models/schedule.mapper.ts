@@ -1,8 +1,13 @@
 import { Appointment } from './appointment.model';
 import { appointmentRowDate, appointmentTimeHm } from './calendar.mapper';
 import { ScheduleKind } from './booking.model';
-import { appointmentToScheduleKind } from './booking.mapper';
+import { appointmentToScheduleKind, MAX_BOOKING_DURATION_SLOTS } from './booking.mapper';
 import { durationSlotsForRow } from './agenda-slots.mapper';
+import {
+  appointmentBlockEndSlot,
+  durationSlotsFromStartEnd,
+  endBlockSlotOptions,
+} from './appointment-slots';
 
 export function appointmentsSameDay(
   items: Appointment[],
@@ -18,6 +23,10 @@ function stripTime(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/**
+ * Citas del mismo día que ocupan agenda del profesional (o sin asignar)
+ * para el rol/horario: tatuaje vs piercing no se bloquean entre sí.
+ */
 export function appointmentsForArtistSchedule(
   items: Appointment[],
   day: Date,
@@ -75,4 +84,48 @@ export function availableStartSlots(
     if (!blocked) out.push(slotList[i]);
   }
   return out;
+}
+
+/** Inicios con al menos `minSlots` libres consecutivos (luego se elige la hora de fin). */
+export function availableStartTimes(
+  slotList: string[],
+  busy: Set<number>,
+  minSlots = 1,
+): string[] {
+  return availableStartSlots(slotList, Math.max(1, minSlots), busy);
+}
+
+/**
+ * Horas de fin posibles desde `startHm` que no cruzan ocupación del artista.
+ * La duración queda definida solo por inicio + fin.
+ */
+export function availableEndTimes(
+  startHm: string,
+  slotList: string[],
+  busy: Set<number>,
+  maxDur = MAX_BOOKING_DURATION_SLOTS,
+): string[] {
+  const si = slotList.indexOf(startHm);
+  if (si < 0) return [];
+  const candidates = endBlockSlotOptions(startHm, slotList, maxDur);
+  return candidates.filter((endHm) => {
+    const dur = durationSlotsFromStartEnd(startHm, endHm, slotList);
+    for (let j = si; j < si + dur; j++) {
+      if (j >= slotList.length || busy.has(j)) return false;
+    }
+    return true;
+  });
+}
+
+/** Hora de fin por defecto (duración preferida) dentro de las libres. */
+export function preferredEndTime(
+  startHm: string,
+  preferredSlots: number,
+  endOptions: string[],
+  slotList: string[],
+): string {
+  if (!endOptions.length) return appointmentBlockEndSlot(startHm, 1, slotList);
+  const preferred = appointmentBlockEndSlot(startHm, preferredSlots, slotList);
+  if (endOptions.includes(preferred)) return preferred;
+  return endOptions[0];
 }
