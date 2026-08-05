@@ -4,7 +4,7 @@ import {
   MIN_BOOKING_DURATION_SLOTS,
 } from './booking.mapper';
 
-/** Franjas cada 30 min (08:00–20:00), igual que Streamlit. */
+/** Horarios disponibles cada 30 min (08:00–20:00) para elegir inicio/fin. */
 export function timeSlotOptions(): string[] {
   const slots: string[] = [];
   for (let minutes = 8 * 60; minutes <= 20 * 60; minutes += 30) {
@@ -35,7 +35,7 @@ export function combineAppointmentDatetime(date: Date, slotHm: string): string {
   return `${y}-${mo}-${da} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
 }
 
-/** Inicio de la última franja ocupada (uso interno / API). */
+/** Inicio del último bloque ocupado (uso interno). */
 export function appointmentLastStartSlot(
   startHm: string,
   durSlots: number,
@@ -47,7 +47,7 @@ export function appointmentLastStartSlot(
   return slotOpts[lastI];
 }
 
-/** Hora de fin del bloque (p. ej. inicio 09:00 + 1 franja → 09:30). */
+/** Hora de fin del bloque (p. ej. inicio 09:00 + 30 min → 09:30). */
 export function appointmentBlockEndSlot(
   startHm: string,
   durSlots: number,
@@ -60,7 +60,7 @@ export function appointmentBlockEndSlot(
   return addMinutesToHm(slotOpts[slotOpts.length - 1], 30);
 }
 
-/** Duración en franjas cuando «Hasta» es la hora de fin del bloque. */
+/** Cantidad de bloques de 30 min entre hora de inicio y hora de fin. */
 export function durationSlotsFromStartEnd(
   startHm: string,
   endHm: string,
