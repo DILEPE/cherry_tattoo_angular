@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -18,7 +19,7 @@ import { CustomersApiService } from '../../services/customers-api.service';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { PanelStaffApiService } from '../../services/panel-staff-api.service';
 import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
-import { copToMiles, mapAppointment, milesToCop, statusToPillVariant } from '../../models/appointment.mapper';
+import { copToMiles, mapAppointment, milesToCop } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
   firmarContratoDisabled,
@@ -84,148 +85,167 @@ import { of, switchMap } from 'rxjs';
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
       } @else if (appt()) {
         @let a = appt()!;
-        <header class="ap-ficha-header">
-          <div>
-            <h3 class="ap-ficha-title">Cita</h3>
-          </div>
-          <div class="ap-ficha-header__status">
-            <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
-            @if (a.hasSignedContract) {
-              <app-button variant="ghost" (clicked)="openContractView()">Ver contrato</app-button>
-            }
-          </div>
-        </header>
 
-        <p class="ap-ficha-section-band">Cliente</p>
-        <div class="ap-ficha-block">
-          <p class="ap-ficha-strong">
-            Cliente:
-            <span class="cli-pill cli-pill-{{ clientPillKind(a) }}">{{ customerName() }}</span>
-          </p>
-          @if (customer(); as c) {
-            <p class="ap-ficha-caption">
-              {{ c.documentType }} {{ c.documentNumber }} · ✉ {{ c.email || '—' }} · 📱
-              {{ c.phoneNumber || a.phone || '—' }}
-            </p>
-          } @else {
-            <p class="ap-ficha-caption">📱 Teléfono en cita: {{ a.phone || '—' }}</p>
-          }
-        </div>
-
-        <p class="ap-ficha-section-band">Horario</p>
-        <p class="ap-ficha-caption">Fecha: {{ formatAppointmentDay(appointmentDay()) }}</p>
-        <div class="ap-ficha-grid2">
-          <label>
-            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Desde (inicio)</span>
-            <select
-              class="ap-ficha-control"
-              [ngModel]="startSlot()"
-              (ngModelChange)="onStartSlotChange($event)"
-              [disabled]="!scheduleEditable()"
-            >
-              @for (s of startSlotChoices(); track s) {
-                <option [value]="s">{{ s }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            <span class="ap-ficha-col-head ap-ficha-col-head--wide">Hasta (fin del bloque)</span>
-            <select
-              class="ap-ficha-control"
-              [ngModel]="endSlot()"
-              (ngModelChange)="endSlot.set($event)"
-              [disabled]="!scheduleEditable()"
-            >
-              @for (s of endSlotChoices(); track s) {
-                <option [value]="s">{{ s }}</option>
-              }
-            </select>
-          </label>
-        </div>
-        @if (!scheduleEditable() && scheduleLocked()) {
-          <p class="ap-ficha-hint">
-            Horario bloqueado: estado cerrado o la cita no admite cambio de franja desde aquí.
-          </p>
-        }
-        @if (artistDirty() && scheduleEditable()) {
-          <p class="ap-ficha-hint">
-            Cambiaste de artista: elige de nuevo inicio y fin según la disponibilidad del profesional.
-          </p>
-        }
-
-        <p class="ap-ficha-section-band">Cita · servicio</p>
-        <p class="ap-ficha-caption ap-ficha-caption--rec">
-          Recibo id(s) — solo lectura: {{ receiptIdsLabel() }}
-        </p>
-        <div class="ap-ficha-grid2 ap-ficha-grid2--service">
-          <div class="ap-ficha-col">
-            <label>
-              <span class="ap-ficha-col-head">Artista</span>
-              @if (staffForAppt().length) {
-                <select
-                  class="ap-ficha-control"
-                  [ngModel]="selectedArtistId()"
-                  (ngModelChange)="onArtistChange($event)"
-                  [disabled]="artistLocked()"
-                >
-                  @for (s of staffForAppt(); track s.id) {
-                    <option [ngValue]="s.id">{{ s.label }}</option>
+        <section class="ap-ficha-split" aria-label="Cliente y horario">
+          <div class="ap-ficha-split__col">
+            <p class="ap-ficha-section-band">Cliente</p>
+            <div class="ap-ficha-block ap-ficha-block--compact ap-ficha-block--client">
+              <div class="ap-ficha-client-stack">
+                <p class="ap-ficha-strong ap-ficha-strong--inline">
+                  <span class="cli-pill cli-pill-{{ clientPillKind(a) }}">{{ customerName() }}</span>
+                  @if (customer(); as c) {
+                    <span class="ap-ficha-client-id">{{ c.documentType }} {{ c.documentNumber }}</span>
                   }
-                </select>
-              } @else {
-                <input class="ap-ficha-control" type="text" [value]="a.assignedLabel" disabled />
+                </p>
+                <p class="ap-ficha-client-line">
+                  @if (customer(); as c) {
+                    <span>{{ c.phoneNumber || a.phone || '—' }}</span>
+                    <span class="ap-ficha-client-line__sep" aria-hidden="true">·</span>
+                    <span>{{ c.email || '—' }}</span>
+                  } @else {
+                    <span>{{ a.phone || '—' }}</span>
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="ap-ficha-split__col">
+            <p class="ap-ficha-section-band">Horario</p>
+            <div class="ap-ficha-block ap-ficha-block--compact ap-ficha-block--schedule">
+              <div class="ap-ficha-field-row">
+                <label class="ap-ficha-field">
+                  <span class="ap-ficha-label">Inicio</span>
+                  <select
+                    class="ap-ficha-control"
+                    [ngModel]="startSlot()"
+                    (ngModelChange)="onStartSlotChange($event)"
+                    [disabled]="!scheduleEditable()"
+                  >
+                    @for (s of startSlotChoices(); track s) {
+                      <option [value]="s">{{ formatScheduleDateTime(s) }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="ap-ficha-field">
+                  <span class="ap-ficha-label">Fin</span>
+                  <select
+                    class="ap-ficha-control"
+                    [ngModel]="endSlot()"
+                    (ngModelChange)="endSlot.set($event)"
+                    [disabled]="!scheduleEditable()"
+                  >
+                    @for (s of endSlotChoices(); track s) {
+                      <option [value]="s">{{ formatScheduleDateTime(s) }}</option>
+                    }
+                  </select>
+                </label>
+              </div>
+              @if (!scheduleEditable() && scheduleLocked()) {
+                <p class="ap-ficha-hint">
+                  Horario bloqueado: no admite cambio desde aquí.
+                </p>
               }
-            </label>
-            <label>
-              <span class="ap-ficha-col-head">Valor del tatuaje / trabajo</span>
-              <input
-                class="ap-ficha-control"
-                type="number"
-                min="0"
-                step="1"
-                [ngModel]="totalValue()"
-                (ngModelChange)="totalValue.set(+$event || 0)"
-                [disabled]="montosLocked()"
-              />
-            </label>
-            <label class="ap-ficha-check">
-              <input
-                type="checkbox"
-                [ngModel]="isPriority()"
-                (ngModelChange)="isPriority.set($event)"
-                [disabled]="montosLocked()"
-              />
-              Cita prioritaria
-            </label>
+              @if (artistDirty() && scheduleEditable()) {
+                <p class="ap-ficha-hint">
+                  Cambiaste de artista: ajusta inicio y fin según disponibilidad.
+                </p>
+              }
+            </div>
+          </div>
+        </section>
+
+        <section class="ap-ficha-service" aria-label="Cita servicio">
+          <div class="ap-ficha-section-band ap-ficha-section-band--split">
+            <span>Cita · servicio</span>
+            <span class="ap-ficha-section-band__meta">Recibo {{ receiptIdsLabel() }}</span>
+          </div>
+          <div class="ap-ficha-service__body">
+            <div class="ap-ficha-field-row">
+              <label class="ap-ficha-field">
+                <span class="ap-ficha-label">Artista</span>
+                @if (staffForAppt().length) {
+                  <select
+                    class="ap-ficha-control"
+                    [ngModel]="selectedArtistId()"
+                    (ngModelChange)="onArtistChange($event)"
+                    [disabled]="artistLocked()"
+                  >
+                    @for (s of staffForAppt(); track s.id) {
+                      <option [ngValue]="s.id">{{ s.label }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input class="ap-ficha-control" type="text" [value]="a.assignedLabel" disabled />
+                }
+              </label>
+              <label class="ap-ficha-field">
+                <span class="ap-ficha-label">Valor del trabajo</span>
+                <input
+                  class="ap-ficha-control"
+                  type="number"
+                  min="0"
+                  step="1"
+                  [ngModel]="totalValue()"
+                  (ngModelChange)="totalValue.set(+$event || 0)"
+                  [disabled]="montosLocked()"
+                />
+              </label>
+            </div>
             @if (a.hasSignedContract) {
               <p class="ap-ficha-hint">
                 El artista no se puede cambiar si ya existe contrato firmado en esta cita.
               </p>
             }
+            <div class="ap-ficha-field-row ap-ficha-field-row--textareas">
+              <label class="ap-ficha-field">
+                <span class="ap-ficha-label">Descripción del diseño</span>
+                <textarea
+                  class="ap-ficha-control"
+                  rows="2"
+                  [ngModel]="designText()"
+                  (ngModelChange)="designText.set($event)"
+                  [disabled]="montosLocked()"
+                ></textarea>
+              </label>
+              <label class="ap-ficha-field">
+                <span class="ap-ficha-label">Observaciones</span>
+                <textarea
+                  class="ap-ficha-control"
+                  rows="2"
+                  [ngModel]="obsText()"
+                  (ngModelChange)="obsText.set($event)"
+                  [disabled]="montosLocked()"
+                ></textarea>
+              </label>
+            </div>
           </div>
-          <div class="ap-ficha-col">
-            <label>
-              <span class="ap-ficha-col-head">Descripción del diseño</span>
-              <textarea
-                class="ap-ficha-control"
-                rows="5"
-                [ngModel]="designText()"
-                (ngModelChange)="designText.set($event)"
-                [disabled]="montosLocked()"
-              ></textarea>
-            </label>
-            <label>
-              <span class="ap-ficha-col-head">Observaciones</span>
-              <textarea
-                class="ap-ficha-control"
-                rows="4"
-                [ngModel]="obsText()"
-                (ngModelChange)="obsText.set($event)"
-                [disabled]="montosLocked()"
-              ></textarea>
-            </label>
-          </div>
-        </div>
+          @if (canManageFicha()) {
+            <div class="ap-ficha-service__footer">
+              <label class="ap-ficha-check">
+                <input
+                  type="checkbox"
+                  [ngModel]="isPriority()"
+                  (ngModelChange)="isPriority.set($event)"
+                  [disabled]="montosLocked()"
+                />
+                Cita prioritaria
+              </label>
+              <div class="ap-ficha-service__footer-actions">
+                <app-button
+                  variant="ghost"
+                  [disabled]="reprogramDisabled()"
+                  (clicked)="openReschedule()"
+                >
+                  Reprogramar
+                </app-button>
+                <app-button variant="ghost" [disabled]="!canCancel()" (clicked)="openCancel()">
+                  Cancelar
+                </app-button>
+              </div>
+            </div>
+          }
+        </section>
 
         <app-appointment-abonos-section
           [montosLocked]="montosLocked()"
@@ -236,34 +256,19 @@ import { of, switchMap } from 'rxjs';
           <p class="cal-overflow-fire-pending appt-detail-fire">Firma profesional pendiente</p>
         }
 
-        <h4 class="ap-ficha-actions-title">Acciones</h4>
-        @if (canManageFicha()) {
-          <div class="ap-ficha-actions">
+        <div class="ap-ficha-actions">
+          @if (canManageFicha()) {
             <app-button variant="primary" [loading]="saving()" (clicked)="saveChanges()">
               Guardar cambios
             </app-button>
-            <app-button
-              variant="ghost"
-              [disabled]="reprogramDisabled()"
-              (clicked)="openReschedule()"
-            >
-              Reprogramar
-            </app-button>
-            <app-button variant="ghost" [disabled]="!canCancel()" (clicked)="openCancel()">
-              Cancelar cita
-            </app-button>
             <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
               {{ firmarLabel() }}
             </app-button>
-          </div>
-        } @else if (isTechnician()) {
-          <div class="ap-ficha-actions">
+          } @else if (isTechnician()) {
             <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
               {{ firmarLabel() }}
             </app-button>
-          </div>
-        }
-        <div class="ap-ficha-actions-close">
+          }
           <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
         </div>
       } @else {
@@ -282,10 +287,11 @@ export class AppointmentFocusDialogComponent {
   private readonly staffApi = inject(PanelStaffApiService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly abonosSection = viewChild(AppointmentAbonosSectionComponent);
 
-  protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly clientPillKind = (a: Appointment) =>
     clientPillKind(a, this.apptStore.clientHistoryCounts());
+
   readonly slotOptions = timeSlotOptions();
 
   readonly customer = signal<CustomerSnapshot | null>(null);
@@ -550,17 +556,36 @@ export class AppointmentFocusDialogComponent {
     }
   }
 
+  /** Etiqueta de opción: DD-MM-YYYY HH:MM */
+  formatScheduleDateTime(hm: string): string {
+    const day = this.appointmentDay();
+    if (!day || Number.isNaN(day.getTime())) return hm || '—';
+    const dd = String(day.getDate()).padStart(2, '0');
+    const mm = String(day.getMonth() + 1).padStart(2, '0');
+    const yyyy = day.getFullYear();
+    const time = (hm || '').trim() || '—';
+    return `${dd}-${mm}-${yyyy} ${time}`;
+  }
+
   formatAppointmentDay(day: Date): string {
     if (!day || Number.isNaN(day.getTime())) return '—';
     const dd = String(day.getDate()).padStart(2, '0');
     const mm = String(day.getMonth() + 1).padStart(2, '0');
     const yyyy = day.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+    return `${dd}-${mm}-${yyyy}`;
   }
 
   saveChanges(): void {
     const a = this.appt();
     if (!a || this.montosLocked()) return;
+
+    const abonos = this.abonosSection();
+    const payDirty = abonos?.hasUnsavedPaymentEdit() ?? false;
+    const payBlocker = abonos?.paymentEditBlocker() ?? null;
+    if (payBlocker) {
+      this.toast.warn(payBlocker);
+      return;
+    }
 
     const tot = milesToCop(this.totalValue());
     const dep = a.financials.deposit;
@@ -577,8 +602,9 @@ export class AppointmentFocusDialogComponent {
       this.designText() !== this.baseDesign || this.obsText() !== this.baseObs;
     const artDirty = this.artistDirty();
     const prioDirty = this.isPriority() !== this.basePriority;
+    const fichaDirty = totDirty || schedDirty || textDirty || artDirty || prioDirty;
 
-    if (!totDirty && !schedDirty && !textDirty && !artDirty && !prioDirty) {
+    if (!fichaDirty && !payDirty) {
       this.toast.info('No hay cambios que guardar.');
       return;
     }
@@ -617,12 +643,15 @@ export class AppointmentFocusDialogComponent {
 
     const pending = Math.max(Math.round((tot - dep - credit) * 100) / 100, 0);
 
+    const savePayment$ = abonos?.commitPaymentEdit$() ?? of(false);
+
     const saveFinancials$ = totDirty
       ? this.api.patchFinancials(a.id, tot, dep, pending)
       : of(null);
 
-    saveFinancials$
+    savePayment$
       .pipe(
+        switchMap(() => saveFinancials$),
         switchMap(() => {
           if (!schedDirty) return of(null);
           const dt = combineAppointmentDatetime(this.appointmentDay(), this.startSlot());
@@ -647,7 +676,7 @@ export class AppointmentFocusDialogComponent {
         },
         error: (err) => {
           this.saving.set(false);
-          this.toast.error(apiErrorMessage(err));
+          this.toast.error(err instanceof Error ? err.message : apiErrorMessage(err));
         },
       });
   }
@@ -662,12 +691,6 @@ export class AppointmentFocusDialogComponent {
     const a = this.appt();
     if (!a) return;
     this.ui.openModal('appointment-cancel', { appointmentId: a.id });
-  }
-
-  openContractView(): void {
-    const a = this.appt();
-    if (!a?.hasSignedContract) return;
-    this.ui.openModal('appointment-contract-view', { appointmentId: a.id });
   }
 
   onFirmarContrato(): void {

@@ -10,7 +10,7 @@ import { AppButtonComponent } from '../../../../shared/ui/button/app-button.comp
 import { UiStore } from '../../../../store/ui.store';
 import { AppStore } from '../../../../store/app.store';
 import { AppointmentModalData, BookAppointmentModalData } from '../../models/appointment-modal.model';
-import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
+import { maySeeAllAppointments, isTechnicianRole } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-appointments-shell',
@@ -28,7 +28,9 @@ import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
     <div class="appt-shell-header">
       <app-appointments-view-toolbar />
       <div class="appt-shell-header__actions">
-        <app-button variant="ghost" (clicked)="openSearch()">Buscar cita</app-button>
+        @if (canSearch()) {
+          <app-button variant="ghost" (clicked)="openSearch()">Buscar cita</app-button>
+        }
         @if (canBook()) {
           <app-button variant="primary" (clicked)="openBookToday()">Cita express</app-button>
         }
@@ -57,6 +59,12 @@ export class AppointmentsShellComponent {
   readonly canBook = computed(() => {
     const role = this.appStore.user()?.role ?? '';
     return role !== 'tatuador' && role !== 'perforador';
+  });
+
+  /** Tatuador/perforador no buscan citas (evita abrir historial pasado). */
+  readonly canSearch = computed(() => {
+    const role = this.appStore.user()?.role ?? '';
+    return !isTechnicianRole(role);
   });
 
   private readonly _scopeEffect = effect(() => {

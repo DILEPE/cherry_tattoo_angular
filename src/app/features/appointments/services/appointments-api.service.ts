@@ -125,9 +125,11 @@ export class AppointmentsApiService {
     paymentId: number,
     amount: number,
     paidOn?: string | null,
+    editedBy?: number | null,
   ): Observable<unknown> {
     const body: Record<string, unknown> = { amount };
     if (paidOn) body['paid_on'] = paidOn;
+    if (editedBy != null && editedBy > 0) body['edited_by'] = editedBy;
     return this.api.patch(
       `/api/appointments/${appointmentId}/payments/${paymentId}`,
       body,

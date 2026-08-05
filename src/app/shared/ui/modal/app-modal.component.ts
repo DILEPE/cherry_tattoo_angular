@@ -25,12 +25,23 @@ import { UiStore } from '../../../store/ui.store';
             </div>
           }
           <header class="modal-header">
-            <h2>{{ title() }}</h2>
-            @if (dismissible()) {
-              <button type="button" class="modal-close" (click)="close()" aria-label="Cerrar">
-                ×
-              </button>
-            }
+            <div class="modal-header__main">
+              <h2>{{ title() }}</h2>
+              @if (subtitle()) {
+                <p class="modal-header__subtitle">
+                  <span class="modal-header__subtitle-label">{{ subtitleLabel() }}</span>
+                  <strong class="modal-header__subtitle-value">{{ subtitle() }}</strong>
+                </p>
+              }
+            </div>
+            <div class="modal-header__aside">
+              <ng-content select="[modalHeaderEnd]" />
+              @if (dismissible()) {
+                <button type="button" class="modal-close" (click)="close()" aria-label="Cerrar">
+                  ×
+                </button>
+              }
+            </div>
           </header>
           <div class="modal-body">
             <ng-content />
@@ -42,6 +53,8 @@ import { UiStore } from '../../../store/ui.store';
 })
 export class AppModalComponent {
   readonly title = input.required<string>();
+  readonly subtitle = input<string>('');
+  readonly subtitleLabel = input('Fecha de creación');
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly dismissible = input(true);
   readonly isOpen = input(true);
