@@ -118,6 +118,11 @@
   gap: 0.5rem 0.65rem;
   margin-bottom: 0.5rem;
 
+  .form-field > label {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
@@ -128,6 +133,8 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary);
   grid-column: 1 / -1;
 }
 

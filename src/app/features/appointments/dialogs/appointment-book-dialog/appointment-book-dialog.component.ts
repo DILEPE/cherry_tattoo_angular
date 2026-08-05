@@ -789,21 +789,7 @@ export class AppointmentBookDialogComponent {
         return;
       }
       payload['customer_id'] = cid;
-      const snap = this.customerSnapshot();
-      if (snap) {
-        payload['customer'] = {
-          first_name: fn,
-          last_name: ln,
-          birth_date: CUSTOMER_BIRTH_PENDING_ISO,
-          document_type: this.form.controls.docType.value,
-          document_number: doc,
-          document_issue_date: null,
-          email: email || null,
-          phone_number: phone,
-          address: null,
-          is_minor: false,
-        };
-      }
+      // No reenviar ficha con birth_date pendiente: preserva la fecha real capturada al firmar.
     }
 
     this.saving.set(true);

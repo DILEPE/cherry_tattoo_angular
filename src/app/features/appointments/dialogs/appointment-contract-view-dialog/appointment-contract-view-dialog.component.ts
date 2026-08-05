@@ -30,6 +30,7 @@ import { ErrorService } from '../../../../core/services/error.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
+import { AppStore } from '../../../../store/app.store';
 
 @Component({
   selector: 'app-appointment-contract-view-dialog',
@@ -50,6 +51,7 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
       <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
     } @else if (contract()) {
       @let ct = contract()!;
+      <div class="ctsig-dialog">
       <p class="ctsig-view-meta">
         Contrato #{{ ct.id }} · Cita #{{ ct.appointmentId }}
         @if (ct.serviceType) {
@@ -60,22 +62,21 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
         }
       </p>
 
-      @if (showPiercingEditor()) {
+      @if (showPiercingEditor() && canEditPiercingType()) {
         <h4 class="ctsig-view-section">Tipo de piercing</h4>
         <div class="ctsig-piercing-type-edit">
-          <label class="ctsig-piercing-type">
-            Tipo de piercing
-            <select
-              [ngModel]="piercingType()"
-              (ngModelChange)="piercingType.set($event)"
-              name="piercingTypeView"
-            >
-              <option value="">Selecciona…</option>
-              @for (opt of piercingTypeOptions; track opt) {
-                <option [value]="opt">{{ piercingTypeLabel(opt) }}</option>
-              }
-            </select>
-          </label>
+          <select
+            class="ctsig-control"
+            [ngModel]="piercingType()"
+            (ngModelChange)="piercingType.set($event)"
+            name="piercingTypeView"
+            aria-label="Tipo de piercing"
+          >
+            <option value="">Selecciona…</option>
+            @for (opt of piercingTypeOptions; track opt) {
+              <option [value]="opt">{{ piercingTypeLabel(opt) }}</option>
+            }
+          </select>
           <app-button
             [disabled]="
               savingPiercing() ||
@@ -91,7 +92,11 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
 
       @if (customer(); as c) {
         <h4 class="ctsig-view-section">Datos personales del cliente</h4>
-        <app-customer-form [initial]="c" [readonly]="true" />
+        <app-customer-form
+          [initial]="c"
+          [readonly]="true"
+          [showSectionTitles]="false"
+        />
       }
 
       <h4 class="ctsig-view-section">Contenido del contrato firmado</h4>
@@ -172,6 +177,7 @@ import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
       <div class="appt-dialog-actions">
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
       </div>
+      </div>
     }
   `,
 })
@@ -180,6 +186,7 @@ export class AppointmentContractViewDialogComponent {
   private readonly apptApi = inject(AppointmentsApiService);
   private readonly customersApi = inject(CustomersApiService);
   private readonly contractApi = inject(ContractSigningApiService);
+  private readonly appStore = inject(AppStore);
   private readonly errors = inject(ErrorService);
   private readonly toast = inject(ToastService);
   private readonly sanitizer = inject(DomSanitizer);
@@ -201,6 +208,9 @@ export class AppointmentContractViewDialogComponent {
     }
     return this.isPiercing();
   });
+
+  /** Solo administrador puede cambiar el tipo tras el contrato firmado. */
+  readonly canEditPiercingType = computed(() => this.appStore.isAdmin());
 
   protected readonly piercingTypeOptions = PIERCING_TYPE_OPTIONS;
   protected readonly piercingTypeLabel = piercingTypeDisplayLabel;
@@ -324,6 +334,10 @@ export class AppointmentContractViewDialogComponent {
   }
 
   savePiercingType(): void {
+    if (!this.canEditPiercingType()) {
+      this.toast.warn('Solo un administrador puede cambiar el tipo de piercing.');
+      return;
+    }
     const appointmentId = this.contract()?.appointmentId ?? 0;
     const value = this.piercingType().trim();
     if (appointmentId <= 0 || !value) {

@@ -70,7 +70,8 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
 
     .ctsig-capture__label {
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
     .ctsig-capture__preview,
