@@ -7,7 +7,10 @@ export const ASSIGNABLE_PANEL_MODULES = [
   'tiendas',
 ] as const;
 
-export type PanelModuleKey = (typeof ASSIGNABLE_PANEL_MODULES)[number] | 'tiendas' | 'usuarios_panel';
+export type PanelModuleKey =
+  | (typeof ASSIGNABLE_PANEL_MODULES)[number]
+  | 'tipos_piercing'
+  | 'usuarios_panel';
 
 export const PANEL_MODULE_LABELS: Record<string, string> = {
   citas: 'Gestión citas',
@@ -16,6 +19,7 @@ export const PANEL_MODULE_LABELS: Record<string, string> = {
   encuestas: 'Gestión encuesta',
   reporte: 'Gestión de reportes',
   tiendas: 'Gestión de tiendas',
+  tipos_piercing: 'Tipos de piercing',
   usuarios_panel: 'Gestión de usuarios',
 };
 

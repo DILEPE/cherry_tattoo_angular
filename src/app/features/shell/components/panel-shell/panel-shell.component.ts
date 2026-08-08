@@ -32,6 +32,7 @@ const NAV_ICONS: Record<string, AppIconName> = {
   encuestas: 'clipboardList',
   reporte: 'barChart',
   tiendas: 'store',
+  tipos_piercing: 'document',
   usuarios_panel: 'userCog',
 };
 
@@ -199,6 +200,7 @@ export class PanelShellComponent implements OnInit, OnDestroy {
       'encuestas',
       'reporte',
       'tiendas',
+      'tipos_piercing',
       'usuarios_panel',
     ];
     for (const key of order) {
