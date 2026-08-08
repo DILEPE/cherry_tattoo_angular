@@ -16,11 +16,14 @@ export interface DailyWorkCountRow {
   count: number;
 }
 
-export interface DailyWorkReport {
-  dateIso: string;
+export interface WorkTypeSummary {
   total: number;
   byWorkKind: DailyWorkCountRow[];
   byPiercingPlacement: DailyWorkCountRow[];
+}
+
+export interface DailyWorkReport extends WorkTypeSummary {
+  dateIso: string;
 }
 
 /** Fecha local `YYYY-MM-DD` (misma convención que filtros de citas). */
@@ -68,14 +71,13 @@ function increment(
 }
 
 /**
- * Resume el trabajo finalizado de un día: conteo por tipo de agenda
- * y, para colocaciones, desglose por tipo de perforación (Helix, Lóbulo, …).
+ * Resume tipos de trabajo sobre un listado ya filtrado (p. ej. informe financiero).
+ * Incluye colocación / limpieza / cambio / tatuaje y desglose de colocaciones.
  */
-export function buildDailyWorkReport(
+export function buildWorkTypeSummary(
   items: readonly Appointment[],
   piercingLabels: Readonly<Record<number, string>> = {},
-  dateIso: string = localDateIso(),
-): DailyWorkReport {
+): WorkTypeSummary {
   const kindCounts = new Map<BookingWorkKind, number>();
   for (const kind of BOOKING_WORK_KIND_ORDER) {
     kindCounts.set(kind, 0);
@@ -85,10 +87,7 @@ export function buildDailyWorkReport(
   let total = 0;
 
   for (const row of items) {
-    if (!isFinalized(row)) continue;
-    if (appointmentLocalDateIso(row) !== dateIso) continue;
     total += 1;
-
     const kind = inferWorkKindFromAppointment(row);
     kindCounts.set(kind, (kindCounts.get(kind) ?? 0) + 1);
 
@@ -108,5 +107,21 @@ export function buildDailyWorkReport(
     .map(([key, row]) => ({ key, label: row.label, count: row.count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'es'));
 
-  return { dateIso, total, byWorkKind, byPiercingPlacement };
+  return { total, byWorkKind, byPiercingPlacement };
+}
+
+/**
+ * Resume el trabajo finalizado de un día: conteo por tipo de agenda
+ * y, para colocaciones, desglose por tipo de perforación (Helix, Lóbulo, …).
+ */
+export function buildDailyWorkReport(
+  items: readonly Appointment[],
+  piercingLabels: Readonly<Record<number, string>> = {},
+  dateIso: string = localDateIso(),
+): DailyWorkReport {
+  const dayItems = items.filter(
+    (row) => isFinalized(row) && appointmentLocalDateIso(row) === dateIso,
+  );
+  const summary = buildWorkTypeSummary(dayItems, piercingLabels);
+  return { dateIso, ...summary };
 }

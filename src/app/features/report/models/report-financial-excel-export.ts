@@ -3,6 +3,10 @@ import { Appointment, AppointmentFilters } from '../../appointments/models/appoi
 import { reportWorkPerformedLabel } from './work-performed-label.util';
 import { piercingTypeDisplayLabel } from '../../appointments/models/piercing-type-catalog';
 import {
+  buildWorkTypeSummary,
+  WorkTypeSummary,
+} from '../../appointments/models/daily-work-report.util';
+import {
   EXCEL_COLORS,
   applyReportSubtitleRow,
   applyReportTitleRow,
@@ -168,11 +172,48 @@ function buildDataSheet(
   setColumnWidths(ws, COLUMN_WIDTHS);
 }
 
+function writeMetricRow(
+  ws: Worksheet,
+  row: number,
+  label: string,
+  value: string | number,
+  zebra: boolean,
+): void {
+  const fill = excelSolidFill(zebra ? EXCEL_COLORS.rowAlt : EXCEL_COLORS.rowBase);
+
+  const c1 = ws.getCell(row, 1);
+  c1.value = label;
+  c1.font = excelBodyFont();
+  c1.fill = fill;
+  c1.border = excelThinBorder();
+  c1.alignment = excelLeftAlign();
+
+  const c2 = ws.getCell(row, 2);
+  c2.value = value;
+  c2.font = { ...excelBodyFont(), bold: typeof value === 'number' };
+  c2.fill = fill;
+  c2.border = excelThinBorder();
+  c2.alignment = excelRightAlign();
+  ws.getRow(row).height = 20;
+}
+
+function writeSectionTitle(ws: Worksheet, row: number, title: string, ncol: number): void {
+  ws.mergeCells(row, 1, row, ncol);
+  const cell = ws.getCell(row, 1);
+  cell.value = title;
+  cell.font = { ...excelHeaderFont(), color: { argb: EXCEL_COLORS.headerText }, size: 11 };
+  cell.fill = excelSolidFill(EXCEL_COLORS.headerBg);
+  cell.border = excelThinBorder();
+  cell.alignment = excelLeftAlign();
+  ws.getRow(row).height = 22;
+}
+
 function buildSummarySheet(
   ws: Worksheet,
   rows: Appointment[],
   filtersLabel: string,
   generatedAt: Date,
+  piercingSurveyLabels: Readonly<Record<number, string>>,
 ): void {
   const fechaEtiqueta = formatGeneratedAt(generatedAt);
   let trabajo = 0;
@@ -184,6 +225,7 @@ function buildSummarySheet(
     pendiente += r.financials.pending;
   }
   const ncol = 2;
+  const workSummary: WorkTypeSummary = buildWorkTypeSummary(rows, piercingSurveyLabels);
 
   applyReportTitleRow(ws, 'Resumen financiero — mismos filtros que el panel', ncol);
   applyReportSubtitleRow(ws, `Generado: ${fechaEtiqueta}`, ncol);
@@ -208,26 +250,29 @@ function buildSummarySheet(
     ['Filtros aplicados', filtersLabel],
   ];
 
+  let nextRow = headerRow + 1;
   metrics.forEach(([label, value], idx) => {
-    const r = headerRow + 1 + idx;
-    const zebra = idx % 2 === 1;
-    const fill = excelSolidFill(zebra ? EXCEL_COLORS.rowAlt : EXCEL_COLORS.rowBase);
-
-    const c1 = ws.getCell(r, 1);
-    c1.value = label;
-    c1.font = excelBodyFont();
-    c1.fill = fill;
-    c1.border = excelThinBorder();
-    c1.alignment = excelLeftAlign();
-
-    const c2 = ws.getCell(r, 2);
-    c2.value = value;
-    c2.font = { ...excelBodyFont(), bold: typeof value === 'number' };
-    c2.fill = fill;
-    c2.border = excelThinBorder();
-    c2.alignment = excelRightAlign();
-    ws.getRow(r).height = 20;
+    writeMetricRow(ws, nextRow, label, value, idx % 2 === 1);
+    nextRow += 1;
   });
+
+  nextRow += 1;
+  writeSectionTitle(ws, nextRow, 'Tipos de trabajo (según filtro)', ncol);
+  nextRow += 1;
+  workSummary.byWorkKind.forEach((row, idx) => {
+    writeMetricRow(ws, nextRow, row.label, row.count, idx % 2 === 1);
+    nextRow += 1;
+  });
+
+  if (workSummary.byPiercingPlacement.length) {
+    nextRow += 1;
+    writeSectionTitle(ws, nextRow, 'Colocaciones por tipo de piercing', ncol);
+    nextRow += 1;
+    workSummary.byPiercingPlacement.forEach((row, idx) => {
+      writeMetricRow(ws, nextRow, row.label, row.count, idx % 2 === 1);
+      nextRow += 1;
+    });
+  }
 
   ws.getColumn(1).width = 44;
   ws.getColumn(2).width = 28;
@@ -257,7 +302,7 @@ export async function downloadReportFinancialExcel(
   const wsSummary = workbook.addWorksheet('Resumen financiero', {
     properties: { defaultRowHeight: 18 },
   });
-  buildSummarySheet(wsSummary, rows, filtersLabel, generatedAt);
+  buildSummarySheet(wsSummary, rows, filtersLabel, generatedAt, piercingSurveyLabels);
 
   const filename = `Informe-finanzas-citas-${excelFilenameStamp(generatedAt)}.xlsx`;
   await downloadExcelWorkbook(() => workbook.xlsx.writeBuffer(), filename);
