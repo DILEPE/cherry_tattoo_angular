@@ -5,6 +5,7 @@ import { Observable, catchError, throwError } from 'rxjs';
 export interface ApiErrorBody {
   detail?: string | unknown;
   message?: string;
+  extra?: Array<{ message?: string; key?: string; source?: string }>;
 }
 
 export interface ApiRequestOptions {
@@ -89,9 +90,15 @@ export class ApiService {
       if (typeof body === 'string' && body) {
         message = body;
       } else if (body && typeof body === 'object') {
-        if (typeof body.message === 'string') message = body.message;
+        const extras = Array.isArray(body.extra)
+          ? body.extra
+              .map((e) => (typeof e?.message === 'string' ? e.message : ''))
+              .filter(Boolean)
+          : [];
+        if (extras.length) message = extras.join(' · ');
         else if (typeof body.detail === 'string') message = body.detail;
         else if (body.detail) message = JSON.stringify(body.detail);
+        else if (typeof body.message === 'string') message = body.message;
       }
       return { status: err.status, message, raw: err.error };
     }

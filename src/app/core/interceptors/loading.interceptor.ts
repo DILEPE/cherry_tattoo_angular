@@ -47,6 +47,9 @@ function loadingMessageFor(req: HttpRequest<unknown>): string {
   if (url.includes('panel-user')) {
     return 'Cargando usuarios…';
   }
+  if (url.includes('procedure-consent') || url.includes('tipos_piercing')) {
+    return 'Cargando tipos de piercing…';
+  }
   if (url.includes('/store')) {
     return 'Cargando tiendas…';
   }
