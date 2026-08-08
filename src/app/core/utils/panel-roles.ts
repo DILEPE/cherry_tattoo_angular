@@ -8,6 +8,11 @@ export function isTechnicianRole(role: string): boolean {
   return role === 'tatuador' || role === 'perforador';
 }
 
+/** Vendedor: agenda y búsqueda solo hoy + fechas futuras (sin historial pasado). */
+export function isSellerRole(role: string): boolean {
+  return role === 'vendedor';
+}
+
 /** Admin/vendedor pueden ajustar montos y registrar abonos; tatuador/perforador no. */
 export function canManageAppointmentAmounts(role: string): boolean {
   return !isTechnicianRole(role);

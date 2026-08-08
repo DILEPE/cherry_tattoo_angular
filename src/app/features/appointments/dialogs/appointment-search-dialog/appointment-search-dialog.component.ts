@@ -4,9 +4,11 @@ import { catchError, of } from 'rxjs';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { UiStore } from '../../../../store/ui.store';
+import { AppStore } from '../../../../store/app.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { apiErrorMessage } from '../../../../core/services/api.service';
+import { isSellerRole } from '../../../../core/utils/panel-roles';
 import {
   APPOINTMENT_SEARCH_FIELDS,
   APPOINTMENT_SEARCH_PAGE_SIZE,
@@ -17,6 +19,7 @@ import {
   searchHitArtistLabel,
 } from '../../models/appointment-search.model';
 import { AppointmentApiRow } from '../../models/appointment.model';
+import { dateToIsoLocal } from '../../models/week-schedule.mapper';
 import { openAppointmentModal } from '../appointment-open.util';
 
 @Component({
@@ -128,6 +131,7 @@ export class AppointmentSearchDialogComponent {
   private readonly store = inject(AppointmentsStore);
   private readonly api = inject(AppointmentsApiService);
   private readonly ui = inject(UiStore);
+  private readonly appStore = inject(AppStore);
 
   readonly fieldOptions = (
     Object.entries(APPOINTMENT_SEARCH_FIELDS) as [AppointmentSearchField, string][]
@@ -164,6 +168,8 @@ export class AppointmentSearchDialogComponent {
     this.page.set(Math.max(0, page));
     this.loading.set(true);
     this.error.set(null);
+    const role = this.appStore.user()?.role ?? '';
+    const fromDate = isSellerRole(role) ? dateToIsoLocal(new Date()) : null;
     this.api
       .search({
         field: this.field,
@@ -171,6 +177,7 @@ export class AppointmentSearchDialogComponent {
         limit: APPOINTMENT_SEARCH_PAGE_SIZE,
         offset: this.page() * APPOINTMENT_SEARCH_PAGE_SIZE,
         assignedPanelUserId: this.store.assignedUserId(),
+        fromDate,
       })
       .subscribe({
         next: (data) => {

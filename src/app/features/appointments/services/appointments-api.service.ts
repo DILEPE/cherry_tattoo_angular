@@ -17,12 +17,21 @@ import { mapPayment, mapReceipt } from '../models/appointment.mapper';
 export class AppointmentsApiService {
   private readonly api = inject(ApiService);
 
-  list(assignedPanelUserId?: number | null): Observable<AppointmentApiRow[]> {
-    const params =
-      assignedPanelUserId != null
-        ? { assigned_panel_user_id: assignedPanelUserId }
-        : undefined;
-    return this.api.get<AppointmentApiRow[]>('/api/appointments', params);
+  list(
+    assignedPanelUserId?: number | null,
+    fromDate?: string | null,
+  ): Observable<AppointmentApiRow[]> {
+    const params: Record<string, string | number> = {};
+    if (assignedPanelUserId != null) {
+      params['assigned_panel_user_id'] = assignedPanelUserId;
+    }
+    if (fromDate) {
+      params['from_date'] = fromDate;
+    }
+    return this.api.get<AppointmentApiRow[]>(
+      '/api/appointments',
+      Object.keys(params).length ? params : undefined,
+    );
   }
 
   get(appointmentId: number): Observable<AppointmentApiRow> {
@@ -35,6 +44,7 @@ export class AppointmentsApiService {
     limit: number;
     offset: number;
     assignedPanelUserId?: number | null;
+    fromDate?: string | null;
   }): Observable<AppointmentSearchResponse> {
     const query: Record<string, string | number> = {
       field: params.field,
@@ -44,6 +54,9 @@ export class AppointmentsApiService {
     };
     if (params.assignedPanelUserId != null && params.assignedPanelUserId > 0) {
       query['assigned_panel_user_id'] = params.assignedPanelUserId;
+    }
+    if (params.fromDate) {
+      query['from_date'] = params.fromDate;
     }
     return this.api.get<AppointmentSearchResponse>('/api/appointments/search', query);
   }

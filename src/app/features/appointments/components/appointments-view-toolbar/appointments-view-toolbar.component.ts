@@ -27,7 +27,7 @@ import { AppointmentsViewMode } from '../../models/calendar.model';
           [attr.aria-selected]="store.viewMode() === 'list'"
           (click)="setMode('list')"
         >
-          Lista
+          Reportes
         </button>
       </div>
     </div>
