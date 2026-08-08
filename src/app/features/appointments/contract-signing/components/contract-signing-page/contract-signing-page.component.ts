@@ -1012,8 +1012,11 @@ export class ContractSigningPageComponent implements OnInit {
         typeof a.text === 'string' &&
         a.text.trim(),
     );
-    if (fromSurvey?.text && !this.piercingType().trim()) {
-      this.piercingType.set(inferPiercingTypeFromAppointmentDetail(fromSurvey.text) ?? '');
+    // La respuesta del cuestionario manda sobre un tipo inferido previo (p. ej. del detalle).
+    if (fromSurvey?.text?.trim()) {
+      const resolved =
+        inferPiercingTypeFromAppointmentDetail(fromSurvey.text) ?? fromSurvey.text.trim();
+      this.piercingType.set(resolved);
     }
     const piercing = this.piercingType().trim();
     if (this.isPiercingContract() && piercing) {
