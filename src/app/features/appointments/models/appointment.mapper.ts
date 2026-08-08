@@ -315,6 +315,20 @@ export function filterTechnicianAgenda(items: Appointment[]): Appointment[] {
   });
 }
 
+/**
+ * Agenda de vendedor: solo citas del día en curso y fechas futuras.
+ */
+export function filterSellerAgendaFromToday(items: Appointment[]): Appointment[] {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return items.filter((row) => {
+    const d = row.appointmentDate;
+    if (!d) return false;
+    const rowDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    return rowDay >= todayStart;
+  });
+}
+
 export function uniqueServices(items: Appointment[]): string[] {
   const set = new Set<string>();
   for (const a of items) {

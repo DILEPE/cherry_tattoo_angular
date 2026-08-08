@@ -20,7 +20,8 @@ import {
   PIERCING_WORK_KIND_FILTER_OPTIONS,
 } from '../../models/booking.model';
 import { buildPiercingFilterOptions } from '../../models/piercing-type-catalog';
-import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/utils/panel-roles';
+import { maySeeAllAppointments, isSellerRole, PANEL_ROLE_LABEL_ES } from '../../../../core/utils/panel-roles';
+import { dateToIsoLocal } from '../../models/week-schedule.mapper';
 
 @Component({
   selector: 'app-appointments-filters',
@@ -46,8 +47,9 @@ import { maySeeAllAppointments, PANEL_ROLE_LABEL_ES } from '../../../../core/uti
             <input
               type="date"
               class="appt-filters__control"
+              [attr.min]="sellerFromDateMin()"
               [ngModel]="store.filters().fromDate"
-              (ngModelChange)="store.setFilters({ fromDate: $event })"
+              (ngModelChange)="onFromDateChange($event)"
             />
           </label>
           <label class="appt-filters__field">
@@ -197,6 +199,12 @@ export class AppointmentsFiltersComponent {
     return maySeeAllAppointments(role);
   };
 
+  /** Vendedor: no elegir «Desde» anterior a hoy. */
+  sellerFromDateMin(): string | null {
+    const role = this.appStore.user()?.role ?? '';
+    return isSellerRole(role) ? dateToIsoLocal(new Date()) : null;
+  }
+
   showPiercingKind(): boolean {
     return isPiercingServiceFilter(this.store.filters().service);
   }
@@ -256,6 +264,12 @@ export class AppointmentsFiltersComponent {
       patch.piercingWorkKind = 'Todos';
     }
     this.store.setFilters(patch);
+  }
+
+  onFromDateChange(value: string): void {
+    const min = this.sellerFromDateMin();
+    const next = value && min && value < min ? min : value;
+    this.store.setFilters({ fromDate: next });
   }
 
   onStaffChange(key: string): void {
