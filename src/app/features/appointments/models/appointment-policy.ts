@@ -60,6 +60,13 @@ export function canFinalizeWithoutContract(appt: Appointment): boolean {
   return false;
 }
 
+/** Limpieza / cambio: encuesta sin flujo de firma de contrato. */
+export function canManageSurveyWithoutContract(appt: Appointment): boolean {
+  if (appointmentRequiresContract(appt)) return false;
+  if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return false;
+  return appt.status !== 'cancelada';
+}
+
 export function montosLockedForAppointment(appt: Appointment, role?: string): boolean {
   return !canEditFinancials(appt, role);
 }

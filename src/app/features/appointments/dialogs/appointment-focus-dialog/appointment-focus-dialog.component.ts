@@ -23,6 +23,7 @@ import { copToMiles, mapAppointment, milesToCop } from '../../models/appointment
 import {
   canCancelAppointment,
   canFinalizeWithoutContract,
+  canManageSurveyWithoutContract,
   firmarContratoDisabled,
   firmarContratoLabel,
   montosLockedForAppointment,
@@ -278,6 +279,11 @@ import { of, switchMap } from 'rxjs';
                 Marcar finalizada
               </app-button>
             }
+            @if (canManageSurvey()) {
+              <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
+                Encuesta
+              </app-button>
+            }
           } @else if (isTechnician()) {
             @if (requiresContract()) {
               <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
@@ -292,6 +298,11 @@ import { of, switchMap } from 'rxjs';
                 (clicked)="finalizeAppointment()"
               >
                 Marcar finalizada
+              </app-button>
+            }
+            @if (canManageSurvey()) {
+              <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
+                Encuesta
               </app-button>
             }
           }
@@ -468,6 +479,11 @@ export class AppointmentFocusDialogComponent {
   readonly canFinalize = computed(() => {
     const a = this.appt();
     return !!a && canFinalizeWithoutContract(a);
+  });
+
+  readonly canManageSurvey = computed(() => {
+    const a = this.appt();
+    return !!a && canManageSurveyWithoutContract(a);
   });
 
   readonly firmarLabel = computed(() => {
@@ -739,6 +755,15 @@ export class AppointmentFocusDialogComponent {
     const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
     void this.router.navigate(['/citas', 'firmar', a.id], {
       queryParams: artistOnly ? { artistOnly: '1' } : {},
+    });
+    this.close();
+  }
+
+  onGestionarEncuesta(): void {
+    const a = this.appt();
+    if (!a || !canManageSurveyWithoutContract(a)) return;
+    void this.router.navigate(['/citas', 'firmar', a.id], {
+      queryParams: { surveyOnly: '1' },
     });
     this.close();
   }
