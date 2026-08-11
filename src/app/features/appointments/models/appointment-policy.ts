@@ -52,19 +52,11 @@ export function firmarContratoLabel(appt: Appointment): string {
   return 'Contrato firmado';
 }
 
-/** Limpieza / cambio: se finalizan a mano (no pasan por firma de contrato). */
-export function canFinalizeWithoutContract(appt: Appointment): boolean {
-  if (!appointmentRequiresContract(appt)) {
-    return appt.status === 'agendada' || appt.status === 'reprogramada';
-  }
-  return false;
-}
-
-/** Limpieza / cambio: encuesta sin flujo de firma de contrato. */
+/** Limpieza / cambio: encuesta sin firma; al enviarla la cita queda finalizada. */
 export function canManageSurveyWithoutContract(appt: Appointment): boolean {
   if (appointmentRequiresContract(appt)) return false;
   if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return false;
-  return appt.status !== 'cancelada';
+  return appt.status === 'agendada' || appt.status === 'reprogramada';
 }
 
 export function montosLockedForAppointment(appt: Appointment, role?: string): boolean {

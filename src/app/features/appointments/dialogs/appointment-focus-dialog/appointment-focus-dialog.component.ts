@@ -22,7 +22,6 @@ import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
 import { copToMiles, mapAppointment, milesToCop } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
-  canFinalizeWithoutContract,
   canManageSurveyWithoutContract,
   firmarContratoDisabled,
   firmarContratoLabel,
@@ -269,16 +268,6 @@ import { of, switchMap } from 'rxjs';
                 {{ firmarLabel() }}
               </app-button>
             }
-            @if (canFinalize()) {
-              <app-button
-                variant="ghost"
-                [loading]="finalizing()"
-                [disabled]="finalizing()"
-                (clicked)="finalizeAppointment()"
-              >
-                Marcar finalizada
-              </app-button>
-            }
             @if (canManageSurvey()) {
               <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
                 Encuesta
@@ -288,16 +277,6 @@ import { of, switchMap } from 'rxjs';
             @if (requiresContract()) {
               <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
                 {{ firmarLabel() }}
-              </app-button>
-            }
-            @if (canFinalize()) {
-              <app-button
-                variant="ghost"
-                [loading]="finalizing()"
-                [disabled]="finalizing()"
-                (clicked)="finalizeAppointment()"
-              >
-                Marcar finalizada
               </app-button>
             }
             @if (canManageSurvey()) {
@@ -344,7 +323,6 @@ export class AppointmentFocusDialogComponent {
   readonly totalValueCop = computed(() => milesToCop(this.totalValue()));
   readonly isPriority = signal(false);
   readonly saving = signal(false);
-  readonly finalizing = signal(false);
 
   private seededForId: number | null = null;
   private baseTotal = 0;
@@ -474,11 +452,6 @@ export class AppointmentFocusDialogComponent {
   readonly requiresContract = computed(() => {
     const a = this.appt();
     return !!a && appointmentRequiresContract(a);
-  });
-
-  readonly canFinalize = computed(() => {
-    const a = this.appt();
-    return !!a && canFinalizeWithoutContract(a);
   });
 
   readonly canManageSurvey = computed(() => {
@@ -766,24 +739,6 @@ export class AppointmentFocusDialogComponent {
       queryParams: { surveyOnly: '1' },
     });
     this.close();
-  }
-
-  finalizeAppointment(): void {
-    const a = this.appt();
-    if (!a || !canFinalizeWithoutContract(a)) return;
-    this.finalizing.set(true);
-    this.api.patchStatus(a.id, 'Finalizada').subscribe({
-      next: () => {
-        this.finalizing.set(false);
-        this.toast.success('Cita marcada como finalizada.');
-        this.reloadAppointment(a.id);
-        this.apptStore.invalidate();
-      },
-      error: (err) => {
-        this.finalizing.set(false);
-        this.toast.error(apiErrorMessage(err));
-      },
-    });
   }
 
   private reloadAppointment(id: number): void {

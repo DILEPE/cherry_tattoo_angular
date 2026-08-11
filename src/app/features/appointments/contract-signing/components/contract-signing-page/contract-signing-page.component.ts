@@ -1114,18 +1114,45 @@ export class ContractSigningPageComponent implements OnInit {
     this.saving.set(true);
     this.signingApi.submitSurvey(this.lastSurveyPayload!).subscribe({
       next: () => {
-        this.saving.set(false);
-        this.toast.success('Cuestionario guardado.');
         if (this.surveyOnly()) {
-          this.apptStore.invalidate();
-          void this.router.navigateByUrl('/citas');
+          this.finalizeAfterSurveyOnly();
           return;
         }
+        this.saving.set(false);
+        this.toast.success('Cuestionario guardado.');
         this.goToSignStep();
       },
       error: (err) => {
         this.saving.set(false);
         this.errors.handle(err);
+      },
+    });
+  }
+
+  /** Limpieza / cambio: al enviar la encuesta la cita queda Finalizada. */
+  private finalizeAfterSurveyOnly(): void {
+    const a = this.appointment();
+    if (!a) {
+      this.saving.set(false);
+      return;
+    }
+    const finishOk = (): void => {
+      this.saving.set(false);
+      this.toast.success('Cuestionario guardado. Cita finalizada.');
+      this.apptStore.invalidate();
+      void this.router.navigateByUrl('/citas');
+    };
+    if (a.status === 'finalizada') {
+      finishOk();
+      return;
+    }
+    this.apptApi.patchStatus(a.id, 'Finalizada').subscribe({
+      next: () => finishOk(),
+      error: (err) => {
+        this.saving.set(false);
+        this.toast.success('Cuestionario guardado.');
+        this.errors.handle(err);
+        this.apptStore.invalidate();
       },
     });
   }
