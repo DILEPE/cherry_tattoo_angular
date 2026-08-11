@@ -935,7 +935,10 @@ export class ContractSigningPageComponent implements OnInit {
         const kind = appointmentToContractKind(appt);
         this.signingApi.listActiveSurveyQuestions(kind).subscribe({
           next: (questions) => {
-            this.questions.set(questions);
+            // Limpieza / cambio no colocan perforación: omitir tipo anatómico (Q3).
+            this.questions.set(
+              questions.filter((q) => q.id !== PROCEDURE_CONSENT_SURVEY_QUESTION_ID),
+            );
             this.loading.set(false);
           },
           error: (err) => {
