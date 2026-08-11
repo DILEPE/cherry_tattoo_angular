@@ -13,14 +13,21 @@ export function workKindToScheduleKind(workKind: BookingWorkKind): ScheduleKind 
   return workKind === 'tatuaje' ? 'tattoo' : 'piercing';
 }
 
+const SERVICE_LABEL_BY_TOKEN: Record<string, string> = {
+  tattoo: 'Tatuaje',
+  piercing: 'Piercing',
+  limpieza: 'Limpieza',
+  cambio: 'Cambio',
+};
+
 export function serviceAndDetailForWorkKind(
   kind: BookingWorkKind,
   userDetail: string,
 ): { service: string; detail: string | null } {
   const meta = BOOKING_WORK_KIND_META[kind] ?? BOOKING_WORK_KIND_META.piercing;
-  // Misma resolución que Streamlit (`resolve_service_type(meta.service_token)`):
-  // «Perforación» no la reconoce el backend y cae en «Tatuaje» → exige tatuador.
-  const svc = meta.serviceToken === 'tattoo' ? 'Tatuaje' : 'Piercing';
+  // Literales alineados con `SERVICE_TYPE_ENUM_VALUES` / `resolve_service_type` en la API.
+  // Limpieza y Cambio no usan «Piercing»: así no exigen ni envían contrato.
+  const svc = SERVICE_LABEL_BY_TOKEN[meta.serviceToken] ?? 'Piercing';
   const tag = meta.detailTag;
   const extra = (userDetail || '').trim();
   if (extra) return { service: svc, detail: `${tag} ${extra}`.trim() };
@@ -37,12 +44,23 @@ export function appointmentToScheduleKind(appt: Appointment): ScheduleKind {
 export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind {
   const det = (appt.detail || '').toLowerCase();
   const svc = (appt.serviceType || '').toLowerCase();
-  if (det.includes('limpieza')) return 'limpieza_piercing';
-  if (det.includes('cambio') && (det.includes('pierc') || svc.includes('pierc'))) {
+  const combined = `${svc} ${det}`;
+  if (svc.includes('limpie') || det.includes('limpieza')) return 'limpieza_piercing';
+  if (svc.includes('cambio') || (det.includes('cambio') && combined.includes('pierc'))) {
     return 'cambio_piercing';
   }
   if (svc.includes('tatu') || det.includes('tatu')) return 'tatuaje';
   return 'piercing';
+}
+
+/** Colocación piercing / tatuaje requieren contrato; limpieza y cambio de joya no. */
+export function appointmentRequiresContract(appt: Appointment): boolean {
+  const wk = inferWorkKindFromAppointment(appt);
+  return wk !== 'limpieza_piercing' && wk !== 'cambio_piercing';
+}
+
+export function bookingWorkKindRequiresContract(kind: BookingWorkKind): boolean {
+  return kind !== 'limpieza_piercing' && kind !== 'cambio_piercing';
 }
 
 export const MIN_BOOKING_DURATION_SLOTS = 1;

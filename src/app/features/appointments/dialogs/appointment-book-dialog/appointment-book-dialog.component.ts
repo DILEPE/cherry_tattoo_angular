@@ -50,6 +50,7 @@ import {
 } from '../../models/booking.model';
 import {
   appendAgendaSlotsMarker,
+  bookingWorkKindRequiresContract,
   serviceAndDetailForWorkKind,
   workKindToAssigneeRole,
   workKindToScheduleKind,
@@ -715,24 +716,26 @@ export class AppointmentBookDialogComponent {
     const total = milesToCop(Number(this.form.controls.total.value));
     this.syncDepositWithoutAbono();
     const deposit = milesToCop(Number(this.form.controls.deposit.value));
+    const wk = this.form.controls.workKind.value as BookingWorkKind;
 
     if (this.isExpress()) {
       if (total <= 0) {
         this.toast.error('Indica un valor total mayor a cero.');
         return;
       }
-      if (Math.round((total - deposit) * 100) / 100 > 0.009) {
+      if (
+        bookingWorkKindRequiresContract(wk) &&
+        Math.round((total - deposit) * 100) / 100 > 0.009
+      ) {
         this.toast.error(
           'En cita express el valor total debe quedar cubierto (saldo pendiente en cero) antes de firmar.',
         );
         return;
       }
-    }
-
-    const wk = this.form.controls.workKind.value as BookingWorkKind;
-    if (this.isExpress() && wk === 'tatuaje') {
-      this.toast.error('La cita express no admite tatuaje.');
-      return;
+      if (wk === 'tatuaje') {
+        this.toast.error('La cita express no admite tatuaje.');
+        return;
+      }
     }
     const staffId = this.resolveStaffId();
     const allowed = this.staffForRole();
@@ -798,7 +801,7 @@ export class AppointmentBookDialogComponent {
         this.saving.set(false);
         this.apptStore.invalidate();
         const newId = Number(res?.id ?? 0);
-        if (this.isExpress() && newId > 0) {
+        if (this.isExpress() && newId > 0 && bookingWorkKindRequiresContract(wk)) {
           this.toast.success('Cita creada. Completa el cuestionario y la firma del contrato.');
           this.close();
           void this.router.navigate(['/citas', 'firmar', newId]);
@@ -806,7 +809,7 @@ export class AppointmentBookDialogComponent {
         }
         const msg =
           deposit > 0
-            ? 'Cita creada. Si hubo abono, revisa Recibos para el PDF.'
+            ? 'Cita creada. El recibo quedó listo; envíalo desde la ficha de la cita.'
             : 'Cita creada correctamente.';
         this.toast.success(msg);
         this.close();

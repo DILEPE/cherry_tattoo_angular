@@ -42,6 +42,7 @@ import {
 } from '../../models/appointment-slots';
 import { durationSlotsForRow } from '../../models/agenda-slots.mapper';
 import {
+  appointmentRequiresContract,
   appointmentToScheduleKind,
   inferWorkKindFromAppointment,
   workKindToAssigneeRole,
@@ -261,10 +262,12 @@ import { of, switchMap } from 'rxjs';
             <app-button variant="primary" [loading]="saving()" (clicked)="saveChanges()">
               Guardar cambios
             </app-button>
-            <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
-              {{ firmarLabel() }}
-            </app-button>
-          } @else if (isTechnician()) {
+            @if (requiresContract()) {
+              <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
+                {{ firmarLabel() }}
+              </app-button>
+            }
+          } @else if (isTechnician() && requiresContract()) {
             <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
               {{ firmarLabel() }}
             </app-button>
@@ -431,6 +434,11 @@ export class AppointmentFocusDialogComponent {
   readonly firmarDisabled = computed(() => {
     const a = this.appt();
     return !a || firmarContratoDisabled(a, this.dlg.payments());
+  });
+
+  readonly requiresContract = computed(() => {
+    const a = this.appt();
+    return !!a && appointmentRequiresContract(a);
   });
 
   readonly firmarLabel = computed(() => {
@@ -695,7 +703,10 @@ export class AppointmentFocusDialogComponent {
 
   onFirmarContrato(): void {
     const a = this.appt();
-    if (!a) return;
+    if (!a || !appointmentRequiresContract(a)) {
+      this.toast.info('Esta cita (limpieza o cambio) no requiere firma de contrato.');
+      return;
+    }
     const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
     void this.router.navigate(['/citas', 'firmar', a.id], {
       queryParams: artistOnly ? { artistOnly: '1' } : {},
