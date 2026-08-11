@@ -52,6 +52,13 @@ export function firmarContratoLabel(appt: Appointment): string {
   return 'Contrato firmado';
 }
 
+/** Limpieza / cambio: encuesta sin firma; al enviarla la cita queda finalizada. */
+export function canManageSurveyWithoutContract(appt: Appointment): boolean {
+  if (appointmentRequiresContract(appt)) return false;
+  if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return false;
+  return appt.status === 'agendada' || appt.status === 'reprogramada';
+}
+
 export function montosLockedForAppointment(appt: Appointment, role?: string): boolean {
   return !canEditFinancials(appt, role);
 }

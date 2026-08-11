@@ -75,7 +75,7 @@ import { DocumentType } from '../../../../customers/models/customer.model';
     <div class="ctsig-page panel-fade-in">
       <header class="ctsig-page__header">
         <a routerLink="/citas" class="ctsig-page__back">← Volver a citas</a>
-        <h1>Firma de contrato</h1>
+        <h1>{{ surveyOnly() ? 'Cuestionario' : 'Firma de contrato' }}</h1>
         @if (appointment(); as a) {
           <p class="ctsig-page__meta">
             Cita #{{ a.id }} · {{ a.customerName }} · {{ a.serviceType }}
@@ -88,6 +88,26 @@ import { DocumentType } from '../../../../customers/models/customer.model';
       } @else if (loadError()) {
         <p class="form-field__error">{{ loadError() }}</p>
         <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+      } @else if (surveyOnly()) {
+        <section class="ctsig-step">
+          <h2>Cuestionario de la cita</h2>
+          @if (!questions().length) {
+            <p class="ctsig-page__meta">No hay preguntas activas para este tipo de servicio.</p>
+            <div class="ctsig-step-actions">
+              <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+            </div>
+          } @else {
+            <app-contract-signing-survey-step
+              [questions]="questions()"
+              [appointmentId]="appointmentId()"
+              [serviceType]="appointment()?.serviceType ?? ''"
+              [submitting]="saving()"
+              backLabel="← Volver a citas"
+              (back)="goBackToCitas()"
+              (submitted)="onSurveySubmitted($event)"
+            />
+          }
+        </section>
       } @else if (artistOnly()) {
         <section class="ctsig-step">
           <h2>Firma del profesional</h2>
@@ -631,6 +651,7 @@ export class ContractSigningPageComponent implements OnInit {
   readonly loadError = signal<string | null>(null);
   readonly step = signal(1);
   readonly artistOnly = signal(false);
+  readonly surveyOnly = signal(false);
   readonly appointment = signal<Appointment | null>(null);
   readonly payments = signal<AppointmentPayment[]>([]);
   readonly customer = signal<Customer | null>(null);
@@ -728,7 +749,11 @@ export class ContractSigningPageComponent implements OnInit {
     const artistOnly =
       this.route.snapshot.queryParamMap.get('artistOnly') === '1' ||
       this.route.snapshot.queryParamMap.get('artistOnly') === 'true';
+    const surveyOnly =
+      this.route.snapshot.queryParamMap.get('surveyOnly') === '1' ||
+      this.route.snapshot.queryParamMap.get('surveyOnly') === 'true';
     this.artistOnly.set(artistOnly);
+    this.surveyOnly.set(surveyOnly);
 
     if (id <= 0) {
       this.loadError.set('Cita no válida.');
@@ -740,7 +765,15 @@ export class ContractSigningPageComponent implements OnInit {
       this.loadArtistOnly(id);
       return;
     }
+    if (surveyOnly) {
+      this.loadSurveyOnlyFlow(id);
+      return;
+    }
     this.loadFullFlow(id);
+  }
+
+  goBackToCitas(): void {
+    void this.router.navigateByUrl('/citas');
   }
 
   todayLabel(): string {
@@ -869,6 +902,47 @@ export class ContractSigningPageComponent implements OnInit {
           },
           error: (err) => {
             this.loadError.set('No se pudo verificar el contrato.');
+            this.errors.handle(err);
+            this.loading.set(false);
+          },
+        });
+      },
+      error: (err) => {
+        this.loadError.set('No se pudo cargar la cita.');
+        this.errors.handle(err);
+        this.loading.set(false);
+      },
+    });
+  }
+
+  private loadSurveyOnlyFlow(apptId: number): void {
+    this.apptApi.get(apptId).subscribe({
+      next: (row) => {
+        const appt = mapAppointment(row);
+        if (appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita usa el flujo de firma de contrato para el cuestionario.',
+          );
+          this.loading.set(false);
+          return;
+        }
+        if (appt.customerId == null || appt.customerId <= 0) {
+          this.loadError.set('La cita no tiene cliente asociado.');
+          this.loading.set(false);
+          return;
+        }
+        this.appointment.set(appt);
+        const kind = appointmentToContractKind(appt);
+        this.signingApi.listActiveSurveyQuestions(kind).subscribe({
+          next: (questions) => {
+            // Limpieza / cambio no colocan perforación: omitir tipo anatómico (Q3).
+            this.questions.set(
+              questions.filter((q) => q.id !== PROCEDURE_CONSENT_SURVEY_QUESTION_ID),
+            );
+            this.loading.set(false);
+          },
+          error: (err) => {
+            this.loadError.set('No se pudieron cargar las preguntas del cuestionario.');
             this.errors.handle(err);
             this.loading.set(false);
           },
@@ -1040,6 +1114,10 @@ export class ContractSigningPageComponent implements OnInit {
     this.saving.set(true);
     this.signingApi.submitSurvey(this.lastSurveyPayload!).subscribe({
       next: () => {
+        if (this.surveyOnly()) {
+          this.finalizeAfterSurveyOnly();
+          return;
+        }
         this.saving.set(false);
         this.toast.success('Cuestionario guardado.');
         this.goToSignStep();
@@ -1047,6 +1125,34 @@ export class ContractSigningPageComponent implements OnInit {
       error: (err) => {
         this.saving.set(false);
         this.errors.handle(err);
+      },
+    });
+  }
+
+  /** Limpieza / cambio: al enviar la encuesta la cita queda Finalizada. */
+  private finalizeAfterSurveyOnly(): void {
+    const a = this.appointment();
+    if (!a) {
+      this.saving.set(false);
+      return;
+    }
+    const finishOk = (): void => {
+      this.saving.set(false);
+      this.toast.success('Cuestionario guardado. Cita finalizada.');
+      this.apptStore.invalidate();
+      void this.router.navigateByUrl('/citas');
+    };
+    if (a.status === 'finalizada') {
+      finishOk();
+      return;
+    }
+    this.apptApi.patchStatus(a.id, 'Finalizada').subscribe({
+      next: () => finishOk(),
+      error: (err) => {
+        this.saving.set(false);
+        this.toast.success('Cuestionario guardado.');
+        this.errors.handle(err);
+        this.apptStore.invalidate();
       },
     });
   }

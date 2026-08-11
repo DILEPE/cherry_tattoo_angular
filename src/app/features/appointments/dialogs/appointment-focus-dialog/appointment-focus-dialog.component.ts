@@ -22,6 +22,7 @@ import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
 import { copToMiles, mapAppointment, milesToCop } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
+  canManageSurveyWithoutContract,
   firmarContratoDisabled,
   firmarContratoLabel,
   montosLockedForAppointment,
@@ -267,10 +268,22 @@ import { of, switchMap } from 'rxjs';
                 {{ firmarLabel() }}
               </app-button>
             }
-          } @else if (isTechnician() && requiresContract()) {
-            <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
-              {{ firmarLabel() }}
-            </app-button>
+            @if (canManageSurvey()) {
+              <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
+                Encuesta
+              </app-button>
+            }
+          } @else if (isTechnician()) {
+            @if (requiresContract()) {
+              <app-button variant="ghost" [disabled]="firmarDisabled()" (clicked)="onFirmarContrato()">
+                {{ firmarLabel() }}
+              </app-button>
+            }
+            @if (canManageSurvey()) {
+              <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
+                Encuesta
+              </app-button>
+            }
           }
           <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
         </div>
@@ -439,6 +452,11 @@ export class AppointmentFocusDialogComponent {
   readonly requiresContract = computed(() => {
     const a = this.appt();
     return !!a && appointmentRequiresContract(a);
+  });
+
+  readonly canManageSurvey = computed(() => {
+    const a = this.appt();
+    return !!a && canManageSurveyWithoutContract(a);
   });
 
   readonly firmarLabel = computed(() => {
@@ -710,6 +728,15 @@ export class AppointmentFocusDialogComponent {
     const artistOnly = a.hasSignedContract && a.contractPendingArtistSignature;
     void this.router.navigate(['/citas', 'firmar', a.id], {
       queryParams: artistOnly ? { artistOnly: '1' } : {},
+    });
+    this.close();
+  }
+
+  onGestionarEncuesta(): void {
+    const a = this.appt();
+    if (!a || !canManageSurveyWithoutContract(a)) return;
+    void this.router.navigate(['/citas', 'firmar', a.id], {
+      queryParams: { surveyOnly: '1' },
     });
     this.close();
   }
