@@ -352,7 +352,7 @@ import {
         @if (!inline()) {
           <div class="ctsig-step-actions ctsig-survey-footer__actions">
             <app-button type="button" variant="ghost" (clicked)="back.emit()">
-              ← Datos personales
+              {{ backLabel() }}
             </app-button>
             <app-button type="submit" variant="primary" [loading]="submitting()">
               Enviar cuestionario
@@ -381,7 +381,8 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
   readonly submitting = input(false);
 
-
+  /** Texto del botón volver (flujo con fases vs solo encuesta). */
+  readonly backLabel = input('← Datos personales');
 
   readonly back = output<void>();
 
