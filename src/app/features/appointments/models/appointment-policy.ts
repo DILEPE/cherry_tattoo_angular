@@ -52,6 +52,14 @@ export function firmarContratoLabel(appt: Appointment): string {
   return 'Contrato firmado';
 }
 
+/** Limpieza / cambio: se finalizan a mano (no pasan por firma de contrato). */
+export function canFinalizeWithoutContract(appt: Appointment): boolean {
+  if (!appointmentRequiresContract(appt)) {
+    return appt.status === 'agendada' || appt.status === 'reprogramada';
+  }
+  return false;
+}
+
 export function montosLockedForAppointment(appt: Appointment, role?: string): boolean {
   return !canEditFinancials(appt, role);
 }
