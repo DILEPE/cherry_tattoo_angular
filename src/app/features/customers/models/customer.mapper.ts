@@ -7,7 +7,7 @@ import {
   DocumentType,
 } from './customer.model';
 
-function toDocType(v: unknown): DocumentType {
+export function toDocType(v: unknown): DocumentType {
   const s = String(v ?? 'CC').trim().toUpperCase();
   if (s === 'TI' || s === 'CE' || s === 'PAS') return s;
   return 'CC';
@@ -63,7 +63,7 @@ export function mapCustomerSnapshot(raw: Record<string, unknown>): CustomerSnaps
     lastName: String(raw['last_name'] ?? ''),
     phoneNumber: String(raw['phone_number'] ?? ''),
     email: String(raw['email'] ?? ''),
-    documentType: String(raw['document_type'] ?? 'CC'),
+    documentType: toDocType(raw['document_type']),
     documentNumber: String(raw['document_number'] ?? ''),
   };
 }

@@ -338,6 +338,26 @@ export class CustomerFormComponent {
     return isMinorByBirthIso(this.form.getRawValue().birthDate);
   }
 
+  /** Datos del tutor desde la ficha (sin validar el resto del formulario). */
+  guardianSnapshotFromForm(): {
+    name: string;
+    documentType: DocumentType;
+    documentNumber: string;
+    documentIssueDate: string;
+  } | null {
+    if (!this.isMinorFromForm()) return null;
+    const v = this.form.getRawValue();
+    return {
+      name: String(v.guardianName ?? '').trim(),
+      documentType: (v.guardianDocumentType as DocumentType) || 'CC',
+      documentNumber: String(v.guardianDocumentNumber ?? '').trim(),
+      documentIssueDate:
+        v.hasGuardianIssue && v.guardianDocumentIssueDate
+          ? String(v.guardianDocumentIssueDate)
+          : '',
+    };
+  }
+
   /** Valida el formulario y devuelve el payload API; `null` si hay errores. */
   tryGetWritePayload(): ReturnType<typeof customerToWritePayload> | null {
     if (this.readonly()) return null;
