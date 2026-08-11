@@ -305,14 +305,32 @@ import { DocumentType } from '../../../../customers/models/customer.model';
 
               @if (isMinor()) {
                 <h3>Datos del tutor (menor de edad)</h3>
+                <label class="ctsig-tutor-same-check">
+                  <input
+                    type="checkbox"
+                    [ngModel]="useSameTutorData()"
+                    (ngModelChange)="onUseSameTutorDataChange($event)"
+                    name="useSameTutorDataPhased"
+                  />
+                  Usar datos del tutor ya registrados
+                </label>
                 <div class="ctsig-tutor-grid">
                   <label>
                     Nombre del tutor *
-                    <input type="text" [(ngModel)]="tutorName" name="tutorName" />
+                    <input
+                      type="text"
+                      [(ngModel)]="tutorName"
+                      name="tutorName"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                   <label>
                     Tipo documento tutor *
-                    <select [(ngModel)]="tutorDocType" name="tutorDocType">
+                    <select
+                      [(ngModel)]="tutorDocType"
+                      name="tutorDocType"
+                      [disabled]="useSameTutorData()"
+                    >
                       @for (t of docTypes; track t) {
                         <option [value]="t">{{ t }}</option>
                       }
@@ -320,11 +338,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                   </label>
                   <label>
                     Número documento tutor *
-                    <input type="text" [(ngModel)]="tutorDocNumber" name="tutorDocNumber" />
+                    <input
+                      type="text"
+                      [(ngModel)]="tutorDocNumber"
+                      name="tutorDocNumber"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                   <label>
                     Fecha expedición tutor *
-                    <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssue" />
+                    <input
+                      type="date"
+                      [(ngModel)]="tutorDocIssue"
+                      name="tutorDocIssue"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                 </div>
               }
@@ -528,14 +556,32 @@ import { DocumentType } from '../../../../customers/models/customer.model';
             }
             @if (showTutorSection()) {
               <h3 class="ctsig-subsection">Datos del tutor (menor de edad)</h3>
+              <label class="ctsig-tutor-same-check">
+                <input
+                  type="checkbox"
+                  [ngModel]="useSameTutorData()"
+                  (ngModelChange)="onUseSameTutorDataChange($event)"
+                  name="useSameTutorDataSingle"
+                />
+                Usar datos del tutor ya registrados
+              </label>
               <div class="ctsig-tutor-grid">
                 <label>
                   Nombre del tutor *
-                  <input type="text" [(ngModel)]="tutorName" name="tutorNameSingle" />
+                  <input
+                    type="text"
+                    [(ngModel)]="tutorName"
+                    name="tutorNameSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
                 <label>
                   Tipo documento tutor *
-                  <select [(ngModel)]="tutorDocType" name="tutorDocTypeSingle">
+                  <select
+                    [(ngModel)]="tutorDocType"
+                    name="tutorDocTypeSingle"
+                    [disabled]="useSameTutorData()"
+                  >
                     @for (t of docTypes; track t) {
                       <option [value]="t">{{ t }}</option>
                     }
@@ -543,11 +589,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                 </label>
                 <label>
                   Número documento tutor *
-                  <input type="text" [(ngModel)]="tutorDocNumber" name="tutorDocNumberSingle" />
+                  <input
+                    type="text"
+                    [(ngModel)]="tutorDocNumber"
+                    name="tutorDocNumberSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
                 <label>
                   Fecha expedición tutor *
-                  <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssueSingle" />
+                  <input
+                    type="date"
+                    [(ngModel)]="tutorDocIssue"
+                    name="tutorDocIssueSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
               </div>
             }
@@ -680,6 +736,7 @@ export class ContractSigningPageComponent implements OnInit {
   tutorDocType: DocumentType = 'CC';
   tutorDocNumber = '';
   tutorDocIssue = '';
+  readonly useSameTutorData = signal(false);
 
   readonly appointmentId = computed(() => this.appointment()?.id ?? 0);
 
@@ -784,6 +841,44 @@ export class ContractSigningPageComponent implements OnInit {
     const formRef = this.customerFormRef();
     if (formRef) return formRef.isMinorFromForm();
     return this.isMinor();
+  }
+
+  onUseSameTutorDataChange(checked: boolean): void {
+    this.useSameTutorData.set(checked);
+    if (checked) {
+      this.applyRegisteredTutorData();
+    }
+  }
+
+  /** Rellena nombre/documento/expedición del tutor desde la ficha (formulario o cliente cargado). */
+  private applyRegisteredTutorData(): void {
+    const fromForm = this.customerFormRef()?.guardianSnapshotFromForm();
+    if (fromForm && (fromForm.name || fromForm.documentNumber || fromForm.documentIssueDate)) {
+      this.tutorName = fromForm.name;
+      this.tutorDocType = fromForm.documentType;
+      this.tutorDocNumber = fromForm.documentNumber;
+      this.tutorDocIssue = fromForm.documentIssueDate;
+      this.toast.success('Datos del tutor cargados desde la ficha.');
+      return;
+    }
+    const c = this.customer();
+    if (c && (this.isMinor() || this.showTutorSection())) {
+      const name = (c.guardianName ?? '').trim();
+      const number = (c.guardianDocumentNumber ?? '').trim();
+      const issue = (c.guardianDocumentIssueDate ?? '').trim();
+      if (name || number || issue) {
+        this.tutorName = name;
+        this.tutorDocType = c.guardianDocumentType ?? 'CC';
+        this.tutorDocNumber = number;
+        this.tutorDocIssue = issue;
+        this.toast.success('Datos del tutor cargados desde la ficha.');
+        return;
+      }
+    }
+    this.useSameTutorData.set(false);
+    this.toast.warn(
+      'No hay datos del tutor registrados en la ficha. Complétalos en datos del cliente primero.',
+    );
   }
 
   submitSingleFlow(): void {

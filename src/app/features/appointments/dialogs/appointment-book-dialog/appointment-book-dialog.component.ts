@@ -69,6 +69,7 @@ import {
 } from '../../models/appointment-slots';
 import { copToMiles, formatCopAbono, milesToCop } from '../../models/appointment.mapper';
 import { mergeDesignObsPlain } from '../../models/appointment-detail-text.mapper';
+import { toDocType } from '../../../customers/models/customer.mapper';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 import { appointmentRowDate } from '../../models/calendar.mapper';
 
@@ -617,6 +618,8 @@ export class AppointmentBookDialogComponent {
       this.cdr.markForCheck();
       return;
     }
+    // Conservar el tipo elegido (p. ej. TI); no pisarlo a CC al verificar.
+    const selectedDocType = toDocType(this.form.controls.docType.value);
     this.verifyLoading.set(true);
     this.customersApi.findByDocument(doc).subscribe({
       next: (row) => {
@@ -627,6 +630,7 @@ export class AppointmentBookDialogComponent {
           this.customerId.set(null);
           this.customerSnapshot.set(null);
           this.needNewCustomer.set(true);
+          this.form.patchValue({ docType: selectedDocType }, { emitEvent: false });
           this.verifyLevel.set('warning');
           this.verifyMessage.set(
             'Cliente no registrado. Completa nombre, apellido y celular.',
@@ -635,8 +639,10 @@ export class AppointmentBookDialogComponent {
           this.customerId.set(row.id);
           this.customerSnapshot.set(row);
           this.needNewCustomer.set(false);
+          const rawType = String(row.documentType ?? '').trim();
           this.form.patchValue({
-            docType: row.documentType || 'CC',
+            // No forzar CC si el tipo en BD viene vacío: conservar el elegido (p. ej. TI).
+            docType: rawType ? toDocType(rawType) : selectedDocType,
             firstName: row.firstName,
             lastName: row.lastName,
             phone: row.phoneNumber,
@@ -650,6 +656,7 @@ export class AppointmentBookDialogComponent {
       error: (err) => {
         this.verifyLoading.set(false);
         this.docVerified.set(false);
+        this.form.patchValue({ docType: selectedDocType }, { emitEvent: false });
         this.errors.handle(err);
         this.cdr.markForCheck();
       },
