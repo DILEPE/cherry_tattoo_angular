@@ -1,5 +1,6 @@
 import { Appointment, AppointmentPayment } from './appointment.model';
 import { canManageAppointmentAmounts } from '../../../core/utils/panel-roles';
+import { appointmentRequiresContract } from './booking.mapper';
 
 export function reprogramDisabledForRow(appt: Appointment): boolean {
   if (appt.id <= 0 || appt.status === 'cancelada') return true;
@@ -36,6 +37,7 @@ export function firmarContratoDisabled(
   appt: Appointment,
   payments: AppointmentPayment[] = [],
 ): boolean {
+  if (!appointmentRequiresContract(appt)) return true;
   if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return true;
   if (appt.status === 'cancelada' || appt.status === 'finalizada') return true;
   if (contractBlockedByBalance(appt)) return true;

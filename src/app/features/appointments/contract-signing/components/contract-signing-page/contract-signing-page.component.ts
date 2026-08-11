@@ -46,6 +46,7 @@ import {
   signatureImageSrc,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
+import { appointmentRequiresContract } from '../../../models/booking.mapper';
 import {
   PIERCING_TYPE_OPTIONS,
   PROCEDURE_CONSENT_SURVEY_QUESTION_ID,
@@ -852,6 +853,13 @@ export class ContractSigningPageComponent implements OnInit {
     }).subscribe({
       next: ({ row, payments }) => {
         const appt = mapAppointment(row);
+        if (!appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita (limpieza o cambio de joya) no requiere firma ni envío de contrato.',
+          );
+          this.loading.set(false);
+          return;
+        }
         this.appointment.set(appt);
         this.payments.set(payments);
         this.signingApi.latestSummary(apptId).subscribe({
@@ -881,6 +889,13 @@ export class ContractSigningPageComponent implements OnInit {
     }).subscribe({
       next: ({ row, payments }) => {
         const appt = mapAppointment(row);
+        if (!appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita (limpieza o cambio de joya) no requiere firma ni envío de contrato.',
+          );
+          this.loading.set(false);
+          return;
+        }
         this.appointment.set(appt);
         this.payments.set(payments);
         const inferred = inferPiercingTypeFromAppointmentDetail(appt.detail);

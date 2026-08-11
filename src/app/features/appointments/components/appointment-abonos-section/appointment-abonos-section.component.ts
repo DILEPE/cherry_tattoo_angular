@@ -153,7 +153,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                         ></button>
                         <button
                           appIconAction="send"
-                          title="Reenviar recibo"
+                          title="Enviar recibo"
                           [disabled]="!receiptIdFor(p.id) || resendingPayId() === p.id"
                           (click)="resendForPayment(p.id)"
                         ></button>
@@ -240,7 +240,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   [loading]="resendingReceipt()"
                   (clicked)="resendViewedReceipt()"
                 >
-                  Reenviar
+                  Enviar
                 </app-button>
                 <app-button variant="ghost" (clicked)="closeReceiptView()">Cerrar vista</app-button>
               </div>
@@ -510,7 +510,7 @@ export class AppointmentAbonosSectionComponent {
       next: () => {
         this.resendingPayId.set(null);
         this.resendingReceipt.set(false);
-        this.toast.success('Recibo reenviado.');
+        this.toast.success('Recibo enviado.');
       },
       error: (err) => {
         this.resendingPayId.set(null);
