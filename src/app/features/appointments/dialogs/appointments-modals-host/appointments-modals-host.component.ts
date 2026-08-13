@@ -141,6 +141,7 @@ import { statusToPillVariant } from '../../models/appointment.mapper';
             [title]="bookModalTitle()"
             size="lg"
             [isOpen]="true"
+            [dismissible]="false"
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
