@@ -22,7 +22,7 @@ export function contractBlockedByBalance(appt: Appointment): boolean {
   return appt.financials.total > 0 && appt.financials.pending > 0.009;
 }
 
-/** Con trabajo pagado completo, bloquea si falta verificar algún abono. */
+/** Verificación admin de abonos (tarea posterior; no se usa para bloquear la firma). */
 export function contractBlockedByUnverifiedPayments(
   appt: Appointment,
   payments: AppointmentPayment[],
@@ -35,13 +35,13 @@ export function contractBlockedByUnverifiedPayments(
 
 export function firmarContratoDisabled(
   appt: Appointment,
-  payments: AppointmentPayment[] = [],
+  _payments: AppointmentPayment[] = [],
 ): boolean {
   if (!appointmentRequiresContract(appt)) return true;
   if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return true;
   if (appt.status === 'cancelada' || appt.status === 'finalizada') return true;
   if (contractBlockedByBalance(appt)) return true;
-  if (contractBlockedByUnverifiedPayments(appt, payments)) return true;
+  // Verificación de abonos: tarea posterior; no bloquea firmar ni «Pendiente firma profesional».
   if (appt.hasSignedContract && !appt.contractPendingArtistSignature) return true;
   return false;
 }
