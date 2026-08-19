@@ -43,7 +43,6 @@ import {
 import {
   isDocumentCaptureAcceptable,
   isSignatureAcceptable,
-  signatureImageSrc,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
 import { appointmentRequiresContract } from '../../../models/booking.mapper';
@@ -225,80 +224,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                       [innerHTML]="guardianPreviewHtml()"
                     ></div>
                   }
-                  <div class="ctsig-preview-evidence">
-                    <h4 class="ctsig-preview-evidence__title">Firmas</h4>
-                    <div
-                      class="ctsig-view-sigs"
-                      [class.ctsig-view-sigs--pair]="!previewIsMinor()"
-                    >
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Cliente</span>
-                        @if (clientSigSrc()) {
-                          <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                        }
-                      </div>
-                      @if (previewIsMinor()) {
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Tutor</span>
-                          @if (tutorSigSrc()) {
-                            <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                          }
-                        </div>
-                      }
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Profesional</span>
-                        @if (artistSigSrc()) {
-                          <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
-                        }
-                      </div>
-                    </div>
-                    @if (previewIsMinor()) {
-                      <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
-                      <div class="ctsig-view-docs">
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Anverso</span>
-                          @if (tutorFrontSrc()) {
-                            <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Reverso</span>
-                          @if (tutorBackSrc()) {
-                            <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                      </div>
-                      <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
-                      <div class="ctsig-view-docs">
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Anverso</span>
-                          @if (minorFrontSrc()) {
-                            <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Reverso</span>
-                          @if (minorBackSrc()) {
-                            <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                      </div>
-                    }
-                  </div>
                 </div>
                 <p class="ctsig-notice">{{ refundNotice }}</p>
               }
@@ -477,80 +402,6 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                     [innerHTML]="guardianPreviewHtml()"
                   ></div>
                 }
-                <div class="ctsig-preview-evidence">
-                  <h4 class="ctsig-preview-evidence__title">Firmas</h4>
-                  <div
-                    class="ctsig-view-sigs"
-                    [class.ctsig-view-sigs--pair]="!previewIsMinor()"
-                  >
-                    <div class="ctsig-view-sig">
-                      <span class="ctsig-view-sig__label">Cliente</span>
-                      @if (clientSigSrc()) {
-                        <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
-                      } @else {
-                        <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                      }
-                    </div>
-                    @if (previewIsMinor()) {
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Tutor</span>
-                        @if (tutorSigSrc()) {
-                          <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                        }
-                      </div>
-                    }
-                    <div class="ctsig-view-sig">
-                      <span class="ctsig-view-sig__label">Profesional</span>
-                      @if (artistSigSrc()) {
-                        <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
-                      } @else {
-                        <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
-                      }
-                    </div>
-                  </div>
-                  @if (previewIsMinor()) {
-                    <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
-                    <div class="ctsig-view-docs">
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Anverso</span>
-                        @if (tutorFrontSrc()) {
-                          <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Reverso</span>
-                        @if (tutorBackSrc()) {
-                          <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                    </div>
-                    <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
-                    <div class="ctsig-view-docs">
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Anverso</span>
-                        @if (minorFrontSrc()) {
-                          <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Reverso</span>
-                        @if (minorBackSrc()) {
-                          <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
               </div>
               <p class="ctsig-notice">{{ refundNotice }}</p>
             }
@@ -789,17 +640,6 @@ export class ContractSigningPageComponent implements OnInit {
       minorGuardianDeclarationHtml(c, a, this.tutorName),
     );
   });
-
-  /** En flujo single el menor puede detectarse desde el formulario; en phased desde el cliente. */
-  readonly previewIsMinor = computed(() => this.showTutorSection());
-
-  readonly clientSigSrc = computed(() => signatureImageSrc(this.clientSig()));
-  readonly tutorSigSrc = computed(() => signatureImageSrc(this.tutorSig()));
-  readonly artistSigSrc = computed(() => signatureImageSrc(this.artistSig()));
-  readonly tutorFrontSrc = computed(() => signatureImageSrc(this.tutorDocFront()));
-  readonly tutorBackSrc = computed(() => signatureImageSrc(this.tutorDocBack()));
-  readonly minorFrontSrc = computed(() => signatureImageSrc(this.minorDocFront()));
-  readonly minorBackSrc = computed(() => signatureImageSrc(this.minorDocBack()));
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('appointmentId'));
