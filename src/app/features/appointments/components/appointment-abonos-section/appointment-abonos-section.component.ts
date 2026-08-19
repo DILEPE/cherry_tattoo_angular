@@ -8,6 +8,8 @@ import {
 } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
+import { Observable, of, throwError } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
@@ -24,6 +26,7 @@ import { mapPaymentsToReceipts } from '../../models/payment-receipt.mapper';
 import { AppStore } from '../../../../store/app.store';
 import { AppointmentPayment } from '../../models/appointment.model';
 import { apiErrorMessage } from '../../../../core/services/api.service';
+import { canEditAppointmentPayments } from '../../../../core/utils/panel-roles';
 
 function todayIso(): string {
   const d = new Date();
@@ -150,16 +153,17 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                         ></button>
                         <button
                           appIconAction="send"
-                          title="Reenviar recibo"
+                          title="Enviar recibo"
                           [disabled]="!receiptIdFor(p.id) || resendingPayId() === p.id"
                           (click)="resendForPayment(p.id)"
                         ></button>
-                        <button
-                          appIconAction="edit"
-                          title="Editar abono"
-                          [disabled]="montosLocked()"
-                          (click)="startEdit(p)"
-                        ></button>
+                        @if (canShowEdit(p)) {
+                          <button
+                            appIconAction="edit"
+                            title="Editar abono"
+                            (click)="startEdit(p)"
+                          ></button>
+                        }
                         @if (isAdmin()) {
                           <button
                             appIconAction="check"
@@ -176,41 +180,34 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
             </table>
           </div>
 
-          @if (editingPaymentId(); as pid) {
-            <div class="ap-pay-edit-panel">
-              <p class="ap-ficha-caption">Editar abono #{{ pid }}</p>
-              <div class="ap-pay-toolbar-grid ap-pay-toolbar-grid--edit">
-                <label class="ap-pay-field">
-                  <span class="ap-ficha-col-head">Fecha del abono</span>
-                  <input
-                    class="ap-ficha-control"
-                    type="date"
-                    [min]="todayIso"
-                    [ngModel]="editPayDate()"
-                    (ngModelChange)="editPayDate.set($event)"
-                  />
-                </label>
-                <label class="ap-pay-field">
-                  <span class="ap-ficha-col-head">Valor del abono</span>
-                  <input
-                    class="ap-ficha-control"
-                    type="number"
-                    min="1"
-                    step="1"
-                    [ngModel]="editPayAmount()"
-                    (ngModelChange)="editPayAmount.set(+$event || 0)"
-                  />
-                </label>
-                <div class="ap-pay-edit-actions">
-                  <app-button variant="primary" [loading]="patching()" (clicked)="saveEdit()">
-                    Guardar
-                  </app-button>
-                  <app-button variant="ghost" [disabled]="patching()" (clicked)="cancelEdit()">
-                    Cancelar
-                  </app-button>
+          @if (editingPaymentId()) {
+            @if (canEditPayments() && !montosLocked()) {
+              <div class="ap-pay-edit-panel">
+                <div class="ap-pay-toolbar-grid ap-pay-toolbar-grid--edit">
+                  <label class="ap-pay-field">
+                    <span class="ap-ficha-col-head">Fecha del abono</span>
+                    <input
+                      class="ap-ficha-control"
+                      type="date"
+                      [min]="todayIso"
+                      [ngModel]="editPayDate()"
+                      (ngModelChange)="editPayDate.set($event)"
+                    />
+                  </label>
+                  <label class="ap-pay-field">
+                    <span class="ap-ficha-col-head">Valor del abono</span>
+                    <input
+                      class="ap-ficha-control"
+                      type="number"
+                      min="1"
+                      step="1"
+                      [ngModel]="editPayAmount()"
+                      (ngModelChange)="editPayAmount.set(+$event || 0)"
+                    />
+                  </label>
                 </div>
               </div>
-            </div>
+            }
           }
 
           @if (viewReceiptId(); as rid) {
@@ -243,7 +240,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   [loading]="resendingReceipt()"
                   (clicked)="resendViewedReceipt()"
                 >
-                  Reenviar
+                  Enviar
                 </app-button>
                 <app-button variant="ghost" (clicked)="closeReceiptView()">Cerrar vista</app-button>
               </div>
@@ -270,6 +267,11 @@ export class AppointmentAbonosSectionComponent {
   protected readonly paidOnDisplay = paidOnTableDisplay;
   protected readonly todayIso = todayIso();
   protected readonly isAdmin = this.appStore.isAdmin;
+
+  /** Solo admin; además oculto si montos bloqueados o abono ya verificado. */
+  protected readonly canEditPayments = computed(() =>
+    canEditAppointmentPayments(this.appStore.user()?.role ?? ''),
+  );
 
   readonly expanded = signal(true);
   readonly newPayDate = signal(todayIso());
@@ -314,6 +316,10 @@ export class AppointmentAbonosSectionComponent {
     return rid != null && rid > 0 ? rid : null;
   }
 
+  canShowEdit(p: AppointmentPayment): boolean {
+    return this.canEditPayments() && !this.montosLocked() && !p.isVerified;
+  }
+
   addPayment(): void {
     if (this.montosLocked()) {
       this.toast.warn('No puedes registrar abonos con este perfil.');
@@ -347,15 +353,75 @@ export class AppointmentAbonosSectionComponent {
   }
 
   startEdit(p: AppointmentPayment): void {
+    if (!this.canShowEdit(p)) {
+      this.toast.warn(
+        p.isVerified
+          ? 'Un abono verificado no se puede editar; solo puedes enviar el recibo.'
+          : 'Solo un administrador puede editar abonos.',
+      );
+      return;
+    }
     this.editingPaymentId.set(p.id);
-    const raw = p.paidOn ?? p.createdAt ?? todayIso();
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw));
-    this.editPayDate.set(m ? `${m[1]}-${m[2]}-${m[3]}` : todayIso());
+    this.editPayDate.set(this.paidOnIso(p));
     this.editPayAmount.set(copToMiles(p.amount));
   }
 
   cancelEdit(): void {
     this.editingPaymentId.set(null);
+  }
+
+  /** Hay edición de abono abierta con cambios respecto al valor/fecha original. */
+  hasUnsavedPaymentEdit(): boolean {
+    const pid = this.editingPaymentId();
+    if (pid == null || !this.canEditPayments() || this.montosLocked()) return false;
+    const current = this.dlg.payments().find((x) => x.id === pid);
+    if (!current || current.isVerified) return false;
+    const amt = milesToCop(this.editPayAmount());
+    const date = this.editPayDate();
+    const origDate = this.paidOnIso(current);
+    return Math.abs(amt - current.amount) > 0.009 || date !== origDate;
+  }
+
+  /** Mensaje de validación si no se puede guardar la edición; null si ok o no aplica. */
+  paymentEditBlocker(): string | null {
+    if (!this.hasUnsavedPaymentEdit()) return null;
+    const amt = milesToCop(this.editPayAmount());
+    if (amt <= 0) return 'El abono debe ser mayor a cero.';
+    if (!this.appStore.user()?.id) return 'Sesión no válida.';
+    return null;
+  }
+
+  /**
+   * Persiste la edición de abono pendiente (para el «Guardar cambios» de la ficha).
+   * Emite true si se envió patch; false si no había nada que guardar.
+   */
+  commitPaymentEdit$(): Observable<boolean> {
+    if (!this.hasUnsavedPaymentEdit()) {
+      return of(false);
+    }
+    const blocker = this.paymentEditBlocker();
+    if (blocker) {
+      return throwError(() => new Error(blocker));
+    }
+    const aid = this.dlg.appointmentId();
+    const pid = this.editingPaymentId();
+    const uid = this.appStore.user()?.id;
+    if (aid == null || pid == null || pid <= 0 || !uid) {
+      return throwError(() => new Error('No se pudo identificar el abono o la sesión.'));
+    }
+    const amt = milesToCop(this.editPayAmount());
+    this.patching.set(true);
+    return this.api.patchPayment(aid, pid, amt, this.editPayDate(), uid).pipe(
+      tap({
+        next: () => {
+          this.patching.set(false);
+          this.editingPaymentId.set(null);
+          this.refreshAfterPaymentChange();
+        },
+        error: () => this.patching.set(false),
+      }),
+      map(() => true),
+    );
   }
 
   verifyPayment(p: AppointmentPayment): void {
@@ -366,6 +432,7 @@ export class AppointmentAbonosSectionComponent {
     this.api.verifyPayment(aid, p.id, uid).subscribe({
       next: () => {
         this.verifyingPayId.set(null);
+        this.cancelEdit();
         this.toast.success('Abono verificado: se confirma que el abono ha sido realizado.');
         this.refreshAfterPaymentChange();
       },
@@ -376,32 +443,10 @@ export class AppointmentAbonosSectionComponent {
     });
   }
 
-  saveEdit(): void {
-    if (this.montosLocked()) {
-      this.toast.warn('No puedes editar abonos con este perfil.');
-      return;
-    }
-    const aid = this.dlg.appointmentId();
-    const pid = this.editingPaymentId();
-    if (aid == null || pid == null || pid <= 0) return;
-    const amt = milesToCop(this.editPayAmount());
-    if (amt <= 0) {
-      this.toast.warn('El abono debe ser mayor a cero.');
-      return;
-    }
-    this.patching.set(true);
-    this.api.patchPayment(aid, pid, amt, this.editPayDate()).subscribe({
-      next: () => {
-        this.patching.set(false);
-        this.editingPaymentId.set(null);
-        this.toast.success('Abono actualizado.');
-        this.refreshAfterPaymentChange();
-      },
-      error: (err) => {
-        this.patching.set(false);
-        this.toast.error(apiErrorMessage(err));
-      },
-    });
+  private paidOnIso(p: AppointmentPayment): string {
+    const raw = p.paidOn ?? p.createdAt ?? todayIso();
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw));
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : todayIso();
   }
 
   openReceiptView(paymentId: number): void {
@@ -465,7 +510,7 @@ export class AppointmentAbonosSectionComponent {
       next: () => {
         this.resendingPayId.set(null);
         this.resendingReceipt.set(false);
-        this.toast.success('Recibo reenviado.');
+        this.toast.success('Recibo enviado.');
       },
       error: (err) => {
         this.resendingPayId.set(null);

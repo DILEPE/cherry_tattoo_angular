@@ -38,7 +38,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
             <div class="appt-dialog-actions">
               <app-button variant="ghost" (clicked)="download(r)">Descargar PDF</app-button>
               <app-button variant="ghost" [loading]="resendingId() === r.id" (clicked)="resend(r)">
-                Reenviar
+                Enviar
               </app-button>
             </div>
           </div>
@@ -93,7 +93,7 @@ export class AppointmentReceiptsDialogComponent {
     this.api.resendReceipt(a.id, r.id).subscribe({
       next: () => {
         this.resendingId.set(null);
-        this.toast.success('Recibo reenviado.');
+        this.toast.success('Recibo enviado.');
       },
       error: (err) => {
         this.resendingId.set(null);

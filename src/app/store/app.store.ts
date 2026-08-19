@@ -97,7 +97,7 @@ export const AppStore = signalStore(
         if (!store.isAuthenticated()) return false;
         const u = store.user();
         if (!u) return false;
-        if (key === 'usuarios_panel') {
+        if (key === 'usuarios_panel' || key === 'tipos_piercing') {
           return u.role === 'administrador';
         }
         if (u.role === 'administrador') {
@@ -108,6 +108,7 @@ export const AppStore = signalStore(
             'encuestas',
             'reporte',
             'tiendas',
+            'tipos_piercing',
           ].includes(key);
         }
         return store.allowedModuleKeys().includes(key as PanelModuleKey);

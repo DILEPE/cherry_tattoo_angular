@@ -255,7 +255,7 @@ export class AppointmentFinancialsDialogComponent {
     this.saving.set(false);
     this.toast.success(
       hadExtra
-        ? 'Montos y abonos actualizados. Revisa Recibos para el nuevo PDF.'
+        ? 'Montos y abonos actualizados. El recibo quedó listo; envíalo desde Abonos.'
         : 'Montos actualizados.',
     );
     this.apptStore.invalidate();

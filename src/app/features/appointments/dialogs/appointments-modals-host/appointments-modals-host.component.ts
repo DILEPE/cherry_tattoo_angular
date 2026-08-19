@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { UiStore } from '../../../../store/ui.store';
 import { AppModalComponent } from '../../../../shared/ui/modal/app-modal.component';
+import { AppPillComponent } from '../../../../shared/ui/pill/app-pill.component';
+import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppointmentDetailDialogComponent } from '../appointment-detail-dialog/appointment-detail-dialog.component';
 import { AppointmentRescheduleDialogComponent } from '../appointment-reschedule-dialog/appointment-reschedule-dialog.component';
 import { AppointmentCancelDialogComponent } from '../appointment-cancel-dialog/appointment-cancel-dialog.component';
@@ -12,6 +14,9 @@ import { AppointmentSearchDialogComponent } from '../appointment-search-dialog/a
 import { AppointmentFocusDialogComponent } from '../appointment-focus-dialog/appointment-focus-dialog.component';
 import { AppointmentContractViewDialogComponent } from '../appointment-contract-view-dialog/appointment-contract-view-dialog.component';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
+import { AppointmentDialogStore } from '../../appointment-dialog.store';
+import { formatAppointmentCreatedAtDisplay } from '../../models/appointment-detail-text.mapper';
+import { statusToPillVariant } from '../../models/appointment.mapper';
 
 @Component({
   selector: 'app-appointments-modals-host',
@@ -19,6 +24,8 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AppModalComponent,
+    AppPillComponent,
+    AppButtonComponent,
     AppointmentDetailDialogComponent,
     AppointmentRescheduleDialogComponent,
     AppointmentCancelDialogComponent,
@@ -49,7 +56,8 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
       @case ('appointment-focus') {
         @defer (on immediate) {
           <app-modal
-            title="Cita"
+            title="Agendamiento Cita"
+            [subtitle]="focusCreatedAtLabel()"
             size="lg"
             [isOpen]="true"
             [dismissible]="false"
@@ -57,6 +65,16 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
           >
+            @if (dlg.appointment(); as a) {
+              <div modalHeaderEnd class="modal-header-end">
+                <app-pill [variant]="statusToPillVariant(a.status)" [label]="a.statusLabel" />
+                @if (a.hasSignedContract) {
+                  <app-button variant="ghost" (clicked)="openFocusContract(a.id)">
+                    Ver contrato
+                  </app-button>
+                }
+              </div>
+            }
             <app-appointment-focus-dialog />
           </app-modal>
         }
@@ -66,7 +84,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Reprogramar cita" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Reprogramar cita"
+            size="md"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-appointment-reschedule-dialog />
           </app-modal>
         }
@@ -76,7 +98,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Confirmar anulación" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Confirmar anulación"
+            size="md"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-appointment-cancel-dialog />
           </app-modal>
         }
@@ -86,7 +112,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Ajustar montos" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Ajustar montos"
+            size="md"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-appointment-financials-dialog />
           </app-modal>
         }
@@ -96,7 +126,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Recibos de pago (PDF)" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Recibos de pago (PDF)"
+            size="lg"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-appointment-receipts-dialog />
           </app-modal>
         }
@@ -107,6 +141,7 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
             [title]="bookModalTitle()"
             size="lg"
             [isOpen]="true"
+            [dismissible]="false"
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
             (closed)="ui.closeModal()"
@@ -120,7 +155,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Citas del día" size="md" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Citas del día"
+            size="md"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-calendar-day-overflow-dialog />
           </app-modal>
         }
@@ -130,7 +169,11 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
           <app-modal
             [busy]="ui.globalLoading()"
             [busyMessage]="ui.loadingMessage() ?? 'Cargando…'"
-            title="Buscar cita" size="lg" [isOpen]="true" (closed)="ui.closeModal()">
+            title="Buscar cita"
+            size="lg"
+            [isOpen]="true"
+            (closed)="ui.closeModal()"
+          >
             <app-appointment-search-dialog />
           </app-modal>
         }
@@ -154,9 +197,22 @@ import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 })
 export class AppointmentsModalsHostComponent {
   protected readonly ui = inject(UiStore);
+  protected readonly dlg = inject(AppointmentDialogStore);
+  protected readonly statusToPillVariant = statusToPillVariant;
 
   bookModalTitle(): string {
     const data = this.ui.activeModal()?.data as BookAppointmentModalData | undefined;
     return data?.express ? 'Cita express' : 'Agendar cita';
+  }
+
+  focusCreatedAtLabel(): string {
+    const a = this.dlg.appointment();
+    if (!a?.createdAt) return '';
+    const label = formatAppointmentCreatedAtDisplay(a.createdAt);
+    return label === '—' ? '' : label;
+  }
+
+  openFocusContract(appointmentId: number): void {
+    this.ui.openModal('appointment-contract-view', { appointmentId });
   }
 }

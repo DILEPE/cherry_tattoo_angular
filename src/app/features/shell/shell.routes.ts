@@ -45,6 +45,12 @@ export const SHELL_ROUTES: Routes = [
           import('../stores/stores.routes').then((m) => m.STORES_ROUTES),
       },
       {
+        path: 'tipos_piercing',
+        canActivate: [moduleGuard('tipos_piercing')],
+        loadChildren: () =>
+          import('../piercing-types/piercing-types.routes').then((m) => m.PIERCING_TYPES_ROUTES),
+      },
+      {
         path: 'usuarios_panel',
         canActivate: [moduleGuard('usuarios_panel')],
         loadChildren: () =>

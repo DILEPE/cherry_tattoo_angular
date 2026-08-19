@@ -27,8 +27,8 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
     <div class="ctsig-capture">
       <span class="ctsig-capture__label">{{ label() }}</span>
 
-      @if (previewUrl()) {
-        <img class="ctsig-capture__preview" [src]="previewUrl()!" [alt]="label()" />
+      @if (previewUrl() && !cameraOpen()) {
+        <p class="ctsig-capture__ready">Foto capturada. Se verá al consultar el contrato firmado.</p>
       }
 
       @if (cameraOpen()) {
@@ -70,10 +70,17 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
 
     .ctsig-capture__label {
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
-    .ctsig-capture__preview,
+    .ctsig-capture__ready {
+      margin: 0;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
     .ctsig-capture__video {
       width: 100%;
       max-height: 220px;

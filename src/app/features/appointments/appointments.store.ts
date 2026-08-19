@@ -11,12 +11,13 @@ import {
 } from './models/appointment.model';
 import {
   filterAppointments,
+  filterSellerAgendaFromToday,
   filterTechnicianAgenda,
   mapAppointment,
   uniqueServices,
 } from './models/appointment.mapper';
 import { piercingAppointmentIdsForLabels } from './models/piercing-type-catalog';
-import { isTechnicianRole } from '../../core/utils/panel-roles';
+import { isSellerRole, isTechnicianRole } from '../../core/utils/panel-roles';
 import { AppStore } from '../../store/app.store';
 import {
   AppointmentsViewMode,
@@ -96,6 +97,8 @@ export const AppointmentsStore = signalStore(
       const role = appStore.user()?.role ?? '';
       if (isTechnicianRole(role)) {
         rows = filterTechnicianAgenda(rows);
+      } else if (isSellerRole(role)) {
+        rows = filterSellerAgendaFromToday(rows);
       }
       return rows;
     });
@@ -133,6 +136,7 @@ export const AppointmentsStore = signalStore(
       api = inject(AppointmentsApiService),
       toast = inject(ToastService),
       loading = inject(LoadingService),
+      appStore = inject(AppStore),
     ) => ({
       setViewMode(mode: AppointmentsViewMode): void {
         patchState(store, { viewMode: mode });
@@ -260,8 +264,10 @@ export const AppointmentsStore = signalStore(
           tap(() =>
             patchState(store, { loading: true, error: null, piercingTypeLabels: {} }),
           ),
-          switchMap(() =>
-            api.list(store.assignedUserId()).pipe(
+          switchMap(() => {
+            const role = appStore.user()?.role ?? '';
+            const fromDate = isSellerRole(role) ? dateToIsoLocal(new Date()) : null;
+            return api.list(store.assignedUserId(), fromDate).pipe(
               switchMap((rows) => {
                 const items = rows.map(mapAppointment);
                 const ids = piercingAppointmentIdsForLabels(items);
@@ -288,8 +294,8 @@ export const AppointmentsStore = signalStore(
                   toast.error(msg);
                 },
               }),
-            ),
-          ),
+            );
+          }),
         ),
       ),
     }),

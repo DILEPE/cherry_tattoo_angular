@@ -93,9 +93,11 @@ export class CustomersApiService {
 
   findByDocument(documentNumber: string): Observable<CustomerSnapshot | null> {
     const doc = documentNumber.trim();
-    return this.list({ limit: 1, offset: 0, documentNumber: doc }).pipe(
+    return this.list({ limit: 5, offset: 0, documentNumber: doc }).pipe(
       map((res) => {
-        const row = res.items[0];
+        // Coincidencia exacta del número (evita cargar otro cliente y pisar el tipo de doc).
+        const row =
+          res.items.find((i) => String(i.documentNumber ?? '').trim() === doc) ?? null;
         if (!row) return null;
         return mapCustomerSnapshot({
           id: row.id,

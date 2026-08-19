@@ -8,11 +8,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AppointmentsApiService } from '../../../services/appointments-api.service';
 import { CustomersApiService } from '../../../../customers/services/customers-api.service';
 import { TemplatesApiService } from '../../../../contracts/services/templates-api.service';
+import { SignedContractsApiService } from '../../../../contracts/services/signed-contracts-api.service';
 import {
   ContractSigningApiService,
   SurveySubmitPayload,
@@ -20,6 +22,7 @@ import {
 import { mapAppointment } from '../../../models/appointment.mapper';
 import { Appointment, AppointmentPayment } from '../../../models/appointment.model';
 import { Customer, CustomerWritePayload } from '../../../../customers/models/customer.model';
+import { customerToWritePayload } from '../../../../customers/models/customer.mapper';
 import { ContractTemplate } from '../../../../contracts/models/contract-template.model';
 import { SurveyQuestion } from '../../../../surveys/models/survey-question.model';
 import { CustomerFormComponent } from '../../../../customers/components/customer-form/customer-form.component';
@@ -40,9 +43,9 @@ import {
 import {
   isDocumentCaptureAcceptable,
   isSignatureAcceptable,
-  signatureImageSrc,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
+import { appointmentRequiresContract } from '../../../models/booking.mapper';
 import {
   PIERCING_TYPE_OPTIONS,
   PROCEDURE_CONSENT_SURVEY_QUESTION_ID,
@@ -71,7 +74,7 @@ import { DocumentType } from '../../../../customers/models/customer.model';
     <div class="ctsig-page panel-fade-in">
       <header class="ctsig-page__header">
         <a routerLink="/citas" class="ctsig-page__back">← Volver a citas</a>
-        <h1>Firma de contrato</h1>
+        <h1>{{ surveyOnly() ? 'Cuestionario' : 'Firma de contrato' }}</h1>
         @if (appointment(); as a) {
           <p class="ctsig-page__meta">
             Cita #{{ a.id }} · {{ a.customerName }} · {{ a.serviceType }}
@@ -84,6 +87,26 @@ import { DocumentType } from '../../../../customers/models/customer.model';
       } @else if (loadError()) {
         <p class="form-field__error">{{ loadError() }}</p>
         <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+      } @else if (surveyOnly()) {
+        <section class="ctsig-step">
+          <h2>Cuestionario de la cita</h2>
+          @if (!questions().length) {
+            <p class="ctsig-page__meta">No hay preguntas activas para este tipo de servicio.</p>
+            <div class="ctsig-step-actions">
+              <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+            </div>
+          } @else {
+            <app-contract-signing-survey-step
+              [questions]="questions()"
+              [appointmentId]="appointmentId()"
+              [serviceType]="appointment()?.serviceType ?? ''"
+              [submitting]="saving()"
+              backLabel="← Volver a citas"
+              (back)="goBackToCitas()"
+              (submitted)="onSurveySubmitted($event)"
+            />
+          }
+        </section>
       } @else if (artistOnly()) {
         <section class="ctsig-step">
           <h2>Firma del profesional</h2>
@@ -123,17 +146,40 @@ import { DocumentType } from '../../../../customers/models/customer.model';
           @case (1) {
             <section class="ctsig-step">
               <h2>Etapa 1 — Datos del cliente</h2>
+              @if (customerFichaLocked()) {
+                <p class="ctsig-notice">
+                  Este cliente ya firmó un contrato antes: los datos de la ficha se mantienen y no
+                  se pueden modificar aquí.
+                </p>
+              }
               @if (customer(); as c) {
-                <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
-                  <div actions class="ctsig-step-actions">
+                @if (customerFichaLocked()) {
+                  <app-customer-form [initial]="c" [readonly]="true" />
+                  <div class="ctsig-step-actions">
                     <app-button type="button" variant="ghost" routerLink="/citas">
                       Cancelar
                     </app-button>
-                    <app-button type="submit" variant="primary" [loading]="saving()">
-                      Guardar y continuar
+                    <app-button
+                      type="button"
+                      variant="primary"
+                      [loading]="saving()"
+                      (clicked)="continueWithLockedFicha()"
+                    >
+                      Continuar
                     </app-button>
                   </div>
-                </app-customer-form>
+                } @else {
+                  <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
+                    <div actions class="ctsig-step-actions">
+                      <app-button type="button" variant="ghost" routerLink="/citas">
+                        Cancelar
+                      </app-button>
+                      <app-button type="submit" variant="primary" [loading]="saving()">
+                        Guardar y continuar
+                      </app-button>
+                    </div>
+                  </app-customer-form>
+                }
               }
             </section>
           }
@@ -178,94 +224,38 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                       [innerHTML]="guardianPreviewHtml()"
                     ></div>
                   }
-                  <div class="ctsig-preview-evidence">
-                    <h4 class="ctsig-preview-evidence__title">Firmas</h4>
-                    <div
-                      class="ctsig-view-sigs"
-                      [class.ctsig-view-sigs--pair]="!previewIsMinor()"
-                    >
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Cliente</span>
-                        @if (clientSigSrc()) {
-                          <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                        }
-                      </div>
-                      @if (previewIsMinor()) {
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Tutor</span>
-                          @if (tutorSigSrc()) {
-                            <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                          }
-                        </div>
-                      }
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Profesional</span>
-                        @if (artistSigSrc()) {
-                          <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
-                        }
-                      </div>
-                    </div>
-                    @if (previewIsMinor()) {
-                      <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
-                      <div class="ctsig-view-docs">
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Anverso</span>
-                          @if (tutorFrontSrc()) {
-                            <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Reverso</span>
-                          @if (tutorBackSrc()) {
-                            <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                      </div>
-                      <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
-                      <div class="ctsig-view-docs">
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Anverso</span>
-                          @if (minorFrontSrc()) {
-                            <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                        <div class="ctsig-view-sig">
-                          <span class="ctsig-view-sig__label">Reverso</span>
-                          @if (minorBackSrc()) {
-                            <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
-                          } @else {
-                            <p class="ctsig-view-sig__empty">Pendiente</p>
-                          }
-                        </div>
-                      </div>
-                    }
-                  </div>
                 </div>
                 <p class="ctsig-notice">{{ refundNotice }}</p>
               }
 
               @if (isMinor()) {
                 <h3>Datos del tutor (menor de edad)</h3>
+                <label class="ctsig-tutor-same-check">
+                  <input
+                    type="checkbox"
+                    [ngModel]="useSameTutorData()"
+                    (ngModelChange)="onUseSameTutorDataChange($event)"
+                    name="useSameTutorDataPhased"
+                  />
+                  Usar datos del tutor ya registrados
+                </label>
                 <div class="ctsig-tutor-grid">
                   <label>
                     Nombre del tutor *
-                    <input type="text" [(ngModel)]="tutorName" name="tutorName" />
+                    <input
+                      type="text"
+                      [(ngModel)]="tutorName"
+                      name="tutorName"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                   <label>
                     Tipo documento tutor *
-                    <select [(ngModel)]="tutorDocType" name="tutorDocType">
+                    <select
+                      [(ngModel)]="tutorDocType"
+                      name="tutorDocType"
+                      [disabled]="useSameTutorData()"
+                    >
                       @for (t of docTypes; track t) {
                         <option [value]="t">{{ t }}</option>
                       }
@@ -273,11 +263,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                   </label>
                   <label>
                     Número documento tutor *
-                    <input type="text" [(ngModel)]="tutorDocNumber" name="tutorDocNumber" />
+                    <input
+                      type="text"
+                      [(ngModel)]="tutorDocNumber"
+                      name="tutorDocNumber"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                   <label>
                     Fecha expedición tutor *
-                    <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssue" />
+                    <input
+                      type="date"
+                      [(ngModel)]="tutorDocIssue"
+                      name="tutorDocIssue"
+                      [readonly]="useSameTutorData()"
+                    />
                   </label>
                 </div>
               }
@@ -366,7 +366,16 @@ import { DocumentType } from '../../../../customers/models/customer.model';
           }
           @if (customer(); as c) {
             <h3 class="ctsig-subsection">Datos personales del cliente</h3>
-            <app-customer-form #customerForm [initial]="c" />
+            @if (customerFichaLocked()) {
+              <p class="ctsig-notice">
+                Este cliente ya firmó un contrato antes: la ficha se muestra en solo lectura.
+              </p>
+            }
+            <app-customer-form
+              #customerForm
+              [initial]="c"
+              [readonly]="customerFichaLocked()"
+            />
             @if (questions().length) {
               <h3 class="ctsig-subsection">Cuestionario</h3>
               <app-contract-signing-survey-step
@@ -393,93 +402,37 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                     [innerHTML]="guardianPreviewHtml()"
                   ></div>
                 }
-                <div class="ctsig-preview-evidence">
-                  <h4 class="ctsig-preview-evidence__title">Firmas</h4>
-                  <div
-                    class="ctsig-view-sigs"
-                    [class.ctsig-view-sigs--pair]="!previewIsMinor()"
-                  >
-                    <div class="ctsig-view-sig">
-                      <span class="ctsig-view-sig__label">Cliente</span>
-                      @if (clientSigSrc()) {
-                        <img [src]="clientSigSrc()!" alt="Firma cliente" class="ctsig-view-sig__img" />
-                      } @else {
-                        <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                      }
-                    </div>
-                    @if (previewIsMinor()) {
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Tutor</span>
-                        @if (tutorSigSrc()) {
-                          <img [src]="tutorSigSrc()!" alt="Firma tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente de firma</p>
-                        }
-                      </div>
-                    }
-                    <div class="ctsig-view-sig">
-                      <span class="ctsig-view-sig__label">Profesional</span>
-                      @if (artistSigSrc()) {
-                        <img [src]="artistSigSrc()!" alt="Firma profesional" class="ctsig-view-sig__img" />
-                      } @else {
-                        <p class="ctsig-view-sig__empty">Opcional / pendiente</p>
-                      }
-                    </div>
-                  </div>
-                  @if (previewIsMinor()) {
-                    <h4 class="ctsig-preview-evidence__title">Documento del tutor</h4>
-                    <div class="ctsig-view-docs">
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Anverso</span>
-                        @if (tutorFrontSrc()) {
-                          <img [src]="tutorFrontSrc()!" alt="Anverso tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Reverso</span>
-                        @if (tutorBackSrc()) {
-                          <img [src]="tutorBackSrc()!" alt="Reverso tutor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                    </div>
-                    <h4 class="ctsig-preview-evidence__title">Documento del menor</h4>
-                    <div class="ctsig-view-docs">
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Anverso</span>
-                        @if (minorFrontSrc()) {
-                          <img [src]="minorFrontSrc()!" alt="Anverso menor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                      <div class="ctsig-view-sig">
-                        <span class="ctsig-view-sig__label">Reverso</span>
-                        @if (minorBackSrc()) {
-                          <img [src]="minorBackSrc()!" alt="Reverso menor" class="ctsig-view-sig__img" />
-                        } @else {
-                          <p class="ctsig-view-sig__empty">Pendiente</p>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
               </div>
               <p class="ctsig-notice">{{ refundNotice }}</p>
             }
             @if (showTutorSection()) {
               <h3 class="ctsig-subsection">Datos del tutor (menor de edad)</h3>
+              <label class="ctsig-tutor-same-check">
+                <input
+                  type="checkbox"
+                  [ngModel]="useSameTutorData()"
+                  (ngModelChange)="onUseSameTutorDataChange($event)"
+                  name="useSameTutorDataSingle"
+                />
+                Usar datos del tutor ya registrados
+              </label>
               <div class="ctsig-tutor-grid">
                 <label>
                   Nombre del tutor *
-                  <input type="text" [(ngModel)]="tutorName" name="tutorNameSingle" />
+                  <input
+                    type="text"
+                    [(ngModel)]="tutorName"
+                    name="tutorNameSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
                 <label>
                   Tipo documento tutor *
-                  <select [(ngModel)]="tutorDocType" name="tutorDocTypeSingle">
+                  <select
+                    [(ngModel)]="tutorDocType"
+                    name="tutorDocTypeSingle"
+                    [disabled]="useSameTutorData()"
+                  >
                     @for (t of docTypes; track t) {
                       <option [value]="t">{{ t }}</option>
                     }
@@ -487,11 +440,21 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                 </label>
                 <label>
                   Número documento tutor *
-                  <input type="text" [(ngModel)]="tutorDocNumber" name="tutorDocNumberSingle" />
+                  <input
+                    type="text"
+                    [(ngModel)]="tutorDocNumber"
+                    name="tutorDocNumberSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
                 <label>
                   Fecha expedición tutor *
-                  <input type="date" [(ngModel)]="tutorDocIssue" name="tutorDocIssueSingle" />
+                  <input
+                    type="date"
+                    [(ngModel)]="tutorDocIssue"
+                    name="tutorDocIssueSingle"
+                    [readonly]="useSameTutorData()"
+                  />
                 </label>
               </div>
             }
@@ -578,6 +541,7 @@ export class ContractSigningPageComponent implements OnInit {
   private readonly apptApi = inject(AppointmentsApiService);
   private readonly customersApi = inject(CustomersApiService);
   private readonly templatesApi = inject(TemplatesApiService);
+  private readonly signedContractsApi = inject(SignedContractsApiService);
   private readonly signingApi = inject(ContractSigningApiService);
   private readonly apptStore = inject(AppointmentsStore);
   private readonly toast = inject(ToastService);
@@ -594,12 +558,15 @@ export class ContractSigningPageComponent implements OnInit {
   readonly loadError = signal<string | null>(null);
   readonly step = signal(1);
   readonly artistOnly = signal(false);
+  readonly surveyOnly = signal(false);
   readonly appointment = signal<Appointment | null>(null);
   readonly payments = signal<AppointmentPayment[]>([]);
   readonly customer = signal<Customer | null>(null);
   readonly template = signal<ContractTemplate | null>(null);
   readonly questions = signal<SurveyQuestion[]>([]);
   readonly summaryPendingArtist = signal(true);
+  /** Ya existe al menos un contrato firmado previo para este cliente. */
+  readonly hasPriorSignedContract = signal(false);
 
   readonly clientSig = signal<string | null>(null);
   readonly tutorSig = signal<string | null>(null);
@@ -620,6 +587,7 @@ export class ContractSigningPageComponent implements OnInit {
   tutorDocType: DocumentType = 'CC';
   tutorDocNumber = '';
   tutorDocIssue = '';
+  readonly useSameTutorData = signal(false);
 
   readonly appointmentId = computed(() => this.appointment()?.id ?? 0);
 
@@ -643,6 +611,19 @@ export class ContractSigningPageComponent implements OnInit {
   /** Según la plantilla activa de la cita (persistido en BD). */
   readonly signingPhased = computed(() => this.template()?.signingFlow !== 'single');
 
+  /**
+   * Ficha bloqueada si ya firmó algún contrato y la ficha está completa
+   * (nacimiento real + expedición del documento).
+   */
+  readonly customerFichaLocked = computed(() => {
+    if (!this.hasPriorSignedContract()) return false;
+    const c = this.customer();
+    if (!c) return false;
+    if (c.birthDatePending) return false;
+    if (!c.documentIssueDate?.trim()) return false;
+    return true;
+  });
+
   readonly contractPreviewHtml = computed((): SafeHtml => {
     const tpl = this.template();
     const c = this.customer();
@@ -660,23 +641,16 @@ export class ContractSigningPageComponent implements OnInit {
     );
   });
 
-  /** En flujo single el menor puede detectarse desde el formulario; en phased desde el cliente. */
-  readonly previewIsMinor = computed(() => this.showTutorSection());
-
-  readonly clientSigSrc = computed(() => signatureImageSrc(this.clientSig()));
-  readonly tutorSigSrc = computed(() => signatureImageSrc(this.tutorSig()));
-  readonly artistSigSrc = computed(() => signatureImageSrc(this.artistSig()));
-  readonly tutorFrontSrc = computed(() => signatureImageSrc(this.tutorDocFront()));
-  readonly tutorBackSrc = computed(() => signatureImageSrc(this.tutorDocBack()));
-  readonly minorFrontSrc = computed(() => signatureImageSrc(this.minorDocFront()));
-  readonly minorBackSrc = computed(() => signatureImageSrc(this.minorDocBack()));
-
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('appointmentId'));
     const artistOnly =
       this.route.snapshot.queryParamMap.get('artistOnly') === '1' ||
       this.route.snapshot.queryParamMap.get('artistOnly') === 'true';
+    const surveyOnly =
+      this.route.snapshot.queryParamMap.get('surveyOnly') === '1' ||
+      this.route.snapshot.queryParamMap.get('surveyOnly') === 'true';
     this.artistOnly.set(artistOnly);
+    this.surveyOnly.set(surveyOnly);
 
     if (id <= 0) {
       this.loadError.set('Cita no válida.');
@@ -688,7 +662,15 @@ export class ContractSigningPageComponent implements OnInit {
       this.loadArtistOnly(id);
       return;
     }
+    if (surveyOnly) {
+      this.loadSurveyOnlyFlow(id);
+      return;
+    }
     this.loadFullFlow(id);
+  }
+
+  goBackToCitas(): void {
+    void this.router.navigateByUrl('/citas');
   }
 
   todayLabel(): string {
@@ -701,12 +683,53 @@ export class ContractSigningPageComponent implements OnInit {
     return this.isMinor();
   }
 
+  onUseSameTutorDataChange(checked: boolean): void {
+    this.useSameTutorData.set(checked);
+    if (checked) {
+      this.applyRegisteredTutorData();
+    }
+  }
+
+  /** Rellena nombre/documento/expedición del tutor desde la ficha (formulario o cliente cargado). */
+  private applyRegisteredTutorData(): void {
+    const fromForm = this.customerFormRef()?.guardianSnapshotFromForm();
+    if (fromForm && (fromForm.name || fromForm.documentNumber || fromForm.documentIssueDate)) {
+      this.tutorName = fromForm.name;
+      this.tutorDocType = fromForm.documentType;
+      this.tutorDocNumber = fromForm.documentNumber;
+      this.tutorDocIssue = fromForm.documentIssueDate;
+      this.toast.success('Datos del tutor cargados desde la ficha.');
+      return;
+    }
+    const c = this.customer();
+    if (c && (this.isMinor() || this.showTutorSection())) {
+      const name = (c.guardianName ?? '').trim();
+      const number = (c.guardianDocumentNumber ?? '').trim();
+      const issue = (c.guardianDocumentIssueDate ?? '').trim();
+      if (name || number || issue) {
+        this.tutorName = name;
+        this.tutorDocType = c.guardianDocumentType ?? 'CC';
+        this.tutorDocNumber = number;
+        this.tutorDocIssue = issue;
+        this.toast.success('Datos del tutor cargados desde la ficha.');
+        return;
+      }
+    }
+    this.useSameTutorData.set(false);
+    this.toast.warn(
+      'No hay datos del tutor registrados en la ficha. Complétalos en datos del cliente primero.',
+    );
+  }
+
   submitSingleFlow(): void {
     const c = this.customer();
     const a = this.appointment();
     if (!c || !a) return;
 
-    const payload = this.customerFormRef()?.tryGetWritePayload();
+    const locked = this.customerFichaLocked();
+    const payload = locked
+      ? customerToWritePayload(c)
+      : this.customerFormRef()?.tryGetWritePayload();
     if (!payload) return;
     if (!payload.document_issue_date) {
       this.toast.warn(
@@ -740,43 +763,50 @@ export class ContractSigningPageComponent implements OnInit {
     }
 
     this.saving.set(true);
+    const afterCustomer = (): void => {
+      this.customersApi.getById(c.id).subscribe({
+        next: (fresh) => {
+          if (fresh) this.customer.set(fresh);
+          const afterSurvey = () => {
+            this.apptApi.get(a.id).subscribe({
+              next: (row) => {
+                this.appointment.set(mapAppointment(row));
+                this.saving.set(false);
+                this.saveContract();
+              },
+              error: (err) => {
+                this.saving.set(false);
+                this.errors.handle(err);
+              },
+            });
+          };
+          if (surveyPayload) {
+            this.lastSurveyPayload = surveyPayload;
+            this.signingApi.submitSurvey(surveyPayload).subscribe({
+              next: () => afterSurvey(),
+              error: (err) => {
+                this.saving.set(false);
+                this.errors.handle(err);
+              },
+            });
+          } else {
+            afterSurvey();
+          }
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.errors.handle(err);
+        },
+      });
+    };
+
+    if (locked) {
+      afterCustomer();
+      return;
+    }
+
     this.customersApi.update(c.id, payload).subscribe({
-      next: () => {
-        this.customersApi.getById(c.id).subscribe({
-          next: (fresh) => {
-            if (fresh) this.customer.set(fresh);
-            const afterSurvey = () => {
-              this.apptApi.get(a.id).subscribe({
-                next: (row) => {
-                  this.appointment.set(mapAppointment(row));
-                  this.saving.set(false);
-                  this.saveContract();
-                },
-                error: (err) => {
-                  this.saving.set(false);
-                  this.errors.handle(err);
-                },
-              });
-            };
-            if (surveyPayload) {
-              this.lastSurveyPayload = surveyPayload;
-              this.signingApi.submitSurvey(surveyPayload).subscribe({
-                next: () => afterSurvey(),
-                error: (err) => {
-                  this.saving.set(false);
-                  this.errors.handle(err);
-                },
-              });
-            } else {
-              afterSurvey();
-            }
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.errors.handle(err);
-          },
-        });
-      },
+      next: () => afterCustomer(),
       error: (err) => {
         this.saving.set(false);
         this.errors.handle(err);
@@ -791,6 +821,13 @@ export class ContractSigningPageComponent implements OnInit {
     }).subscribe({
       next: ({ row, payments }) => {
         const appt = mapAppointment(row);
+        if (!appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita (limpieza o cambio de joya) no requiere firma ni envío de contrato.',
+          );
+          this.loading.set(false);
+          return;
+        }
         this.appointment.set(appt);
         this.payments.set(payments);
         this.signingApi.latestSummary(apptId).subscribe({
@@ -813,6 +850,47 @@ export class ContractSigningPageComponent implements OnInit {
     });
   }
 
+  private loadSurveyOnlyFlow(apptId: number): void {
+    this.apptApi.get(apptId).subscribe({
+      next: (row) => {
+        const appt = mapAppointment(row);
+        if (appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita usa el flujo de firma de contrato para el cuestionario.',
+          );
+          this.loading.set(false);
+          return;
+        }
+        if (appt.customerId == null || appt.customerId <= 0) {
+          this.loadError.set('La cita no tiene cliente asociado.');
+          this.loading.set(false);
+          return;
+        }
+        this.appointment.set(appt);
+        const kind = appointmentToContractKind(appt);
+        this.signingApi.listActiveSurveyQuestions(kind).subscribe({
+          next: (questions) => {
+            // Limpieza / cambio no colocan perforación: omitir tipo anatómico (Q3).
+            this.questions.set(
+              questions.filter((q) => q.id !== PROCEDURE_CONSENT_SURVEY_QUESTION_ID),
+            );
+            this.loading.set(false);
+          },
+          error: (err) => {
+            this.loadError.set('No se pudieron cargar las preguntas del cuestionario.');
+            this.errors.handle(err);
+            this.loading.set(false);
+          },
+        });
+      },
+      error: (err) => {
+        this.loadError.set('No se pudo cargar la cita.');
+        this.errors.handle(err);
+        this.loading.set(false);
+      },
+    });
+  }
+
   private loadFullFlow(apptId: number): void {
     forkJoin({
       row: this.apptApi.get(apptId),
@@ -820,6 +898,13 @@ export class ContractSigningPageComponent implements OnInit {
     }).subscribe({
       next: ({ row, payments }) => {
         const appt = mapAppointment(row);
+        if (!appointmentRequiresContract(appt)) {
+          this.loadError.set(
+            'Esta cita (limpieza o cambio de joya) no requiere firma ni envío de contrato.',
+          );
+          this.loading.set(false);
+          return;
+        }
         this.appointment.set(appt);
         this.payments.set(payments);
         const inferred = inferPiercingTypeFromAppointmentDetail(appt.detail);
@@ -835,14 +920,18 @@ export class ContractSigningPageComponent implements OnInit {
           customer: this.customersApi.getById(cid),
           questions: this.signingApi.listActiveSurveyQuestions(kind),
           templates: this.templatesApi.list({ onlyActive: true, contractKind: kind }),
+          priorContracts: this.signedContractsApi.listByCustomer(cid).pipe(
+            catchError(() => of([])),
+          ),
         }).subscribe({
-          next: ({ customer, questions, templates }) => {
+          next: ({ customer, questions, templates, priorContracts }) => {
             if (!customer) {
               this.loadError.set('Cliente no encontrado.');
               this.loading.set(false);
               return;
             }
             this.customer.set(customer);
+            this.hasPriorSignedContract.set((priorContracts?.length ?? 0) > 0);
             this.questions.set(questions);
             if (!templates.length) {
               this.loadError.set(
@@ -881,6 +970,24 @@ export class ContractSigningPageComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  continueWithLockedFicha(): void {
+    const c = this.customer();
+    const a = this.appointment();
+    if (!c || !a || !this.customerFichaLocked()) return;
+    if (!c.documentIssueDate?.trim()) {
+      this.toast.warn(
+        'Para firmar debes registrar la fecha de expedición del documento del cliente.',
+      );
+      return;
+    }
+    const pay = appointmentPaymentReadyForSignature(a, this.payments());
+    if (!pay.ok) {
+      this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
+      return;
+    }
+    this.step.set(2);
   }
 
   onCustomerSaved(payload: CustomerWritePayload): void {
@@ -929,8 +1036,11 @@ export class ContractSigningPageComponent implements OnInit {
         typeof a.text === 'string' &&
         a.text.trim(),
     );
-    if (fromSurvey?.text && !this.piercingType().trim()) {
-      this.piercingType.set(inferPiercingTypeFromAppointmentDetail(fromSurvey.text) ?? '');
+    // La respuesta del cuestionario manda sobre un tipo inferido previo (p. ej. del detalle).
+    if (fromSurvey?.text?.trim()) {
+      const resolved =
+        inferPiercingTypeFromAppointmentDetail(fromSurvey.text) ?? fromSurvey.text.trim();
+      this.piercingType.set(resolved);
     }
     const piercing = this.piercingType().trim();
     if (this.isPiercingContract() && piercing) {
@@ -939,6 +1049,10 @@ export class ContractSigningPageComponent implements OnInit {
     this.saving.set(true);
     this.signingApi.submitSurvey(this.lastSurveyPayload!).subscribe({
       next: () => {
+        if (this.surveyOnly()) {
+          this.finalizeAfterSurveyOnly();
+          return;
+        }
         this.saving.set(false);
         this.toast.success('Cuestionario guardado.');
         this.goToSignStep();
@@ -946,6 +1060,34 @@ export class ContractSigningPageComponent implements OnInit {
       error: (err) => {
         this.saving.set(false);
         this.errors.handle(err);
+      },
+    });
+  }
+
+  /** Limpieza / cambio: al enviar la encuesta la cita queda Finalizada. */
+  private finalizeAfterSurveyOnly(): void {
+    const a = this.appointment();
+    if (!a) {
+      this.saving.set(false);
+      return;
+    }
+    const finishOk = (): void => {
+      this.saving.set(false);
+      this.toast.success('Cuestionario guardado. Cita finalizada.');
+      this.apptStore.invalidate();
+      void this.router.navigateByUrl('/citas');
+    };
+    if (a.status === 'finalizada') {
+      finishOk();
+      return;
+    }
+    this.apptApi.patchStatus(a.id, 'Finalizada').subscribe({
+      next: () => finishOk(),
+      error: (err) => {
+        this.saving.set(false);
+        this.toast.success('Cuestionario guardado.');
+        this.errors.handle(err);
+        this.apptStore.invalidate();
       },
     });
   }

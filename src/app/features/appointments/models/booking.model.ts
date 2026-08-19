@@ -37,12 +37,12 @@ export const BOOKING_WORK_KIND_META: Record<BookingWorkKind, BookingWorkKindMeta
   },
   limpieza_piercing: {
     label: 'Limpieza (piercing)',
-    serviceToken: 'piercing',
+    serviceToken: 'limpieza',
     detailTag: '[Limpieza piercing]',
   },
   cambio_piercing: {
     label: 'Cambio de piercing',
-    serviceToken: 'piercing',
+    serviceToken: 'cambio',
     detailTag: '[Cambio piercing]',
   },
   tatuaje: {

@@ -67,7 +67,9 @@ function isMinorByBirthIso(iso: string): boolean {
       @if (!readonly()) {
         <app-form-validation-summary [messages]="validationSummary()" />
       }
-      <h4 class="cust-form-section">Datos personales</h4>
+      @if (showSectionTitles()) {
+        <h4 class="cust-form-section">Datos personales</h4>
+      }
       <div class="cust-form-grid">
         <app-form-field label="Nombre *" [control]="form.controls.firstName">
           <input formControlName="firstName" autocomplete="off" />
@@ -199,6 +201,8 @@ export class CustomerFormComponent {
   readonly initial = input<Customer | null>(null);
   /** Solo lectura: mismos campos deshabilitados (visualización de contrato / revisión). */
   readonly readonly = input(false);
+  /** Si false, oculta el H4 «Datos personales» (p. ej. cuando el contenedor ya tiene ese título). */
+  readonly showSectionTitles = input(true);
   readonly submitted = output<ReturnType<typeof customerToWritePayload>>();
 
   protected readonly docTypes = DOC_TYPES;
@@ -332,6 +336,26 @@ export class CustomerFormComponent {
 
   isMinorFromForm(): boolean {
     return isMinorByBirthIso(this.form.getRawValue().birthDate);
+  }
+
+  /** Datos del tutor desde la ficha (sin validar el resto del formulario). */
+  guardianSnapshotFromForm(): {
+    name: string;
+    documentType: DocumentType;
+    documentNumber: string;
+    documentIssueDate: string;
+  } | null {
+    if (!this.isMinorFromForm()) return null;
+    const v = this.form.getRawValue();
+    return {
+      name: String(v.guardianName ?? '').trim(),
+      documentType: (v.guardianDocumentType as DocumentType) || 'CC',
+      documentNumber: String(v.guardianDocumentNumber ?? '').trim(),
+      documentIssueDate:
+        v.hasGuardianIssue && v.guardianDocumentIssueDate
+          ? String(v.guardianDocumentIssueDate)
+          : '',
+    };
   }
 
   /** Valida el formulario y devuelve el payload API; `null` si hay errores. */
