@@ -41,9 +41,12 @@ export function appointmentToScheduleKind(appt: Appointment): ScheduleKind {
   return 'piercing';
 }
 
-export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind {
-  const det = (appt.detail || '').toLowerCase();
-  const svc = (appt.serviceType || '').toLowerCase();
+export function inferWorkKindFromServiceDetail(
+  serviceType: string | null | undefined,
+  detail: string | null | undefined,
+): BookingWorkKind {
+  const det = (detail || '').toLowerCase();
+  const svc = (serviceType || '').toLowerCase();
   const combined = `${svc} ${det}`;
   if (svc.includes('limpie') || det.includes('limpieza')) return 'limpieza_piercing';
   if (svc.includes('cambio') || (det.includes('cambio') && combined.includes('pierc'))) {
@@ -51,6 +54,10 @@ export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind
   }
   if (svc.includes('tatu') || det.includes('tatu')) return 'tatuaje';
   return 'piercing';
+}
+
+export function inferWorkKindFromAppointment(appt: Appointment): BookingWorkKind {
+  return inferWorkKindFromServiceDetail(appt.serviceType, appt.detail);
 }
 
 /** Colocación piercing / tatuaje requieren contrato; limpieza y cambio de joya no. */

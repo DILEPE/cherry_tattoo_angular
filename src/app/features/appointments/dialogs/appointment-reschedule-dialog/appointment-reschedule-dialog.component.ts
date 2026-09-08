@@ -27,6 +27,7 @@ import {
   appointmentBlockEndSlot,
   combineAppointmentDatetime,
   durationSlotsFromStartEnd,
+  endBlockSlotOptions,
   formatDatetimeCompactEs,
   parseExistingAppointmentSlot,
   timeSlotOptions,
@@ -34,16 +35,8 @@ import {
 import { durationSlotsForRow } from '../../models/agenda-slots.mapper';
 import {
   appendAgendaSlotsMarker,
-  appointmentToScheduleKind,
   stripAgendaSlotsMarker,
 } from '../../models/booking.mapper';
-import {
-  appointmentsForArtistSchedule,
-  availableEndTimes,
-  availableStartTimes,
-  busySlotIndices,
-  preferredEndTime,
-} from '../../models/schedule.mapper';
 import { reprogramDisabledForRow } from '../../models/appointment-policy';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 
@@ -86,11 +79,6 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
             </select>
           </app-form-field>
         </div>
-        @if (!availableStartChoices().length) {
-          <p class="form-field__error">
-            No hay horario libre ese día para el artista de la cita.
-          </p>
-        }
         <div class="appt-dialog-actions">
           <app-button type="submit" variant="primary" [loading]="saving()">
             Guardar reprogramación
@@ -126,30 +114,15 @@ export class AppointmentRescheduleDialogComponent {
     endSlot: ['10:00', Validators.required],
   });
 
-  private busyForForm(): Set<number> {
-    const a = this.dlg.appointment();
-    const dateStr = this.form.controls.date.value;
-    if (!a || !dateStr) return new Set();
-    const day = new Date(dateStr + 'T12:00:00');
-    const dayRows = appointmentsForArtistSchedule(
-      this.apptStore.items(),
-      day,
-      a.assignedPanelUserId ?? null,
-      appointmentToScheduleKind(a),
-      a.id,
-    );
-    return busySlotIndices(dayRows, this.slotOptions);
-  }
-
   readonly availableStartChoices = computed(() => {
     this.formRevision();
-    return availableStartTimes(this.slotOptions, this.busyForForm(), 1);
+    return this.slotOptions;
   });
 
   readonly availableEndChoices = computed(() => {
     this.formRevision();
     const start = this.form.controls.slot.value || '09:00';
-    return availableEndTimes(start, this.slotOptions, this.busyForForm());
+    return endBlockSlotOptions(start, this.slotOptions);
   });
 
   private readonly _init = effect(() => {
@@ -184,22 +157,15 @@ export class AppointmentRescheduleDialogComponent {
   constructor() {
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.formRevision.update((n) => n + 1);
-      const starts = this.availableStartChoices();
-      const curStart = this.form.controls.slot.value;
-      if (starts.length && !starts.includes(curStart)) {
-        this.form.patchValue({ slot: starts[0] }, { emitEvent: false });
-      }
-      const start = this.form.controls.slot.value || starts[0] || '09:00';
-      const ends = availableEndTimes(start, this.slotOptions, this.busyForForm());
-      const preferred = preferredEndTime(
-        start,
-        this.preferredDurSlots,
-        ends,
-        this.slotOptions,
-      );
+      const start = this.form.controls.slot.value || '09:00';
+      const ends = endBlockSlotOptions(start, this.slotOptions);
+      const preferred = appointmentBlockEndSlot(start, this.preferredDurSlots, this.slotOptions);
       const curEnd = this.form.controls.endSlot.value;
       if (ends.length && !ends.includes(curEnd)) {
-        this.form.patchValue({ endSlot: preferred }, { emitEvent: false });
+        this.form.patchValue(
+          { endSlot: ends.includes(preferred) ? preferred : ends[0] },
+          { emitEvent: false },
+        );
       }
       this.cdr.markForCheck();
     });
@@ -222,10 +188,9 @@ export class AppointmentRescheduleDialogComponent {
     const a = this.dlg.appointment();
     if (!a) return;
     const { detail, date, slot, endSlot } = this.form.getRawValue();
-    const starts = this.availableStartChoices();
     const ends = this.availableEndChoices();
-    if (!starts.length || !starts.includes(slot) || !ends.length || !ends.includes(endSlot)) {
-      this.toast.error('El horario elegido ya no está libre para este profesional.');
+    if (!this.slotOptions.includes(slot) || !ends.includes(endSlot)) {
+      this.toast.error('Elige una hora de inicio y de fin válidas.');
       return;
     }
     const d = new Date(date + 'T12:00:00');

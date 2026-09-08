@@ -41,6 +41,24 @@ export function appointmentTimeHm(val: string | Date | null | undefined): string
   return '—';
 }
 
+/** HH:MM (24h) → etiqueta compacta 12h con am/pm (ej. `9:00 am`, `2:30 pm`). */
+export function formatHmAsAmPm(hm: string): string {
+  if (!hm || hm === '—') return hm;
+  const m = hm.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return hm;
+  let hour = Number(m[1]);
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23) return hm;
+  const min = m[2];
+  const suffix = hour >= 12 ? 'pm' : 'am';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${min} ${suffix}`;
+}
+
+export function appointmentTimeAmPm(val: string | Date | null | undefined): string {
+  return formatHmAsAmPm(appointmentTimeHm(val));
+}
+
 function normalizePhoneDigits(phone: string): string {
   return phone.replace(/\D/g, '');
 }
@@ -92,14 +110,15 @@ export function calendarMonthCompactLabel(total: number): string {
   return n.toLocaleString('es-CO').replace(/,/g, '.');
 }
 
-export function calendarCellCustomerLabel(fullName: string, longFromLen = 22): string {
+/** Nombre corto para celdas: nombre + un solo apellido (evita nombres largos). */
+export function calendarCellCustomerLabel(fullName: string, maxLen = 22): string {
   const nm = (fullName || '').trim() || '—';
-  if (nm === '—' || nm.length <= longFromLen) return nm;
-  const parts = nm.split(/\s+/);
-  if (!parts.length) return `${nm.slice(0, longFromLen - 1)}…`;
-  const first = parts[0];
-  if (first.length > longFromLen) return `${first.slice(0, longFromLen - 1)}…`;
-  return first;
+  if (nm === '—') return nm;
+  const parts = nm.split(/\s+/).filter(Boolean);
+  const short =
+    parts.length <= 1 ? parts[0] || '—' : `${parts[0]} ${parts[1]}`;
+  if (short.length <= maxLen) return short;
+  return `${short.slice(0, Math.max(1, maxLen - 1))}…`;
 }
 
 function sortTimeKey(appt: Appointment): string {
@@ -128,6 +147,7 @@ export function toCalendarSlotView(
   countsByClient: Map<string, number>,
 ): CalendarAppointmentSlotView {
   const hm = appointmentTimeHm(appt.appointmentDateRaw ?? appt.appointmentDate);
+  const timeLabel = formatHmAsAmPm(hm);
   const customerFull = appt.customerName;
   const customerShort = calendarCellCustomerLabel(customerFull, 22);
   const artist =
@@ -136,7 +156,7 @@ export function toCalendarSlotView(
   const fin = appt.financials;
   return {
     id: appt.id,
-    timeLabel: hm,
+    timeLabel,
     customerShort,
     customerFull,
     serviceType: appt.serviceType,
@@ -147,7 +167,7 @@ export function toCalendarSlotView(
     contractPending: appt.contractPendingArtistSignature,
     pillKind: clientPillKind(appt, countsByClient),
     muted: appt.status === 'cancelada',
-    tooltip: `${hm} · ${customerFull}${staffPart} · Total: ${fin.totalFmt}`,
+    tooltip: `${timeLabel} · ${customerFull}${staffPart} · Total: ${fin.totalFmt}`,
     appointment: appt,
   };
 }

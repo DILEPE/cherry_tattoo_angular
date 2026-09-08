@@ -78,7 +78,7 @@ export class AppointmentReceiptsDialogComponent {
         const url = URL.createObjectURL(blob);
         const aEl = document.createElement('a');
         aEl.href = url;
-        aEl.download = `recibo_${a.id}_${r.id}.pdf`;
+        aEl.download = `ORDEN DE TRABAJO.pdf`;
         aEl.click();
         URL.revokeObjectURL(url);
       },

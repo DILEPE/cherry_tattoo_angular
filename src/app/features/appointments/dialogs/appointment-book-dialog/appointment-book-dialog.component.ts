@@ -47,19 +47,14 @@ import {
   MIN_APPOINTMENT_TOTAL_COP,
   CustomerSnapshot,
   PanelStaffOption,
+  minTotalCopForWorkKind,
 } from '../../models/booking.model';
 import {
   appendAgendaSlotsMarker,
   bookingWorkKindRequiresContract,
   serviceAndDetailForWorkKind,
   workKindToAssigneeRole,
-  workKindToScheduleKind,
 } from '../../models/booking.mapper';
-import {
-  appointmentsForArtistSchedule,
-  availableStartSlots,
-  busySlotIndices,
-} from '../../models/schedule.mapper';
 import {
   appointmentBlockEndSlot,
   combineAppointmentDatetime,
@@ -185,9 +180,6 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
           </select>
         </app-form-field>
       </div>
-      @if (!startSlotChoices().length) {
-        <p class="form-field__error">No hay horarios libres ese día para el profesional elegido.</p>
-      }
 
       <app-form-field label="Descripción del diseño (opcional)" [control]="form.controls.design">
         <textarea formControlName="design" rows="2"></textarea>
@@ -215,12 +207,6 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
         Cita prioritaria
       </label>
 
-      @if (!isExpress()) {
-        <p class="appt-dialog-caption">
-          Mínimo valor del trabajo y abono: {{ formatCopAbono(MIN_COP) }}
-        </p>
-      }
-
       <div class="appt-dialog-actions">
         <app-button type="submit" variant="primary" [loading]="saving()" [disabled]="!docVerified()">
           {{ isExpress() ? 'Crear cita e ir a firma' : 'Crear cita' }}
@@ -244,9 +230,7 @@ export class AppointmentBookDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
 
-  protected readonly formatCopAbono = formatCopAbono;
-  protected readonly MIN_COP = MIN_APPOINTMENT_TOTAL_COP;
-  private readonly minMiles = copToMiles(MIN_APPOINTMENT_TOTAL_COP);
+  private readonly defaultMinMiles = copToMiles(MIN_APPOINTMENT_TOTAL_COP);
   readonly slotOptions = timeSlotOptions();
 
   readonly staffList = signal<PanelStaffOption[]>([]);
@@ -280,8 +264,8 @@ export class AppointmentBookDialogComponent {
       endSlot: ['10:00', Validators.required],
       design: [''],
       observations: [''],
-      total: [this.minMiles, minCopAmountValidator(this.minMiles)],
-      deposit: [this.minMiles, minCopAmountValidator(this.minMiles)],
+      total: [this.defaultMinMiles, minCopAmountValidator(this.defaultMinMiles)],
+      deposit: [this.defaultMinMiles, minCopAmountValidator(this.defaultMinMiles)],
       isPriority: [false],
     },
     { validators: [bookingAmountsValidator()] },
@@ -331,63 +315,16 @@ export class AppointmentBookDialogComponent {
     return this.staffList().filter((s) => s.role === need);
   });
 
+  /** Sin filtro por solapes: se puede agendar en cualquier franja 08:00–20:00. */
   readonly startSlotChoices = computed(() => {
     this.formRevision();
-    const busy = this.busyIndices();
-    if (!busy) return this.slotOptions;
-    const need = this.durationSlotsCount();
-    const avail = availableStartSlots(this.slotOptions, need, busy);
-    const cur = this.form.controls.startSlot.value;
-    if (cur && !avail.includes(cur)) return [cur, ...avail];
-    return avail.length ? avail : this.slotOptions;
+    return this.slotOptions;
   });
 
   readonly endSlotChoices = computed(() => {
     this.formRevision();
-    return this.validEndOptions();
+    return endBlockSlotOptions(this.form.controls.startSlot.value, this.slotOptions);
   });
-
-  private durationSlotsCount(): number {
-    return durationSlotsFromStartEnd(
-      this.form.controls.startSlot.value,
-      this.form.controls.endSlot.value,
-      this.slotOptions,
-    );
-  }
-
-  private busyIndices(): Set<number> | null {
-    const raw = this.pickedDate();
-    if (!raw) return null;
-    const day = appointmentRowDate(raw);
-    const wk = this.form.controls.workKind.value as BookingWorkKind;
-    const sched = workKindToScheduleKind(wk);
-    const staffId = this.lockedToSelf()
-      ? this.appStore.user()?.id ?? 0
-      : Number(this.form.controls.staffId.value);
-    const dayRows = appointmentsForArtistSchedule(
-      this.apptStore.items(),
-      day,
-      staffId > 0 ? staffId : null,
-      sched,
-    );
-    return busySlotIndices(dayRows, this.slotOptions);
-  }
-
-  private validEndOptions(): string[] {
-    const start = this.form.controls.startSlot.value;
-    const baseEnds = endBlockSlotOptions(start, this.slotOptions);
-    const si = this.slotOptions.indexOf(start);
-    if (si < 0) return baseEnds;
-    const busy = this.busyIndices();
-    if (!busy) return baseEnds;
-    return baseEnds.filter((endHm) => {
-      const dur = durationSlotsFromStartEnd(start, endHm, this.slotOptions);
-      for (let j = si; j < si + dur; j++) {
-        if (busy.has(j)) return false;
-      }
-      return true;
-    });
-  }
 
   constructor() {
     effect(() => {
@@ -430,6 +367,7 @@ export class AppointmentBookDialogComponent {
         const kind = wk as BookingWorkKind;
         if (this.isExpress() && kind === 'tatuaje') {
           this.form.patchValue({ workKind: 'piercing' }, { emitEvent: false });
+          this.syncAmountValidators('piercing');
           this.syncDepositWithoutAbono();
           return;
         }
@@ -443,6 +381,7 @@ export class AppointmentBookDialogComponent {
           },
           { emitEvent: true },
         );
+        this.syncAmountValidators(kind);
         this.syncDepositWithoutAbono();
         this.syncStaffForWorkKind();
         this.cdr.markForCheck();
@@ -485,43 +424,19 @@ export class AppointmentBookDialogComponent {
     return 1;
   }
 
-  /** Ajusta inicio/fin si quedan fuera de la disponibilidad del profesional. */
+  /** Mantiene fin coherente con el inicio (sin bloquear por citas ya existentes). */
   private syncScheduleSelection(): void {
-    const starts = this.startSlotChoices();
     const start = this.form.controls.startSlot.value;
-    let nextStart = start;
-    if (starts.length && !starts.includes(start)) {
-      nextStart = starts[0];
-    }
-    const endsForStart =
-      nextStart === start
-        ? this.endSlotChoices()
-        : (() => {
-            const patchEndBase = endBlockSlotOptions(nextStart, this.slotOptions);
-            const si = this.slotOptions.indexOf(nextStart);
-            const busy = this.busyIndices();
-            if (si < 0 || !busy) return patchEndBase;
-            return patchEndBase.filter((endHm) => {
-              const dur = durationSlotsFromStartEnd(nextStart, endHm, this.slotOptions);
-              for (let j = si; j < si + dur; j++) {
-                if (busy.has(j)) return false;
-              }
-              return true;
-            });
-          })();
+    const endsForStart = endBlockSlotOptions(start, this.slotOptions);
     const end = this.form.controls.endSlot.value;
-    let nextEnd = end;
-    if (endsForStart.length && !endsForStart.includes(end)) {
-      const preferred = appointmentBlockEndSlot(
-        nextStart,
-        this.durationSlotsForWorkKind(this.form.controls.workKind.value as BookingWorkKind),
-        this.slotOptions,
-      );
-      nextEnd = endsForStart.includes(preferred) ? preferred : endsForStart[0];
-    }
-    if (nextStart !== start || nextEnd !== end) {
-      this.form.patchValue({ startSlot: nextStart, endSlot: nextEnd }, { emitEvent: false });
-    }
+    if (!endsForStart.length || endsForStart.includes(end)) return;
+    const preferred = appointmentBlockEndSlot(
+      start,
+      this.durationSlotsForWorkKind(this.form.controls.workKind.value as BookingWorkKind),
+      this.slotOptions,
+    );
+    const nextEnd = endsForStart.includes(preferred) ? preferred : endsForStart[0];
+    this.form.patchValue({ endSlot: nextEnd }, { emitEvent: false });
   }
 
   /**
@@ -534,6 +449,19 @@ export class AppointmentBookDialogComponent {
     if (total > 0 && deposit !== total) {
       this.form.patchValue({ deposit: total }, { emitEvent: false });
     }
+  }
+
+  /** Ajusta validadores y pone el valor mínimo al cambiar tipo (limpieza/cambio → 10; resto → 50). */
+  private syncAmountValidators(kind: BookingWorkKind): void {
+    const minMiles = copToMiles(minTotalCopForWorkKind(kind));
+    this.form.controls.total.setValidators([minCopAmountValidator(minMiles)]);
+    this.form.controls.deposit.setValidators([minCopAmountValidator(minMiles)]);
+    this.form.patchValue({ total: minMiles, deposit: minMiles }, { emitEvent: false });
+    this.form.controls.total.updateValueAndValidity({ emitEvent: false });
+    this.form.controls.deposit.updateValueAndValidity({ emitEvent: false });
+    this.syncDepositWithoutAbono();
+    this.formRevision.update((n) => n + 1);
+    this.cdr.markForCheck();
   }
 
   private resetBookingForm(_express: boolean): void {
@@ -549,6 +477,7 @@ export class AppointmentBookDialogComponent {
     this.verifyLoading.set(false);
 
     const workKind: BookingWorkKind = 'piercing';
+    const minMiles = copToMiles(minTotalCopForWorkKind(workKind));
     this.form.reset({
       docType: 'CC',
       docNumber: '',
@@ -562,10 +491,11 @@ export class AppointmentBookDialogComponent {
       endSlot: appointmentBlockEndSlot('09:00', this.durationSlotsForWorkKind(workKind), this.slotOptions),
       design: '',
       observations: '',
-      total: this.minMiles,
-      deposit: this.minMiles,
+      total: minMiles,
+      deposit: minMiles,
       isPriority: false,
     });
+    this.syncAmountValidators(workKind);
     this.form.markAsPristine();
     this.form.markAsUntouched();
     this.formShowErrors()?.reset();
@@ -700,24 +630,12 @@ export class AppointmentBookDialogComponent {
       return;
     }
 
-    const starts = this.startSlotChoices();
     const start = this.form.controls.startSlot.value;
     const end = this.form.controls.endSlot.value;
     const ends = this.endSlotChoices();
-    if (!starts.length || !starts.includes(start) || !ends.includes(end)) {
-      this.toast.error('El horario elegido ya no está libre para ese profesional.');
+    if (!this.slotOptions.includes(start) || !ends.includes(end)) {
+      this.toast.error('Elige una hora de inicio y de fin válidas.');
       return;
-    }
-    const si = this.slotOptions.indexOf(start);
-    const dur = durationSlotsFromStartEnd(start, end, this.slotOptions);
-    const busy = this.busyIndices();
-    if (si >= 0 && busy) {
-      for (let j = si; j < si + dur; j++) {
-        if (busy.has(j)) {
-          this.toast.error('El horario elegido ya no está libre para ese profesional.');
-          return;
-        }
-      }
     }
 
     const total = milesToCop(Number(this.form.controls.total.value));
@@ -726,8 +644,11 @@ export class AppointmentBookDialogComponent {
     const wk = this.form.controls.workKind.value as BookingWorkKind;
 
     if (this.isExpress()) {
-      if (total <= 0) {
-        this.toast.error('Indica un valor total mayor a cero.');
+      const minCop = minTotalCopForWorkKind(wk);
+      if (total < minCop) {
+        this.toast.error(
+          `Indica un valor total de al menos ${formatCopAbono(minCop)}.`,
+        );
         return;
       }
       if (
@@ -761,6 +682,7 @@ export class AppointmentBookDialogComponent {
       this.form.controls.observations.value,
     );
     const { service, detail } = serviceAndDetailForWorkKind(wk, detailText);
+    const dur = durationSlotsFromStartEnd(start, end, this.slotOptions);
     const detailApi = appendAgendaSlotsMarker(detail, dur);
     const dt = combineAppointmentDatetime(picked, start);
     const fn = this.form.controls.firstName.value.trim();

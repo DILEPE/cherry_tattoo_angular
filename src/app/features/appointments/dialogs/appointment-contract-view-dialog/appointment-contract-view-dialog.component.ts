@@ -31,6 +31,7 @@ import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
 import { AppStore } from '../../../../store/app.store';
+import { maySeeFullCustomerOnContract } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-appointment-contract-view-dialog',
@@ -53,12 +54,14 @@ import { AppStore } from '../../../../store/app.store';
       @let ct = contract()!;
       <div class="ctsig-dialog">
       <p class="ctsig-view-meta">
-        Contrato #{{ ct.id }} · Cita #{{ ct.appointmentId }}
         @if (ct.serviceType) {
-          · {{ ct.serviceType }}
+          {{ ct.serviceType }}
+        }
+        @if (ct.serviceType && ct.appointmentDate) {
+          ·
         }
         @if (ct.appointmentDate) {
-          · {{ ct.appointmentDate | dateEs }}
+          {{ ct.appointmentDate | dateEs }}
         }
       </p>
 
@@ -96,6 +99,7 @@ import { AppStore } from '../../../../store/app.store';
           [initial]="c"
           [readonly]="true"
           [showSectionTitles]="false"
+          [privacyMode]="customerPrivacyMode()"
         />
       }
 
@@ -211,6 +215,11 @@ export class AppointmentContractViewDialogComponent {
 
   /** Solo administrador puede cambiar el tipo tras el contrato firmado. */
   readonly canEditPiercingType = computed(() => this.appStore.isAdmin());
+
+  /** Empleados solo ven el nombre; admin ve ficha completa. */
+  readonly customerPrivacyMode = computed((): 'full' | 'nameOnly' =>
+    maySeeFullCustomerOnContract(this.appStore.user()?.role ?? '') ? 'full' : 'nameOnly',
+  );
 
   protected readonly piercingTypeOptions = PIERCING_TYPE_OPTIONS;
   protected readonly piercingTypeLabel = piercingTypeDisplayLabel;

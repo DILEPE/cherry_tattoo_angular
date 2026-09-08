@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CustomersStore } from '../../customers.store';
 import { CustomersApiService } from '../../services/customers-api.service';
@@ -7,6 +7,8 @@ import { AppButtonComponent } from '../../../../shared/ui/button/app-button.comp
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
 import { LoadingService } from '../../../../core/services/loading.service';
+import { AppStore } from '../../../../store/app.store';
+import { maySeeCustomerContact } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-customers-toolbar',
@@ -20,7 +22,11 @@ import { LoadingService } from '../../../../core/services/loading.service';
         <input
           type="search"
           class="cust-toolbar__input"
-          placeholder="Buscar por nombre, documento o correo…"
+          [placeholder]="
+            canSeeContact()
+              ? 'Buscar por nombre, documento o correo…'
+              : 'Buscar por nombre o documento…'
+          "
           [ngModel]="store.searchInput()"
           (ngModelChange)="store.setSearchInput($event)"
           (keydown.enter)="store.applySearch()"
@@ -28,14 +34,16 @@ import { LoadingService } from '../../../../core/services/loading.service';
       </label>
       <app-button variant="ghost" (clicked)="store.applySearch()">Buscar</app-button>
       <app-button variant="ghost" (clicked)="store.refresh()">Actualizar</app-button>
-      <app-button
-        variant="ghost"
-        [loading]="exporting()"
-        [disabled]="store.total() <= 0"
-        (clicked)="exportExcel()"
-      >
-        Descargar Excel
-      </app-button>
+      @if (canSeeContact()) {
+        <app-button
+          variant="ghost"
+          [loading]="exporting()"
+          [disabled]="store.total() <= 0"
+          (clicked)="exportExcel()"
+        >
+          Descargar Excel
+        </app-button>
+      }
       <app-button variant="primary" (clicked)="create.emit()">➕ Crear</app-button>
     </div>
   `,
@@ -46,6 +54,11 @@ export class CustomersToolbarComponent {
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
   private readonly loading = inject(LoadingService);
+  private readonly appStore = inject(AppStore);
+
+  readonly canSeeContact = computed(() =>
+    maySeeCustomerContact(this.appStore.user()?.role ?? ''),
+  );
 
   readonly exporting = signal(false);
   readonly create = output<void>();
