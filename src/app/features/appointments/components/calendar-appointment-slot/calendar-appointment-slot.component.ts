@@ -15,10 +15,8 @@ import { CalendarAppointmentSlotView } from '../../models/calendar.model';
       (click)="selected.emit(slot().id)"
     >
       <span class="cal-appt-slot-time">{{ slot().timeLabel }}</span>
-      <span class="cal-appt-slot-row">
-        <span class="cal-appt-slot-client">{{ slot().customerShort }}</span>
-        <span class="cal-appt-total" [title]="slot().totalFmt">{{ slot().totalCompact }}</span>
-      </span>
+      <span class="cal-appt-total" [title]="slot().totalFmt">{{ slot().totalCompact }}</span>
+      <span class="cal-appt-slot-client">{{ slot().customerShort }}</span>
     </button>
   `,
 })

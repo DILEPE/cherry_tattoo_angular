@@ -113,7 +113,7 @@ function buildDayBlocks(
       leftPct,
       widthPct,
       timeLabel: slotView.timeLabel,
-      customerName: slotView.customerFull,
+      customerName: slotView.customerShort,
       totalCompact: slotView.totalCompact,
       pillKind: slotView.pillKind,
       muted: slotView.muted,

@@ -285,7 +285,7 @@ export class AppointmentAbonosSectionComponent {
   readonly pdfBlob = signal<Blob | null>(null);
   readonly pdfBlobUrl = signal<string | null>(null);
   readonly pdfSafeUrl = signal<SafeResourceUrl | null>(null);
-  readonly pdfFileName = signal(`recibo.pdf`);
+  readonly pdfFileName = signal(`ORDEN DE TRABAJO.pdf`);
   readonly adding = signal(false);
   readonly patching = signal(false);
   readonly verifyingPayId = signal<number | null>(null);
@@ -472,7 +472,7 @@ export class AppointmentAbonosSectionComponent {
         const url = URL.createObjectURL(pdf);
         this.pdfBlobUrl.set(url);
         this.pdfSafeUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(url));
-        this.pdfFileName.set(`recibo_${aid}_${rid}.pdf`);
+        this.pdfFileName.set(`ORDEN DE TRABAJO.pdf`);
         this.pdfLoading.set(false);
       },
       error: (err) => {
