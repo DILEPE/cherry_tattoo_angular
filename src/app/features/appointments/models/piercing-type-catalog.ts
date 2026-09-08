@@ -155,3 +155,21 @@ export function piercingAppointmentIdsForLabels(items: Appointment[]): number[] 
   }
   return [...ids].sort((a, b) => a - b);
 }
+
+/**
+ * Etiqueta de colocación anatómica para una cita piercing
+ * (encuesta → detalle). `null` si no hay dato útil.
+ */
+export function resolveAppointmentPiercingPlacementLabel(
+  appt: Pick<Appointment, 'id' | 'detail'> | null | undefined,
+  piercingLabels: Readonly<Record<number, string>> = {},
+): string | null {
+  if (!appt || appt.id <= 0) return null;
+  const fromSurvey = (piercingLabels[appt.id] ?? '').trim();
+  const canonical =
+    resolvePiercingTypeCanonical(fromSurvey) ||
+    resolvePiercingTypeCanonical(appt.detail);
+  if (canonical) return piercingTypeDisplayLabel(canonical);
+  if (fromSurvey) return fromSurvey;
+  return null;
+}

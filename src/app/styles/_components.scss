@@ -1093,9 +1093,11 @@
   display: block;
   width: 100%;
   text-align: center;
+  font-family: inherit;
   font-weight: 800;
   font-size: 0.8rem;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #f8fafc;
   background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
   border-radius: 6px 6px 0 0;
@@ -1208,14 +1210,16 @@
 }
 
 .ap-ficha-panel-root .ap-pay-panel-title {
+  font-family: inherit;
   font-weight: 800;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #f8fafc;
   background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
   border-radius: 6px 6px 0 0;
   padding: 0.28rem 0.5rem;
   margin: 0.45rem 0 0.3rem;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .ap-ficha-panel-root .ap-pay-toggle-btn {
@@ -1248,8 +1252,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-weight: 700;
-  font-size: 0.92rem;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #fff;
   background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
   border-radius: 6px 6px 0 0;
@@ -1717,6 +1724,8 @@
 
   .appt-dialog-subtitle {
     font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 }
 

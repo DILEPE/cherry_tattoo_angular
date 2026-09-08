@@ -21,10 +21,8 @@ import { WeekAppointmentBlockView } from '../../models/calendar.model';
       (click)="selected.emit(block().appointmentId)"
     >
       <span class="twg-appt-head-time">{{ block().timeLabel }}</span>
-      <span class="twg-appt-body">
-        <span class="twg-appt-client">{{ block().customerName }}</span>
-        <span class="cal-appt-total">{{ block().totalCompact }}</span>
-      </span>
+      <span class="cal-appt-total">{{ block().totalCompact }}</span>
+      <span class="twg-appt-client">{{ block().customerName }}</span>
     </button>
   `,
 })

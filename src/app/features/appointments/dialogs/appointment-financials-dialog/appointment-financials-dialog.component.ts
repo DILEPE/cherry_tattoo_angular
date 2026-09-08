@@ -13,7 +13,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { minCopAmountValidator } from '../../../../shared/forms/form-validators';
 import { FINANCIALS_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
 import { validateFormBeforeSubmit } from '../../../../shared/forms/form-submit.util';
-import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
+import { minTotalCopForWorkKind } from '../../models/booking.model';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
@@ -28,6 +28,7 @@ import { canEditFinancials } from '../../models/appointment-policy';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 import { AppStore } from '../../../../store/app.store';
 import { canManageAppointmentAmounts } from '../../../../core/utils/panel-roles';
+import { inferWorkKindFromAppointment } from '../../models/booking.mapper';
 
 @Component({
   selector: 'app-appointment-financials-dialog',
@@ -188,7 +189,9 @@ export class AppointmentFinancialsDialogComponent {
     }
     const a = this.dlg.appointment();
     if (!a) return;
-    const minTotalMiles = copToMiles(Math.max(MIN_APPOINTMENT_TOTAL_COP, a.financials.deposit));
+    const minTotalMiles = copToMiles(
+      Math.max(minTotalCopForWorkKind(inferWorkKindFromAppointment(a)), a.financials.deposit),
+    );
     this.form.controls.total.setValidators([
       Validators.required,
       minCopAmountValidator(minTotalMiles),

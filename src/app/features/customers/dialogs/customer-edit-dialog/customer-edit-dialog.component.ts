@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CustomersApiService } from '../../services/customers-api.service';
 import { CustomersStore } from '../../customers.store';
 import { UiStore } from '../../../../store/ui.store';
@@ -9,6 +9,8 @@ import { Customer, CustomerWritePayload } from '../../models/customer.model';
 import { resolveCustomerModalId } from '../customer-modal.util';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
+import { AppStore } from '../../../../store/app.store';
+import { maySeeCustomerContact } from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-customer-edit-dialog',
@@ -22,7 +24,11 @@ import { ErrorService } from '../../../../core/services/error.service';
       <p class="form-field__error">{{ error() }}</p>
       <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
     } @else if (customer()) {
-      <app-customer-form [initial]="customer()" (submitted)="save($event)">
+      <app-customer-form
+        [initial]="customer()"
+        [privacyMode]="formPrivacyMode()"
+        (submitted)="save($event)"
+      >
         <div actions class="appt-dialog-actions">
           <app-button type="submit" variant="primary" [loading]="saving()">Guardar</app-button>
           <app-button type="button" variant="ghost" (clicked)="close()">Cancelar</app-button>
@@ -37,6 +43,11 @@ export class CustomerEditDialogComponent {
   private readonly ui = inject(UiStore);
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
+  private readonly appStore = inject(AppStore);
+
+  readonly formPrivacyMode = computed((): 'full' | 'hideContact' =>
+    maySeeCustomerContact(this.appStore.user()?.role ?? '') ? 'full' : 'hideContact',
+  );
 
   readonly loading = signal(true);
   readonly saving = signal(false);

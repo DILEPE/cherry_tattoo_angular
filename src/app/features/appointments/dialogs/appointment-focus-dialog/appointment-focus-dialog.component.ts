@@ -12,7 +12,6 @@ import { FormsModule } from '@angular/forms';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
-import { AppPillComponent } from '../../../../shared/ui/pill/app-pill.component';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { CustomersApiService } from '../../services/customers-api.service';
@@ -44,28 +43,24 @@ import {
 import { durationSlotsForRow } from '../../models/agenda-slots.mapper';
 import {
   appointmentRequiresContract,
-  appointmentToScheduleKind,
   inferWorkKindFromAppointment,
   workKindToAssigneeRole,
 } from '../../models/booking.mapper';
-import {
-  appointmentsForArtistSchedule,
-  availableStartSlots,
-  busySlotIndices,
-} from '../../models/schedule.mapper';
+import { resolveAppointmentPiercingPlacementLabel } from '../../models/piercing-type-catalog';
 import { clientPillKind } from '../../models/calendar.mapper';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
 import { Appointment } from '../../models/appointment.model';
 import { AppointmentAbonosSectionComponent } from '../../components/appointment-abonos-section/appointment-abonos-section.component';
 import { apiErrorMessage } from '../../../../core/services/api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
-import { MIN_APPOINTMENT_TOTAL_COP } from '../../models/booking.model';
+import { minTotalCopForWorkKind } from '../../models/booking.model';
 import { AppStore } from '../../../../store/app.store';
 import {
   canManageAppointmentAmounts,
   isTechnicianRole,
+  maySeeCustomerContact,
 } from '../../../../core/utils/panel-roles';
-import { of, switchMap } from 'rxjs';
+import { catchError, of, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-appointment-focus-dialog',
@@ -73,7 +68,6 @@ import { of, switchMap } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    AppPillComponent,
     AppButtonComponent,
     AppSkeletonComponent,
     AppointmentAbonosSectionComponent,
@@ -99,15 +93,17 @@ import { of, switchMap } from 'rxjs';
                     <span class="ap-ficha-client-id">{{ c.documentType }} {{ c.documentNumber }}</span>
                   }
                 </p>
-                <p class="ap-ficha-client-line">
-                  @if (customer(); as c) {
-                    <span>{{ c.phoneNumber || a.phone || '—' }}</span>
-                    <span class="ap-ficha-client-line__sep" aria-hidden="true">·</span>
-                    <span>{{ c.email || '—' }}</span>
-                  } @else {
-                    <span>{{ a.phone || '—' }}</span>
-                  }
-                </p>
+                @if (canSeeContact()) {
+                  <p class="ap-ficha-client-line">
+                    @if (customer(); as c) {
+                      <span>{{ c.phoneNumber || a.phone || '—' }}</span>
+                      <span class="ap-ficha-client-line__sep" aria-hidden="true">·</span>
+                      <span>{{ c.email || '—' }}</span>
+                    } @else {
+                      <span>{{ a.phone || '—' }}</span>
+                    }
+                  </p>
+                }
               </div>
             </div>
           </div>
@@ -194,6 +190,11 @@ import { of, switchMap } from 'rxjs';
                 />
               </label>
             </div>
+            @if (piercingPlacementLabel(); as placement) {
+              <p class="ap-ficha-hint ap-ficha-placement">
+                <strong>Tipo de colocación:</strong> {{ placement }}
+              </p>
+            }
             @if (a.hasSignedContract) {
               <p class="ap-ficha-hint">
                 El artista no se puede cambiar si ya existe contrato firmado en esta cita.
@@ -323,6 +324,7 @@ export class AppointmentFocusDialogComponent {
   readonly totalValueCop = computed(() => milesToCop(this.totalValue()));
   readonly isPriority = signal(false);
   readonly saving = signal(false);
+  private readonly fetchedPiercingLabels = signal<Record<number, string>>({});
 
   private seededForId: number | null = null;
   private baseTotal = 0;
@@ -335,8 +337,23 @@ export class AppointmentFocusDialogComponent {
 
   readonly appt = this.dlg.appointment;
 
+  readonly piercingPlacementLabel = computed(() => {
+    const a = this.appt();
+    if (!a || inferWorkKindFromAppointment(a) !== 'piercing') return null;
+    const merged = {
+      ...this.apptStore.piercingTypeLabels(),
+      ...this.fetchedPiercingLabels(),
+    };
+    return resolveAppointmentPiercingPlacementLabel(a, merged);
+  });
+
   readonly isTechnician = computed(() =>
     isTechnicianRole(this.appStore.user()?.role ?? ''),
+  );
+
+  /** Vendedor no ve correo ni celular en la ficha. */
+  readonly canSeeContact = computed(() =>
+    maySeeCustomerContact(this.appStore.user()?.role ?? ''),
   );
 
   /** Edición de ficha/montos (admin/vendedor y estado editable). */
@@ -387,19 +404,14 @@ export class AppointmentFocusDialogComponent {
         ? [this.startSlot()]
         : this.slotOptions;
     }
-    const need = this.durationSlotsCount();
-    const busy = this.busyIndices();
-    const avail = availableStartSlots(this.slotOptions, need, busy);
-    const cur = this.startSlot();
-    if (cur && !avail.includes(cur)) return [cur, ...avail];
-    return avail.length ? avail : this.slotOptions;
+    return this.slotOptions;
   });
 
   readonly endSlotChoices = computed(() => {
     if (!this.scheduleEditable()) {
       return [this.endSlot()];
     }
-    return this.validEndOptions();
+    return endBlockSlotOptions(this.startSlot(), this.slotOptions);
   });
 
   readonly staffForAppt = computed(() => {
@@ -475,6 +487,25 @@ export class AppointmentFocusDialogComponent {
     this.staffApi.listAssignable().subscribe((list) => this.staffList.set(list));
   });
 
+  private readonly _loadPiercingType = effect(() => {
+    const a = this.appt();
+    if (this.ui.activeModal()?.id !== 'appointment-focus' || !a || a.id <= 0) return;
+    if (inferWorkKindFromAppointment(a) !== 'piercing') {
+      this.fetchedPiercingLabels.set({});
+      return;
+    }
+    const fromStore = this.apptStore.piercingTypeLabels()[a.id];
+    if (fromStore?.trim()) return;
+    const id = a.id;
+    this.api
+      .getWorkPerformedLabels([id])
+      .pipe(catchError(() => of({} as Record<number, string>)))
+      .subscribe((labels) => {
+        if (this.appt()?.id !== id) return;
+        this.fetchedPiercingLabels.set(labels);
+      });
+  });
+
   private readonly _syncForm = effect(() => {
     const a = this.appt();
     if (!a || this.ui.activeModal()?.id !== 'appointment-focus') return;
@@ -526,7 +557,7 @@ export class AppointmentFocusDialogComponent {
 
   onStartSlotChange(hm: string): void {
     this.startSlot.set(hm);
-    const ends = this.validEndOptions();
+    const ends = endBlockSlotOptions(hm, this.slotOptions);
     if (!ends.includes(this.endSlot())) {
       const prevDur = durationSlotsFromStartEnd(this.baseStart, this.baseEnd, this.slotOptions);
       const preferred = appointmentBlockEndSlot(hm, prevDur, this.slotOptions);
@@ -536,49 +567,10 @@ export class AppointmentFocusDialogComponent {
     }
   }
 
-  private busyIndices(): Set<number> {
-    const a = this.appt();
-    if (!a) return new Set();
-    const artistId = this.selectedArtistId() || null;
-    const kind = appointmentToScheduleKind(a);
-    const dayRows = appointmentsForArtistSchedule(
-      this.apptStore.filteredItems(),
-      this.appointmentDay(),
-      artistId,
-      kind,
-      a.id,
-    );
-    return busySlotIndices(dayRows, this.slotOptions);
-  }
-
-  private validEndOptions(): string[] {
-    const baseEnds = endBlockSlotOptions(this.startSlot(), this.slotOptions);
-    const si = this.slotOptions.indexOf(this.startSlot());
-    if (si < 0) return baseEnds;
-    const busy = this.busyIndices();
-    return baseEnds.filter((endHm) => {
-      const dur = durationSlotsFromStartEnd(this.startSlot(), endHm, this.slotOptions);
-      for (let j = si; j < si + dur; j++) {
-        if (busy.has(j)) return false;
-      }
-      return true;
-    });
-  }
-
   private adjustScheduleForArtist(): void {
-    const need = this.durationSlotsCount();
-    const busy = this.busyIndices();
-    const starts = availableStartSlots(this.slotOptions, need, busy);
-    if (starts.length && !starts.includes(this.startSlot())) {
-      this.startSlot.set(starts[0]);
-    }
-    const ends = this.validEndOptions();
+    const ends = endBlockSlotOptions(this.startSlot(), this.slotOptions);
     if (ends.length && !ends.includes(this.endSlot())) {
       this.endSlot.set(ends[0]);
-    } else if (!ends.length) {
-      this.toast.warn(
-        'No hay franjas libres para este artista en el día de la cita; elige otra hora.',
-      );
     }
   }
 
@@ -635,26 +627,18 @@ export class AppointmentFocusDialogComponent {
       return;
     }
 
-    if (totDirty && tot < MIN_APPOINTMENT_TOTAL_COP) {
-      this.toast.warn(
-        `El valor total mínimo es COP $${MIN_APPOINTMENT_TOTAL_COP.toLocaleString('es-CO')}.`,
-      );
-      return;
+    if (totDirty) {
+      const minCop = minTotalCopForWorkKind(inferWorkKindFromAppointment(a));
+      if (tot < minCop) {
+        this.toast.warn(
+          `El valor total mínimo es COP $${minCop.toLocaleString('es-CO')}.`,
+        );
+        return;
+      }
     }
     if (totDirty && dep > tot + 0.01) {
       this.toast.warn('El valor total no puede ser menor que lo ya abonado.');
       return;
-    }
-
-    if (schedDirty) {
-      const si = this.slotOptions.indexOf(this.startSlot());
-      const busy = this.busyIndices();
-      for (let j = si; j < si + dur; j++) {
-        if (busy.has(j)) {
-          this.toast.warn('La franja elegida no está disponible para el artista seleccionado.');
-          return;
-        }
-      }
     }
 
     const detailFull = rebuildDetailForPatch(

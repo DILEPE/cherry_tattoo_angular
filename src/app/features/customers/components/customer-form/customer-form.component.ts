@@ -67,9 +67,22 @@ function isMinorByBirthIso(iso: string): boolean {
       @if (!readonly()) {
         <app-form-validation-summary [messages]="validationSummary()" />
       }
-      @if (showSectionTitles()) {
+      @if (showSectionTitles() && privacyMode() !== 'nameOnly') {
         <h4 class="cust-form-section">Datos personales</h4>
       }
+      @if (privacyMode() === 'nameOnly') {
+        <div class="cust-form-grid">
+          <app-form-field label="Nombre *" [control]="form.controls.firstName">
+            <input formControlName="firstName" autocomplete="off" />
+          </app-form-field>
+          <app-form-field label="Apellidos *" [control]="form.controls.lastName">
+            <input formControlName="lastName" autocomplete="off" />
+          </app-form-field>
+          <app-form-field label="Fecha de nacimiento *" [control]="form.controls.birthDate">
+            <input type="date" formControlName="birthDate" />
+          </app-form-field>
+        </div>
+      } @else {
       <div class="cust-form-grid">
         <app-form-field label="Nombre *" [control]="form.controls.firstName">
           <input formControlName="firstName" autocomplete="off" />
@@ -119,12 +132,14 @@ function isMinorByBirthIso(iso: string): boolean {
 
       <h4 class="cust-form-section">Contacto</h4>
       <div class="cust-form-grid">
-        <app-form-field label="Correo *" [control]="form.controls.email">
-          <input type="email" formControlName="email" autocomplete="off" />
-        </app-form-field>
-        <app-form-field label="Teléfono *" [control]="form.controls.phoneNumber">
-          <input formControlName="phoneNumber" placeholder="10 dígitos" autocomplete="off" />
-        </app-form-field>
+        @if (privacyMode() !== 'hideContact') {
+          <app-form-field label="Correo *" [control]="form.controls.email">
+            <input type="email" formControlName="email" autocomplete="off" />
+          </app-form-field>
+          <app-form-field label="Teléfono *" [control]="form.controls.phoneNumber">
+            <input formControlName="phoneNumber" placeholder="10 dígitos" autocomplete="off" />
+          </app-form-field>
+        }
         <app-form-field label="Dirección" [control]="form.controls.address">
           <input formControlName="address" />
         </app-form-field>
@@ -144,14 +159,16 @@ function isMinorByBirthIso(iso: string): boolean {
         </app-form-field>
       </div>
 
-      <h4 class="cust-form-section">Emergencia</h4>
+      <h4 class="cust-form-section">Contacto de emergencia</h4>
       <div class="cust-form-grid">
-        <app-form-field label="Contacto emergencia (nombre)" [control]="form.controls.emergencyContactName">
+        <app-form-field label="Nombre" [control]="form.controls.emergencyContactName">
           <input formControlName="emergencyContactName" />
         </app-form-field>
-        <app-form-field label="Contacto emergencia (teléfono)" [control]="form.controls.emergencyContactPhone">
-          <input formControlName="emergencyContactPhone" placeholder="10 dígitos" />
-        </app-form-field>
+        @if (privacyMode() !== 'hideContact') {
+          <app-form-field label="Celular" [control]="form.controls.emergencyContactPhone">
+            <input formControlName="emergencyContactPhone" placeholder="10 dígitos" />
+          </app-form-field>
+        }
       </div>
 
       @if (isMinor()) {
@@ -192,6 +209,7 @@ function isMinorByBirthIso(iso: string): boolean {
           }
         </div>
       }
+      }
 
       <ng-content select="[actions]" />
     </form>
@@ -203,6 +221,13 @@ export class CustomerFormComponent {
   readonly readonly = input(false);
   /** Si false, oculta el H4 «Datos personales» (p. ej. cuando el contenedor ya tiene ese título). */
   readonly showSectionTitles = input(true);
+  /**
+   * Privacidad en visualización:
+   * - full: todos los campos
+   * - hideContact: oculta correo y teléfonos
+   * - nameOnly: nombre, apellidos y fecha de nacimiento (contrato firmado para empleados)
+   */
+  readonly privacyMode = input<'full' | 'hideContact' | 'nameOnly'>('full');
   readonly submitted = output<ReturnType<typeof customerToWritePayload>>();
 
   protected readonly docTypes = DOC_TYPES;

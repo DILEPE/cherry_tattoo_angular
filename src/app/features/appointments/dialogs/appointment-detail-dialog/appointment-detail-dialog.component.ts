@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { AppointmentDialogStore } from '../../appointment-dialog.store';
 import { AppointmentsStore } from '../../appointments.store';
 import { UiStore } from '../../../../store/ui.store';
@@ -9,7 +16,12 @@ import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleto
 import { DateEsPipe } from '../../../../shared/pipes/date-es.pipe';
 import { statusToPillVariant, serviceToBadgeVariant } from '../../models/appointment.mapper';
 import { appointmentTimeHm } from '../../models/calendar.mapper';
+import { inferWorkKindFromAppointment } from '../../models/booking.mapper';
+import { appointmentDetailPlainBody } from '../../models/appointment-detail-text.mapper';
+import { resolveAppointmentPiercingPlacementLabel } from '../../models/piercing-type-catalog';
+import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { resolveAppointmentModalId } from '../appointment-modal.util';
+import { catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-appointment-detail-dialog',
@@ -49,6 +61,10 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
             <dd>
               <app-badge [variant]="serviceToBadgeVariant(a.serviceType)" [label]="a.serviceType" />
             </dd>
+            @if (showPiercingPlacement()) {
+              <dt>Tipo de colocación</dt>
+              <dd>{{ piercingPlacementLabel() || '—' }}</dd>
+            }
             <dt>Fecha</dt>
             <dd>
               {{ a.appointmentDate | dateEs }}
@@ -85,9 +101,9 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
           }
 
           <dl class="appt-detail__grid appt-detail__grid--after-fin">
-            @if (a.detail) {
+            @if (detailPlain()) {
               <dt>Detalle</dt>
-              <dd>{{ a.detail }}</dd>
+              <dd>{{ detailPlain() }}</dd>
             }
           </dl>
 
@@ -101,10 +117,33 @@ export class AppointmentDetailDialogComponent {
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly ui = inject(UiStore);
   private readonly apptStore = inject(AppointmentsStore);
+  private readonly apptApi = inject(AppointmentsApiService);
   protected readonly statusToPillVariant = statusToPillVariant;
   protected readonly serviceToBadgeVariant = serviceToBadgeVariant;
 
   readonly appt = this.dlg.appointment;
+  private readonly fetchedPiercingLabels = signal<Record<number, string>>({});
+
+  readonly showPiercingPlacement = computed(() => {
+    const a = this.appt();
+    return !!a && inferWorkKindFromAppointment(a) === 'piercing';
+  });
+
+  readonly piercingPlacementLabel = computed(() => {
+    const a = this.appt();
+    if (!a || !this.showPiercingPlacement()) return null;
+    const merged = {
+      ...this.apptStore.piercingTypeLabels(),
+      ...this.fetchedPiercingLabels(),
+    };
+    return resolveAppointmentPiercingPlacementLabel(a, merged);
+  });
+
+  readonly detailPlain = computed(() => {
+    const a = this.appt();
+    if (!a?.detail) return '';
+    return appointmentDetailPlainBody(a.detail);
+  });
 
   private readonly _load = effect(() => {
     const id = resolveAppointmentModalId(this.ui);
@@ -116,6 +155,26 @@ export class AppointmentDetailDialogComponent {
       this.dlg.loadAppointment(id);
       this.dlg.loadPayments(id);
     }
+  });
+
+  private readonly _loadPiercingType = effect(() => {
+    const a = this.appt();
+    const modal = this.ui.activeModal()?.id;
+    if (modal !== 'appointment-detail' || !a || a.id <= 0) return;
+    if (inferWorkKindFromAppointment(a) !== 'piercing') {
+      this.fetchedPiercingLabels.set({});
+      return;
+    }
+    const fromStore = this.apptStore.piercingTypeLabels()[a.id];
+    if (fromStore?.trim()) return;
+    const id = a.id;
+    this.apptApi
+      .getWorkPerformedLabels([id])
+      .pipe(catchError(() => of({} as Record<number, string>)))
+      .subscribe((labels) => {
+        if (this.appt()?.id !== id) return;
+        this.fetchedPiercingLabels.set(labels);
+      });
   });
 
   timeLabel(): string {

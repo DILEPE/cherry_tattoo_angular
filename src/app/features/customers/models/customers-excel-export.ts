@@ -36,7 +36,7 @@ export const CUSTOMERS_EXCEL_HEADERS: readonly string[] = [
   'Tutor (tipo documento)',
   'Tutor (número documento)',
   'Tutor (fecha expedición)',
-  'Fecha registro',
+  'Fecha de creación',
   'Última actualización',
 ] as const;
 
@@ -64,9 +64,15 @@ function formatDateIso(iso: string | null | undefined): string {
 
 function formatDateTimeIso(iso: string | null | undefined): string {
   if (!iso) return '';
-  const s = iso.trim().replace('T', ' ');
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
-  if (!m) return s.slice(0, 16);
+  const s = String(iso).trim().replace('T', ' ');
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?/.exec(s);
+  if (!m) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+    return s.slice(0, 16);
+  }
   const date = `${m[3]}/${m[2]}/${m[1]}`;
   if (m[4] != null && m[5] != null) return `${date} ${m[4]}:${m[5]}`;
   return date;

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { catchError, of } from 'rxjs';
+import { catchError, map, of, switchMap } from 'rxjs';
 import { AppointmentsStore } from '../../appointments.store';
 import { AppointmentsApiService } from '../../services/appointments-api.service';
 import { UiStore } from '../../../../store/ui.store';
@@ -16,7 +16,9 @@ import {
   AppointmentSearchHit,
   AppointmentSearchResponse,
   formatSearchHitDatetime,
+  formatSearchHitWorkLabel,
   searchHitArtistLabel,
+  searchHitIdsNeedingPiercingLabel,
 } from '../../models/appointment-search.model';
 import { AppointmentApiRow } from '../../models/appointment.model';
 import { dateToIsoLocal } from '../../models/week-schedule.mapper';
@@ -68,6 +70,7 @@ import { openAppointmentModal } from '../appointment-open.util';
               <th>Fecha</th>
               <th>Recibo #</th>
               <th>Cliente</th>
+              <th>Tipo de trabajo</th>
               <th>Artista</th>
               <th>Ver cita</th>
             </tr>
@@ -78,6 +81,7 @@ import { openAppointmentModal } from '../appointment-open.util';
                 <td>{{ formatHitDate(hit) }}</td>
                 <td>{{ hit.receipt_label || '—' }}</td>
                 <td>{{ hit.customer_name || '—' }}</td>
+                <td>{{ formatHitWork(hit) }}</td>
                 <td>{{ formatHitArtist(hit) }}</td>
                 <td>
                   <button
@@ -144,6 +148,7 @@ export class AppointmentSearchDialogComponent {
   readonly navigatingId = signal(0);
   readonly error = signal<string | null>(null);
   readonly result = signal<AppointmentSearchResponse | null>(null);
+  readonly piercingLabels = signal<Record<number, string>>({});
 
   formatHitDate(hit: AppointmentSearchHit): string {
     return formatSearchHitDatetime(hit.appointment_date);
@@ -151,6 +156,10 @@ export class AppointmentSearchDialogComponent {
 
   formatHitArtist(hit: AppointmentSearchHit): string {
     return searchHitArtistLabel(hit);
+  }
+
+  formatHitWork(hit: AppointmentSearchHit): string {
+    return formatSearchHitWorkLabel(hit, this.piercingLabels());
   }
 
   totalPages(): number {
@@ -162,6 +171,7 @@ export class AppointmentSearchDialogComponent {
     const term = this.query.trim();
     if (!term) {
       this.result.set(null);
+      this.piercingLabels.set({});
       this.error.set('Indica un valor para buscar.');
       return;
     }
@@ -179,13 +189,27 @@ export class AppointmentSearchDialogComponent {
         assignedPanelUserId: this.store.assignedUserId(),
         fromDate,
       })
+      .pipe(
+        switchMap((data) => {
+          const ids = searchHitIdsNeedingPiercingLabel(data.items);
+          if (!ids.length) {
+            return of({ data, labels: {} as Record<number, string> });
+          }
+          return this.api.getWorkPerformedLabels(ids).pipe(
+            map((labels) => ({ data, labels })),
+            catchError(() => of({ data, labels: {} as Record<number, string> })),
+          );
+        }),
+      )
       .subscribe({
-        next: (data) => {
+        next: ({ data, labels }) => {
           this.result.set(data);
+          this.piercingLabels.set(labels);
           this.loading.set(false);
         },
         error: (err) => {
           this.result.set(null);
+          this.piercingLabels.set({});
           this.error.set(apiErrorMessage(err));
           this.loading.set(false);
         },
@@ -224,6 +248,8 @@ export class AppointmentSearchDialogComponent {
       assigned_first_name: hit.assigned_first_name,
       assigned_last_name: hit.assigned_last_name,
       assigned_panel_user_id: hit.assigned_panel_user_id,
+      service_type: hit.service_type,
+      detail: hit.detail,
     };
   }
 }

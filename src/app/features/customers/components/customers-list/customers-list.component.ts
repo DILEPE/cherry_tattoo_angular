@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { CustomersStore } from '../../customers.store';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { AppIconActionButtonComponent } from '../../../../shared/ui/icon-button/app-icon-action-button.component';
@@ -7,6 +7,18 @@ import {
   customerDocumentLabel,
 } from '../../models/customer.mapper';
 import { Customer } from '../../models/customer.model';
+import { AppStore } from '../../../../store/app.store';
+import { maySeeCustomerContact } from '../../../../core/utils/panel-roles';
+
+function formatCreatedAt(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const s = String(iso).trim().replace('T', ' ');
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
+  if (!m) return s.slice(0, 16);
+  const date = `${m[3]}/${m[2]}/${m[1]}`;
+  if (m[4] != null && m[5] != null) return `${date} ${m[4]}:${m[5]}`;
+  return date;
+}
 
 @Component({
   selector: 'app-customers-list',
@@ -27,8 +39,11 @@ import { Customer } from '../../models/customer.model';
             <tr>
               <th><span class="cust-col-head">Nombre</span></th>
               <th><span class="cust-col-head">Documento</span></th>
-              <th><span class="cust-col-head">Correo</span></th>
-              <th><span class="cust-col-head">Teléfono</span></th>
+              @if (canSeeContact()) {
+                <th><span class="cust-col-head">Correo</span></th>
+                <th><span class="cust-col-head">Teléfono</span></th>
+              }
+              <th><span class="cust-col-head">Fecha de creación</span></th>
               <th><span class="cust-col-head cust-col-head--actions">Acciones</span></th>
             </tr>
           </thead>
@@ -37,8 +52,11 @@ import { Customer } from '../../models/customer.model';
               <tr>
                 <td>{{ displayName(row) }}</td>
                 <td>{{ documentLabel(row) }}</td>
-                <td>{{ row.email }}</td>
-                <td>{{ row.phoneNumber }}</td>
+                @if (canSeeContact()) {
+                  <td>{{ row.email }}</td>
+                  <td>{{ row.phoneNumber }}</td>
+                }
+                <td>{{ createdAtLabel(row) }}</td>
                 <td class="cust-row-actions">
                   <button
                     appIconAction="edit"
@@ -99,9 +117,15 @@ import { Customer } from '../../models/customer.model';
 })
 export class CustomersListComponent {
   protected readonly store = inject(CustomersStore);
+  private readonly appStore = inject(AppStore);
   protected readonly displayName = customerDisplayName;
   protected readonly documentLabel = customerDocumentLabel;
+  protected readonly createdAtLabel = (row: Customer) => formatCreatedAt(row.createdAt);
   readonly pageSizes = [10, 20, 50, 100];
+
+  readonly canSeeContact = computed(() =>
+    maySeeCustomerContact(this.appStore.user()?.role ?? ''),
+  );
 
   readonly edit = output<Customer>();
   readonly delete = output<Customer>();
