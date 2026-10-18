@@ -3,7 +3,11 @@ import { ReportStore } from '../../report.store';
 import { ReportFinancesComponent } from '../report-finances/report-finances.component';
 import { ReportSurveysComponent } from '../report-surveys/report-surveys.component';
 import { AppStore } from '../../../../store/app.store';
-import { maySeeAllAppointments } from '../../../../core/utils/panel-roles';
+import {
+  maySeeAllAppointments,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-report-shell',
@@ -51,6 +55,12 @@ export class ReportShellComponent {
     if (!u) return;
     if (!maySeeAllAppointments(u.role)) {
       untracked(() => this.store.setAssignedUserId(u.id));
+    }
+    if (mustScopeAppointmentsToOwnStore(u.role)) {
+      const sid = panelUserStoreId(u);
+      if (sid > 0 && this.store.filters().storeId !== sid) {
+        untracked(() => this.store.setFilters({ storeId: sid }));
+      }
     }
   });
 

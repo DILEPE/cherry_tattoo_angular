@@ -20,6 +20,7 @@ export class AppointmentsApiService {
   list(
     assignedPanelUserId?: number | null,
     fromDate?: string | null,
+    assignedStoreId?: number | null,
   ): Observable<AppointmentApiRow[]> {
     const params: Record<string, string | number> = {};
     if (assignedPanelUserId != null) {
@@ -27,6 +28,9 @@ export class AppointmentsApiService {
     }
     if (fromDate) {
       params['from_date'] = fromDate;
+    }
+    if (assignedStoreId != null && assignedStoreId > 0) {
+      params['assigned_store_id'] = assignedStoreId;
     }
     return this.api.get<AppointmentApiRow[]>(
       '/api/appointments',
@@ -45,6 +49,7 @@ export class AppointmentsApiService {
     offset: number;
     assignedPanelUserId?: number | null;
     fromDate?: string | null;
+    assignedStoreId?: number | null;
   }): Observable<AppointmentSearchResponse> {
     const query: Record<string, string | number> = {
       field: params.field,
@@ -57,6 +62,9 @@ export class AppointmentsApiService {
     }
     if (params.fromDate) {
       query['from_date'] = params.fromDate;
+    }
+    if (params.assignedStoreId != null && params.assignedStoreId > 0) {
+      query['assigned_store_id'] = params.assignedStoreId;
     }
     return this.api.get<AppointmentSearchResponse>('/api/appointments/search', query);
   }

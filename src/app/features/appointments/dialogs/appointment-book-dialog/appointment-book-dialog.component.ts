@@ -39,6 +39,11 @@ import { PanelStaffApiService } from '../../services/panel-staff-api.service';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
 import { ErrorService } from '../../../../core/services/error.service';
 import {
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+  staffInUserStore,
+} from '../../../../core/utils/panel-roles';
+import {
   BOOKING_WORK_KIND_META,
   BOOKING_WORK_KIND_ORDER,
   EXPRESS_BOOKING_WORK_KIND_ORDER,
@@ -312,7 +317,11 @@ export class AppointmentBookDialogComponent {
     this.formRevision();
     const wk = this.form.controls.workKind.value as BookingWorkKind;
     const need = workKindToAssigneeRole(wk);
-    return this.staffList().filter((s) => s.role === need);
+    let list = this.staffList().filter((s) => s.role === need);
+    if (mustScopeAppointmentsToOwnStore(this.appStore.user()?.role ?? '')) {
+      list = staffInUserStore(list, panelUserStoreId(this.appStore.user()));
+    }
+    return list;
   });
 
   /** Sin filtro por solapes: se puede agendar en cualquier franja 08:00–20:00. */

@@ -95,6 +95,7 @@ export interface PanelStaffOption {
   lastName: string;
   role: string;
   label: string;
+  storeId: number | null;
 }
 
 export type { CustomerSnapshot } from '../../customers/models/customer.model';

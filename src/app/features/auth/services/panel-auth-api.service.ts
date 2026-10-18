@@ -6,6 +6,7 @@ import {
   PanelLoginResponse,
   PanelModuleKey,
   PanelModulesResponse,
+  PanelUserPublic,
 } from '../models/panel-auth.model';
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +22,10 @@ export class PanelAuthApiService {
       },
       { context: skipGlobalLoadingContext() },
     );
+  }
+
+  getPublicProfile(userId: number): Observable<PanelUserPublic> {
+    return this.api.get<PanelUserPublic>(`/api/panel-users/${userId}`);
   }
 
   getEffectiveModules(userId: number): Observable<PanelModuleKey[]> {

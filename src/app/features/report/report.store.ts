@@ -17,6 +17,11 @@ import { piercingAppointmentIdsForLabels } from '../appointments/models/piercing
 import { apiErrorMessage } from '../../core/services/api.service';
 import { LoadingService } from '../../core/services/loading.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AppStore } from '../../store/app.store';
+import {
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../core/utils/panel-roles';
 
 export type ReportSubsection = 'finances' | 'surveys';
 
@@ -99,6 +104,7 @@ export const ReportStore = signalStore(
       api = inject(AppointmentsApiService),
       toast = inject(ToastService),
       loading = inject(LoadingService),
+      appStore = inject(AppStore),
     ) => ({
       setSubsection(s: ReportSubsection): void {
         patchState(store, { subsection: s });
@@ -116,7 +122,11 @@ export const ReportStore = signalStore(
       },
       resetFilters(): void {
         loading.pulse('Aplicando filtros…');
-        patchState(store, { filters: { ...initialFilters }, page: 0 });
+        const role = appStore.user()?.role ?? '';
+        const storeId = mustScopeAppointmentsToOwnStore(role)
+          ? panelUserStoreId(appStore.user())
+          : 0;
+        patchState(store, { filters: { ...initialFilters, storeId }, page: 0 });
       },
       invalidate(): void {
         patchState(store, { reloadToken: store.reloadToken() + 1 });
@@ -133,7 +143,15 @@ export const ReportStore = signalStore(
             patchState(store, { loading: true, error: null, piercingTypeLabels: {} }),
           ),
           switchMap(() =>
-            api.list(store.assignedUserId()).pipe(
+            api
+              .list(
+                store.assignedUserId(),
+                null,
+                mustScopeAppointmentsToOwnStore(appStore.user()?.role ?? '')
+                  ? panelUserStoreId(appStore.user())
+                  : null,
+              )
+              .pipe(
               switchMap((rows) => {
                 const items = rows.map(mapAppointment);
                 const ids = piercingAppointmentIdsForLabels(items);
