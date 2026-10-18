@@ -7,6 +7,11 @@ import { Appointment, AppointmentPayment, AppointmentReceipt } from './models/ap
 import { mapAppointment } from './models/appointment.mapper';
 import { AppointmentsApiService } from './services/appointments-api.service';
 import { apiErrorMessage } from '../../core/services/api.service';
+import { AppStore } from '../../store/app.store';
+import {
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../core/utils/panel-roles';
 
 interface AppointmentDialogState {
   appointmentId: number | null;
@@ -34,7 +39,8 @@ const initialState: AppointmentDialogState = {
 
 export const AppointmentDialogStore = signalStore(
   withState(initialState),
-  withMethods((store, api = inject(AppointmentsApiService)) => ({
+  withMethods(
+    (store, api = inject(AppointmentsApiService), appStore = inject(AppStore)) => ({
     reset(): void {
       patchState(store, { ...initialState });
     },
@@ -54,11 +60,25 @@ export const AppointmentDialogStore = signalStore(
         switchMap((id) =>
           api.get(id).pipe(
             tapResponse({
-              next: (row) =>
+              next: (row) => {
+                const appt = mapAppointment(row);
+                const role = appStore.user()?.role ?? '';
+                if (mustScopeAppointmentsToOwnStore(role)) {
+                  const sid = panelUserStoreId(appStore.user());
+                  if (!sid || (appt.assignedStoreId ?? 0) !== sid) {
+                    patchState(store, {
+                      appointment: null,
+                      loading: false,
+                      error: 'Esta cita no pertenece a tu tienda.',
+                    });
+                    return;
+                  }
+                }
                 patchState(store, {
-                  appointment: mapAppointment(row),
+                  appointment: appt,
                   loading: false,
-                }),
+                });
+              },
               error: (err) =>
                 patchState(store, {
                   loading: false,

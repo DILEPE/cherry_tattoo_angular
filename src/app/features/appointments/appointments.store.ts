@@ -17,7 +17,12 @@ import {
   uniqueServices,
 } from './models/appointment.mapper';
 import { piercingAppointmentIdsForLabels } from './models/piercing-type-catalog';
-import { isSellerRole, isTechnicianRole } from '../../core/utils/panel-roles';
+import {
+  isSellerRole,
+  isTechnicianRole,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../core/utils/panel-roles';
 import { AppStore } from '../../store/app.store';
 import {
   AppointmentsViewMode,
@@ -224,7 +229,14 @@ export const AppointmentsStore = signalStore(
       },
       resetFilters(): void {
         loading.pulse('Aplicando filtros…');
-        patchState(store, { filters: { ...initialFilters }, listPage: 0 });
+        const role = appStore.user()?.role ?? '';
+        const storeId = mustScopeAppointmentsToOwnStore(role)
+          ? panelUserStoreId(appStore.user())
+          : 0;
+        patchState(store, {
+          filters: { ...initialFilters, storeId },
+          listPage: 0,
+        });
       },
       setListPage(page: number): void {
         patchState(store, { listPage: Math.max(0, page) });
@@ -267,7 +279,10 @@ export const AppointmentsStore = signalStore(
           switchMap(() => {
             const role = appStore.user()?.role ?? '';
             const fromDate = isSellerRole(role) ? dateToIsoLocal(new Date()) : null;
-            return api.list(store.assignedUserId(), fromDate).pipe(
+            const storeId = mustScopeAppointmentsToOwnStore(role)
+              ? panelUserStoreId(appStore.user())
+              : null;
+            return api.list(store.assignedUserId(), fromDate, storeId).pipe(
               switchMap((rows) => {
                 const items = rows.map(mapAppointment);
                 const ids = piercingAppointmentIdsForLabels(items);

@@ -17,6 +17,28 @@ export function isSellerRole(role: string): boolean {
   return role === 'vendedor';
 }
 
+/** Tienda del usuario del panel (0 si no hay). */
+export function panelUserStoreId(
+  user: { storeId?: number | null; store_id?: number | null } | null | undefined,
+): number {
+  const raw = user?.storeId ?? user?.store_id ?? 0;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** El vendedor solo ve citas cuyo profesional asignado pertenece a su tienda. */
+export function mustScopeAppointmentsToOwnStore(role: string): boolean {
+  return isSellerRole(role);
+}
+
+export function staffInUserStore<T extends { storeId?: number | null }>(
+  staff: readonly T[],
+  storeId: number,
+): T[] {
+  if (storeId <= 0) return [...staff];
+  return staff.filter((s) => Number(s.storeId ?? 0) === storeId);
+}
+
 /** Admin/vendedor pueden ajustar montos y registrar abonos; tatuador/perforador no. */
 export function canManageAppointmentAmounts(role: string): boolean {
   return !isTechnicianRole(role);
