@@ -23,17 +23,33 @@ export function isPanelSessionExpired(
 }
 
 export function sessionFromApiUser(
-  user: { id: number; username: string; role: string; session_expires_at?: number },
+  user: {
+    id: number;
+    username: string;
+    role: string;
+    store_id?: number | null;
+    storeId?: number | null;
+    store_name?: string | null;
+    storeName?: string | null;
+    session_expires_at?: number;
+  },
 ): PanelUserSession {
   const apiSec = user.session_expires_at;
   const sessionExpiresAt =
     typeof apiSec === 'number' && Number.isFinite(apiSec)
       ? Math.round(apiSec * 1000)
       : panelSessionExpiresAtMs();
+  const storeIdRaw = Number(user.storeId ?? user.store_id ?? 0);
+  const storeId = Number.isFinite(storeIdRaw) && storeIdRaw > 0 ? storeIdRaw : 0;
+  const storeName = String(user.storeName ?? user.store_name ?? '').trim();
   return {
     id: user.id,
     username: user.username,
     role: user.role,
+    store_id: storeId || undefined,
+    storeId: storeId || undefined,
+    storeName: storeName || undefined,
+    store_name: storeName || undefined,
     sessionExpiresAt,
   };
 }

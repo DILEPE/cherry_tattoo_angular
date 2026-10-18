@@ -59,6 +59,9 @@ import {
   canManageAppointmentAmounts,
   isTechnicianRole,
   maySeeCustomerContact,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+  staffInUserStore,
 } from '../../../../core/utils/panel-roles';
 import { catchError, of, switchMap } from 'rxjs';
 
@@ -418,8 +421,12 @@ export class AppointmentFocusDialogComponent {
     const a = this.appt();
     if (!a) return [];
     const role = workKindToAssigneeRole(inferWorkKindFromAppointment(a));
-    const filtered = this.staffList().filter((s) => s.role === role);
-    const list = filtered.length ? [...filtered] : [...this.staffList()];
+    let filtered = this.staffList().filter((s) => s.role === role);
+    const lockStore = mustScopeAppointmentsToOwnStore(this.appStore.user()?.role ?? '');
+    if (lockStore) {
+      filtered = staffInUserStore(filtered, panelUserStoreId(this.appStore.user()));
+    }
+    const list = filtered.length || lockStore ? [...filtered] : [...this.staffList()];
     const curId = this.selectedArtistId() || a.assignedPanelUserId || 0;
     if (curId > 0 && !list.some((s) => s.id === curId)) {
       list.unshift({
@@ -429,6 +436,7 @@ export class AppointmentFocusDialogComponent {
         lastName: '',
         role: role,
         label: a.assignedLabel || `#${curId}`,
+        storeId: a.assignedStoreId ?? null,
       });
     }
     return list;

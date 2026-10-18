@@ -20,7 +20,14 @@ import {
   PIERCING_WORK_KIND_FILTER_OPTIONS,
 } from '../../models/booking.model';
 import { buildPiercingFilterOptions } from '../../models/piercing-type-catalog';
-import { maySeeAllAppointments, isSellerRole, PANEL_ROLE_LABEL_ES } from '../../../../core/utils/panel-roles';
+import {
+  maySeeAllAppointments,
+  isSellerRole,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+  staffInUserStore,
+  PANEL_ROLE_LABEL_ES,
+} from '../../../../core/utils/panel-roles';
 import { dateToIsoLocal } from '../../models/week-schedule.mapper';
 
 @Component({
@@ -107,9 +114,10 @@ import { dateToIsoLocal } from '../../models/week-schedule.mapper';
           <select
             class="appt-filters__control appt-filters__select"
             [ngModel]="store.filters().storeId"
+            [disabled]="storeLocked()"
             (ngModelChange)="onStoreChange($event)"
           >
-            @for (opt of storeOptions(); track opt.id) {
+            @for (opt of visibleStoreOptions(); track opt.id) {
               <option [ngValue]="opt.id">{{ opt.label }}</option>
             }
           </select>
@@ -164,6 +172,10 @@ import { dateToIsoLocal } from '../../models/week-schedule.mapper';
       <p class="appt-scope-caption">
         Solo ves tus citas de hoy y las reprogramadas con fecha de hoy o posterior.
       </p>
+    } @else if (storeLocked()) {
+      <p class="appt-scope-caption">
+        Solo ves citas de tu tienda (según el profesional asignado).
+      </p>
     } @else if (!canSeeAll()) {
       <p class="appt-scope-caption">
         Solo ves citas asignadas a tu usuario del panel.
@@ -198,6 +210,21 @@ export class AppointmentsFiltersComponent {
     const role = this.appStore.user()?.role ?? '';
     return maySeeAllAppointments(role);
   };
+
+  readonly storeLocked = () => {
+    const role = this.appStore.user()?.role ?? '';
+    return mustScopeAppointmentsToOwnStore(role);
+  };
+
+  visibleStoreOptions(): { id: number; label: string }[] {
+    const all = this.storeOptions();
+    if (!this.storeLocked()) return all;
+    const sid = panelUserStoreId(this.appStore.user());
+    const mine = all.filter((o) => o.id === sid);
+    if (mine.length) return mine;
+    const name = this.appStore.user()?.storeName?.trim();
+    return [{ id: sid, label: name || 'Tu tienda' }];
+  }
 
   /** Vendedor: no elegir «Desde» anterior a hoy. */
   sellerFromDateMin(): string | null {
@@ -241,10 +268,13 @@ export class AppointmentsFiltersComponent {
         .listAssignable()
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe((list) => {
-          this.staffList.set(list);
+          const scoped = this.storeLocked()
+            ? staffInUserStore(list, panelUserStoreId(this.appStore.user()))
+            : list;
+          this.staffList.set(scoped);
           const opts = [
             { key: '0', label: 'Todos', id: 0 },
-            ...list.map((s) => ({
+            ...scoped.map((s) => ({
               key: String(s.id),
               label: this.staffLabel(s),
               id: s.id,
@@ -279,6 +309,7 @@ export class AppointmentsFiltersComponent {
   }
 
   onStoreChange(id: number): void {
+    if (this.storeLocked()) return;
     this.store.setFilters({ storeId: Number(id) || 0 });
   }
 

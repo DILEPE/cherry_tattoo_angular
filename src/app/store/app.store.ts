@@ -8,6 +8,10 @@ import { ToastService } from '../shared/ui/toast/toast.service';
 import { apiErrorMessage } from '../core/services/api.service';
 import { PanelModuleKey, PanelUserSession } from '../features/auth/models/panel-auth.model';
 import {
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../core/utils/panel-roles';
+import {
   isPanelSessionExpired,
   panelSessionExpiresAtMs,
   sessionFromApiUser,
@@ -121,6 +125,30 @@ export const AppStore = signalStore(
           return;
         }
         loadModules(u.id);
+        if (mustScopeAppointmentsToOwnStore(u.role) && !panelUserStoreId(u)) {
+          authApi.getPublicProfile(u.id).subscribe({
+            next: (profile) => {
+              const current = store.user();
+              if (!current || current.id !== u.id) return;
+              const patched = sessionFromApiUser({
+                ...current,
+                ...profile,
+                role: current.role,
+                username: current.username,
+                id: current.id,
+              });
+              const next: PanelUserSession = {
+                ...current,
+                ...patched,
+                sessionExpiresAt: current.sessionExpiresAt,
+                effectiveModules: current.effectiveModules,
+              };
+              patchState(store, { user: next });
+              persist(next);
+            },
+            error: () => undefined,
+          });
+        }
       },
       ensureSessionValid(): boolean {
         const u = store.user();

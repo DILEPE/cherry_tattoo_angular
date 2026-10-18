@@ -8,7 +8,11 @@ import { AppStore } from '../../../../store/app.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppSkeletonComponent } from '../../../../shared/ui/skeleton/app-skeleton.component';
 import { apiErrorMessage } from '../../../../core/services/api.service';
-import { isSellerRole } from '../../../../core/utils/panel-roles';
+import {
+  isSellerRole,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../../../core/utils/panel-roles';
 import {
   APPOINTMENT_SEARCH_FIELDS,
   APPOINTMENT_SEARCH_PAGE_SIZE,
@@ -180,6 +184,9 @@ export class AppointmentSearchDialogComponent {
     this.error.set(null);
     const role = this.appStore.user()?.role ?? '';
     const fromDate = isSellerRole(role) ? dateToIsoLocal(new Date()) : null;
+    const assignedStoreId = mustScopeAppointmentsToOwnStore(role)
+      ? panelUserStoreId(this.appStore.user())
+      : null;
     this.api
       .search({
         field: this.field,
@@ -188,6 +195,7 @@ export class AppointmentSearchDialogComponent {
         offset: this.page() * APPOINTMENT_SEARCH_PAGE_SIZE,
         assignedPanelUserId: this.store.assignedUserId(),
         fromDate,
+        assignedStoreId,
       })
       .pipe(
         switchMap((data) => {

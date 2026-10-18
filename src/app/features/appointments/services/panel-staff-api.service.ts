@@ -19,6 +19,7 @@ export class PanelStaffApiService {
             const un = String(r['username'] ?? '').trim();
             const label =
               `${fn} ${ln}`.trim() || un || `#${id}`;
+            const storeIdRaw = Number(r['store_id'] ?? r['storeId'] ?? 0);
             return {
               id,
               username: un,
@@ -26,6 +27,7 @@ export class PanelStaffApiService {
               lastName: ln,
               role: String(r['role'] ?? ''),
               label: `${label} (@${un || id})`,
+              storeId: Number.isFinite(storeIdRaw) && storeIdRaw > 0 ? storeIdRaw : null,
             };
           }),
         ),

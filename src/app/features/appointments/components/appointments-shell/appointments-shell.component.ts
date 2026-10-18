@@ -10,7 +10,12 @@ import { AppButtonComponent } from '../../../../shared/ui/button/app-button.comp
 import { UiStore } from '../../../../store/ui.store';
 import { AppStore } from '../../../../store/app.store';
 import { AppointmentModalData, BookAppointmentModalData } from '../../models/appointment-modal.model';
-import { maySeeAllAppointments, isTechnicianRole } from '../../../../core/utils/panel-roles';
+import {
+  maySeeAllAppointments,
+  isTechnicianRole,
+  mustScopeAppointmentsToOwnStore,
+  panelUserStoreId,
+} from '../../../../core/utils/panel-roles';
 import {
   buildDailyWorkReport,
   DailyWorkReport,
@@ -93,6 +98,12 @@ export class AppointmentsShellComponent {
     if (!maySeeAllAppointments(u.role)) {
       untracked(() => this.store.setAssignedUserId(u.id));
     }
+    if (mustScopeAppointmentsToOwnStore(u.role)) {
+      const sid = panelUserStoreId(u);
+      if (sid > 0 && this.store.filters().storeId !== sid) {
+        untracked(() => this.store.setFilters({ storeId: sid }));
+      }
+    }
   });
 
   private readonly _loadEffect = effect(() => {
@@ -103,7 +114,7 @@ export class AppointmentsShellComponent {
   openDailyReport(): void {
     this.dailyReport.set(
       buildDailyWorkReport(
-        this.store.items(),
+        this.store.filteredItems(),
         this.store.piercingTypeLabels(),
         localDateIso(),
       ),
