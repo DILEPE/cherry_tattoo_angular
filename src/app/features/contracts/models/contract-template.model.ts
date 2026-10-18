@@ -23,6 +23,7 @@ export const CONTRACT_PLACEHOLDERS_HINT =
 
 export const RECEIPT_PLACEHOLDERS_HINT =
   'Este texto reemplaza las condiciones legales bajo la franja ATENCIÓN del PDF (no repite datos del cliente). ' +
+  'Al enviar el recibo se elige si se muestran las cajas PRECIO/ABONO o se ocultan; si usas {{abono}} o {{precio}}, se vacían en el envío sin valor. ' +
   'Variables opcionales: {{nombres}}, {{servicio}}, {{abono}}, {{pendiente}}, {{cita_id}}, {{fecha_emision}}, etc.';
 
 export const CONTRACT_PLACEHOLDER_CHIPS: ReadonlyArray<{ label: string; value: string }> = [

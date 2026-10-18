@@ -37,10 +37,30 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
             </div>
             <div class="appt-dialog-actions">
               <app-button variant="ghost" (clicked)="download(r)">Descargar PDF</app-button>
-              <app-button variant="ghost" [loading]="resendingId() === r.id" (clicked)="resend(r)">
+              <app-button variant="ghost" [loading]="resendingId() === r.id" (clicked)="askResend(r)">
                 Enviar
               </app-button>
             </div>
+            @if (sendChoiceId() === r.id) {
+              <div class="ap-pay-send-choice">
+                <p class="ap-ficha-caption">¿Cómo enviar este recibo?</p>
+                <div class="ap-pay-send-choice-actions">
+                  <app-button
+                    [loading]="resendingId() === r.id && sendChoiceWithAmounts() === true"
+                    (clicked)="confirmResend(r, true)"
+                  >
+                    Con valor de abono
+                  </app-button>
+                  <app-button
+                    [loading]="resendingId() === r.id && sendChoiceWithAmounts() === false"
+                    (clicked)="confirmResend(r, false)"
+                  >
+                    Sin valor de abono
+                  </app-button>
+                  <app-button variant="ghost" (clicked)="cancelResend()">Cancelar</app-button>
+                </div>
+              </div>
+            }
           </div>
         }
       }
@@ -57,6 +77,8 @@ export class AppointmentReceiptsDialogComponent {
 
   protected readonly formatCopAbono = formatCopAbono;
   readonly resendingId = signal<number | null>(null);
+  readonly sendChoiceId = signal<number | null>(null);
+  readonly sendChoiceWithAmounts = signal<boolean | null>(null);
 
   private readonly _load = effect(() => {
     const id = resolveAppointmentModalId(this.ui);
@@ -86,17 +108,35 @@ export class AppointmentReceiptsDialogComponent {
     });
   }
 
-  resend(r: AppointmentReceipt): void {
+  askResend(r: AppointmentReceipt): void {
+    this.sendChoiceId.set(r.id);
+    this.sendChoiceWithAmounts.set(null);
+  }
+
+  cancelResend(): void {
+    this.sendChoiceId.set(null);
+    this.sendChoiceWithAmounts.set(null);
+  }
+
+  confirmResend(r: AppointmentReceipt, includeAbonoAmounts: boolean): void {
     const a = this.dlg.appointment();
     if (!a) return;
+    this.sendChoiceWithAmounts.set(includeAbonoAmounts);
     this.resendingId.set(r.id);
-    this.api.resendReceipt(a.id, r.id).subscribe({
+    this.api.resendReceipt(a.id, r.id, includeAbonoAmounts).subscribe({
       next: () => {
         this.resendingId.set(null);
-        this.toast.success('Recibo enviado.');
+        this.sendChoiceId.set(null);
+        this.sendChoiceWithAmounts.set(null);
+        this.toast.success(
+          includeAbonoAmounts
+            ? 'Recibo enviado con valor de abono.'
+            : 'Recibo enviado sin valor de abono.',
+        );
       },
       error: (err) => {
         this.resendingId.set(null);
+        this.sendChoiceWithAmounts.set(null);
         this.errors.handle(err);
       },
     });
