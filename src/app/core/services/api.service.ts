@@ -60,9 +60,17 @@ export class ApiService {
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 
-  getBlob(path: string, options?: ApiRequestOptions): Observable<Blob> {
+  getBlob(
+    path: string,
+    params?: Record<string, string | number | boolean> | null,
+    options?: ApiRequestOptions,
+  ): Observable<Blob> {
     return this.http
-      .get(this.url(path), { responseType: 'blob', context: options?.context })
+      .get(this.url(path), {
+        responseType: 'blob',
+        params: this.toParams(params ?? undefined),
+        context: options?.context,
+      })
       .pipe(catchError((e) => throwError(() => this.normalizeError(e))));
   }
 

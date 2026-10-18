@@ -166,15 +166,25 @@ export class AppointmentsApiService {
       .pipe(map((rows) => (Array.isArray(rows) ? rows.map(mapReceipt) : [])));
   }
 
-  getReceiptPdf(appointmentId: number, receiptId: number): Observable<Blob> {
+  getReceiptPdf(
+    appointmentId: number,
+    receiptId: number,
+    includeAbonoAmounts = true,
+  ): Observable<Blob> {
     return this.api.getBlob(
       `/api/appointments/${appointmentId}/receipts/${receiptId}/pdf`,
+      { include_abono_amounts: includeAbonoAmounts },
     );
   }
 
-  resendReceipt(appointmentId: number, receiptId: number): Observable<unknown> {
+  resendReceipt(
+    appointmentId: number,
+    receiptId: number,
+    includeAbonoAmounts = true,
+  ): Observable<unknown> {
     return this.api.post(
       `/api/appointments/${appointmentId}/receipts/${receiptId}/resend`,
+      { include_abono_amounts: includeAbonoAmounts },
     );
   }
 
