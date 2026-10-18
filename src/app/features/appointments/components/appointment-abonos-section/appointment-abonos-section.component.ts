@@ -155,7 +155,7 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                           appIconAction="send"
                           title="Enviar recibo"
                           [disabled]="!receiptIdFor(p.id) || resendingPayId() === p.id"
-                          (click)="resendForPayment(p.id)"
+                          (click)="askResendForPayment(p.id)"
                         ></button>
                         @if (canShowEdit(p)) {
                           <button
@@ -213,6 +213,26 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
           @if (viewReceiptId(); as rid) {
             <div class="ap-pay-receipt-view">
               <p class="ap-ficha-caption"><strong>Recibo PDF</strong> · #{{ rid }}</p>
+              <div class="ap-pay-preview-mode" role="radiogroup" aria-label="Vista del recibo">
+                <label class="ap-pay-preview-mode__opt">
+                  <input
+                    type="radio"
+                    name="recibo-preview-abono"
+                    [checked]="previewWithAmounts()"
+                    (change)="setPreviewWithAmounts(true)"
+                  />
+                  Con valor de abono
+                </label>
+                <label class="ap-pay-preview-mode__opt">
+                  <input
+                    type="radio"
+                    name="recibo-preview-abono"
+                    [checked]="!previewWithAmounts()"
+                    (change)="setPreviewWithAmounts(false)"
+                  />
+                  Sin valor de abono
+                </label>
+              </div>
               @if (pdfLoading()) {
                 <p class="ap-ficha-caption">Cargando PDF…</p>
               } @else if (pdfError()) {
@@ -240,9 +260,32 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   [loading]="resendingReceipt()"
                   (clicked)="resendViewedReceipt()"
                 >
-                  Enviar
+                  Enviar {{ previewWithAmounts() ? 'con valor' : 'sin valor' }}
                 </app-button>
                 <app-button variant="ghost" (clicked)="closeReceiptView()">Cerrar vista</app-button>
+              </div>
+            </div>
+          }
+
+          @if (sendChoiceReceiptId(); as sendRid) {
+            <div class="ap-pay-send-choice">
+              <p class="ap-ficha-caption">
+                ¿Cómo quieres enviar el recibo #{{ sendRid }}?
+              </p>
+              <div class="ap-pay-send-choice-actions">
+                <app-button
+                  [loading]="resendingPayId() !== null && sendChoiceWithAmounts() === true"
+                  (clicked)="confirmSendChoice(true)"
+                >
+                  Con valor de abono
+                </app-button>
+                <app-button
+                  [loading]="resendingPayId() !== null && sendChoiceWithAmounts() === false"
+                  (clicked)="confirmSendChoice(false)"
+                >
+                  Sin valor de abono
+                </app-button>
+                <app-button variant="ghost" (clicked)="cancelSendChoice()">Cancelar</app-button>
               </div>
             </div>
           }
@@ -291,6 +334,10 @@ export class AppointmentAbonosSectionComponent {
   readonly verifyingPayId = signal<number | null>(null);
   readonly resendingPayId = signal<number | null>(null);
   readonly resendingReceipt = signal(false);
+  readonly previewWithAmounts = signal(true);
+  readonly sendChoiceReceiptId = signal<number | null>(null);
+  readonly sendChoicePaymentId = signal<number | null>(null);
+  readonly sendChoiceWithAmounts = signal<boolean | null>(null);
 
   private readonly receiptByPay = computed(() =>
     mapPaymentsToReceipts(this.dlg.payments(), this.dlg.receipts()),
@@ -452,8 +499,20 @@ export class AppointmentAbonosSectionComponent {
   openReceiptView(paymentId: number): void {
     const rid = this.receiptIdFor(paymentId);
     if (rid == null) return;
+    this.previewWithAmounts.set(true);
+    this.loadReceiptPdf(rid, true);
+  }
+
+  setPreviewWithAmounts(withAmounts: boolean): void {
+    const rid = this.viewReceiptId();
+    if (rid == null) return;
+    this.previewWithAmounts.set(withAmounts);
+    this.loadReceiptPdf(rid, withAmounts);
+  }
+
+  private loadReceiptPdf(receiptId: number, includeAbonoAmounts: boolean): void {
     this.revokePdfUrl();
-    this.viewReceiptId.set(rid);
+    this.viewReceiptId.set(receiptId);
     this.pdfLoading.set(true);
     this.pdfError.set(null);
     const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
@@ -462,7 +521,7 @@ export class AppointmentAbonosSectionComponent {
       this.pdfError.set('No se pudo identificar la cita del recibo.');
       return;
     }
-    this.api.getReceiptPdf(aid, rid).subscribe({
+    this.api.getReceiptPdf(aid, receiptId, includeAbonoAmounts).subscribe({
       next: (blob) => {
         const pdf =
           blob.type === 'application/pdf'
@@ -487,34 +546,59 @@ export class AppointmentAbonosSectionComponent {
     this.revokePdfUrl();
   }
 
-  resendForPayment(paymentId: number): void {
+  askResendForPayment(paymentId: number): void {
     const rid = this.receiptIdFor(paymentId);
     if (rid == null) return;
-    this.resendReceipt(rid, () => this.resendingPayId.set(paymentId));
+    this.sendChoiceReceiptId.set(rid);
+    this.sendChoicePaymentId.set(paymentId);
+    this.sendChoiceWithAmounts.set(null);
+  }
+
+  confirmSendChoice(includeAbonoAmounts: boolean): void {
+    const rid = this.sendChoiceReceiptId();
+    const payId = this.sendChoicePaymentId();
+    if (rid == null) return;
+    this.sendChoiceWithAmounts.set(includeAbonoAmounts);
+    this.resendReceipt(rid, includeAbonoAmounts, () => this.resendingPayId.set(payId));
+  }
+
+  cancelSendChoice(): void {
+    this.sendChoiceReceiptId.set(null);
+    this.sendChoicePaymentId.set(null);
+    this.sendChoiceWithAmounts.set(null);
   }
 
   resendViewedReceipt(): void {
     const rid = this.viewReceiptId();
     if (rid == null) return;
-    this.resendReceipt(rid, () => this.resendingReceipt.set(true));
+    this.resendReceipt(rid, this.previewWithAmounts(), () => this.resendingReceipt.set(true));
   }
 
   private resendReceipt(
     receiptId: number,
+    includeAbonoAmounts: boolean,
     onStart: () => void,
   ): void {
     const aid = this.dlg.appointmentId();
     if (aid == null) return;
     onStart();
-    this.api.resendReceipt(aid, receiptId).subscribe({
+    this.api.resendReceipt(aid, receiptId, includeAbonoAmounts).subscribe({
       next: () => {
         this.resendingPayId.set(null);
         this.resendingReceipt.set(false);
-        this.toast.success('Recibo enviado.');
+        this.sendChoiceReceiptId.set(null);
+        this.sendChoicePaymentId.set(null);
+        this.sendChoiceWithAmounts.set(null);
+        this.toast.success(
+          includeAbonoAmounts
+            ? 'Recibo enviado con valor de abono.'
+            : 'Recibo enviado sin valor de abono.',
+        );
       },
       error: (err) => {
         this.resendingPayId.set(null);
         this.resendingReceipt.set(false);
+        this.sendChoiceWithAmounts.set(null);
         this.toast.error(apiErrorMessage(err));
       },
     });
