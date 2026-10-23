@@ -27,6 +27,7 @@ import { AppStore } from '../../../../store/app.store';
 import { AppointmentPayment } from '../../models/appointment.model';
 import { apiErrorMessage } from '../../../../core/services/api.service';
 import { canEditAppointmentPayments } from '../../../../core/utils/panel-roles';
+import { printPdfBlob } from '../../models/print-receipt.util';
 
 function todayIso(): string {
   const d = new Date();
@@ -65,11 +66,6 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
 
       @if (expanded()) {
         @if (!montosLocked()) {
-          @if (!canAddPay()) {
-            <p class="ap-ficha-hint ap-pay-covered-hint">
-              Trabajo cubierto: no hay saldo pendiente; no se pueden agregar abonos adicionales.
-            </p>
-          }
           <div class="ap-pay-toolbar">
             <div class="ap-pay-toolbar-grid">
               <label class="ap-pay-field">
@@ -152,10 +148,10 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                           (click)="openReceiptView(p.id)"
                         ></button>
                         <button
-                          appIconAction="send"
-                          title="Enviar recibo"
-                          [disabled]="!receiptIdFor(p.id) || resendingPayId() === p.id"
-                          (click)="askResendForPayment(p.id)"
+                          appIconAction="printer"
+                          title="Imprimir recibo"
+                          [disabled]="!receiptIdFor(p.id) || printingPayId() === p.id"
+                          (click)="printReceiptForPayment(p.id)"
                         ></button>
                         @if (canShowEdit(p)) {
                           <button
@@ -257,35 +253,12 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                 }
                 <app-button
                   variant="ghost"
-                  [loading]="resendingReceipt()"
-                  (clicked)="resendViewedReceipt()"
+                  [loading]="printingViewed()"
+                  (clicked)="printViewedReceipt()"
                 >
-                  Enviar {{ previewWithAmounts() ? 'con valor' : 'sin valor' }}
+                  Imprimir recibo
                 </app-button>
                 <app-button variant="ghost" (clicked)="closeReceiptView()">Cerrar vista</app-button>
-              </div>
-            </div>
-          }
-
-          @if (sendChoiceReceiptId(); as sendRid) {
-            <div class="ap-pay-send-choice">
-              <p class="ap-ficha-caption">
-                ¿Cómo quieres enviar el recibo #{{ sendRid }}?
-              </p>
-              <div class="ap-pay-send-choice-actions">
-                <app-button
-                  [loading]="resendingPayId() !== null && sendChoiceWithAmounts() === true"
-                  (clicked)="confirmSendChoice(true)"
-                >
-                  Con valor de abono
-                </app-button>
-                <app-button
-                  [loading]="resendingPayId() !== null && sendChoiceWithAmounts() === false"
-                  (clicked)="confirmSendChoice(false)"
-                >
-                  Sin valor de abono
-                </app-button>
-                <app-button variant="ghost" (clicked)="cancelSendChoice()">Cancelar</app-button>
               </div>
             </div>
           }
@@ -332,12 +305,9 @@ export class AppointmentAbonosSectionComponent {
   readonly adding = signal(false);
   readonly patching = signal(false);
   readonly verifyingPayId = signal<number | null>(null);
-  readonly resendingPayId = signal<number | null>(null);
-  readonly resendingReceipt = signal(false);
+  readonly printingPayId = signal<number | null>(null);
+  readonly printingViewed = signal(false);
   readonly previewWithAmounts = signal(true);
-  readonly sendChoiceReceiptId = signal<number | null>(null);
-  readonly sendChoicePaymentId = signal<number | null>(null);
-  readonly sendChoiceWithAmounts = signal<boolean | null>(null);
 
   private readonly receiptByPay = computed(() =>
     mapPaymentsToReceipts(this.dlg.payments(), this.dlg.receipts()),
@@ -403,7 +373,7 @@ export class AppointmentAbonosSectionComponent {
     if (!this.canShowEdit(p)) {
       this.toast.warn(
         p.isVerified
-          ? 'Un abono verificado no se puede editar; solo puedes enviar el recibo.'
+          ? 'Un abono verificado no se puede editar; solo puedes imprimir el recibo.'
           : 'Solo un administrador puede editar abonos.',
       );
       return;
@@ -546,60 +516,41 @@ export class AppointmentAbonosSectionComponent {
     this.revokePdfUrl();
   }
 
-  askResendForPayment(paymentId: number): void {
+  printReceiptForPayment(paymentId: number): void {
     const rid = this.receiptIdFor(paymentId);
-    if (rid == null) return;
-    this.sendChoiceReceiptId.set(rid);
-    this.sendChoicePaymentId.set(paymentId);
-    this.sendChoiceWithAmounts.set(null);
-  }
-
-  confirmSendChoice(includeAbonoAmounts: boolean): void {
-    const rid = this.sendChoiceReceiptId();
-    const payId = this.sendChoicePaymentId();
-    if (rid == null) return;
-    this.sendChoiceWithAmounts.set(includeAbonoAmounts);
-    this.resendReceipt(rid, includeAbonoAmounts, () => this.resendingPayId.set(payId));
-  }
-
-  cancelSendChoice(): void {
-    this.sendChoiceReceiptId.set(null);
-    this.sendChoicePaymentId.set(null);
-    this.sendChoiceWithAmounts.set(null);
-  }
-
-  resendViewedReceipt(): void {
-    const rid = this.viewReceiptId();
-    if (rid == null) return;
-    this.resendReceipt(rid, this.previewWithAmounts(), () => this.resendingReceipt.set(true));
-  }
-
-  private resendReceipt(
-    receiptId: number,
-    includeAbonoAmounts: boolean,
-    onStart: () => void,
-  ): void {
-    const aid = this.dlg.appointmentId();
-    if (aid == null) return;
-    onStart();
-    this.api.resendReceipt(aid, receiptId, includeAbonoAmounts).subscribe({
-      next: () => {
-        this.resendingPayId.set(null);
-        this.resendingReceipt.set(false);
-        this.sendChoiceReceiptId.set(null);
-        this.sendChoicePaymentId.set(null);
-        this.sendChoiceWithAmounts.set(null);
-        this.toast.success(
-          includeAbonoAmounts
-            ? 'Recibo enviado con valor de abono.'
-            : 'Recibo enviado sin valor de abono.',
-        );
+    const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
+    if (rid == null || aid == null || aid <= 0) return;
+    this.printingPayId.set(paymentId);
+    this.api.getReceiptPdf(aid, rid, true).subscribe({
+      next: (blob) => {
+        this.printingPayId.set(null);
+        printPdfBlob(blob);
       },
       error: (err) => {
-        this.resendingPayId.set(null);
-        this.resendingReceipt.set(false);
-        this.sendChoiceWithAmounts.set(null);
-        this.toast.error(apiErrorMessage(err));
+        this.printingPayId.set(null);
+        this.toast.error(apiErrorMessage(err) || 'No se pudo abrir el recibo para imprimir.');
+      },
+    });
+  }
+
+  printViewedReceipt(): void {
+    const blob = this.pdfBlob();
+    if (blob) {
+      printPdfBlob(blob);
+      return;
+    }
+    const rid = this.viewReceiptId();
+    const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
+    if (rid == null || aid == null || aid <= 0) return;
+    this.printingViewed.set(true);
+    this.api.getReceiptPdf(aid, rid, this.previewWithAmounts()).subscribe({
+      next: (pdf) => {
+        this.printingViewed.set(false);
+        printPdfBlob(pdf);
+      },
+      error: (err) => {
+        this.printingViewed.set(false);
+        this.toast.error(apiErrorMessage(err) || 'No se pudo abrir el recibo para imprimir.');
       },
     });
   }

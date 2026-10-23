@@ -24,6 +24,14 @@ export class PanelAuthApiService {
     );
   }
 
+  loginOt(code: string): Observable<PanelLoginResponse> {
+    return this.api.post<PanelLoginResponse>(
+      '/api/panel-users/login-otp',
+      { code: code.trim() },
+      { context: skipGlobalLoadingContext() },
+    );
+  }
+
   getPublicProfile(userId: number): Observable<PanelUserPublic> {
     return this.api.get<PanelUserPublic>(`/api/panel-users/${userId}`);
   }

@@ -12,6 +12,10 @@ export function isTechnicianRole(role: string): boolean {
   return role === 'tatuador' || role === 'perforador';
 }
 
+export function isClientRole(role: string): boolean {
+  return role === 'cliente';
+}
+
 /** Vendedor: agenda y búsqueda solo hoy + fechas futuras (sin historial pasado). */
 export function isSellerRole(role: string): boolean {
   return role === 'vendedor';
@@ -41,7 +45,7 @@ export function staffInUserStore<T extends { storeId?: number | null }>(
 
 /** Admin/vendedor pueden ajustar montos y registrar abonos; tatuador/perforador no. */
 export function canManageAppointmentAmounts(role: string): boolean {
-  return !isTechnicianRole(role);
+  return role === 'administrador' || role === 'vendedor';
 }
 
 /** Solo administrador puede editar un abono ya registrado (y nunca si está verificado). */
@@ -70,4 +74,5 @@ export const PANEL_ROLE_LABEL_ES: Record<string, string> = {
   vendedor: 'Vendedor',
   tatuador: 'Tatuador',
   perforador: 'Perforador',
+  cliente: 'Cliente',
 };

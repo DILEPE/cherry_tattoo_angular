@@ -52,6 +52,16 @@ export function firmarContratoLabel(appt: Appointment): string {
   return 'Contrato firmado';
 }
 
+/** Admin/vendedor: generar OTP cuando el depósito cubre el total y el cliente aún no firmó. */
+export function canGenerateSigningOt(appt: Appointment): boolean {
+  if (!appointmentRequiresContract(appt)) return false;
+  if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return false;
+  if (appt.status === 'cancelada' || appt.status === 'finalizada') return false;
+  if (appt.hasSignedContract) return false;
+  if (contractBlockedByBalance(appt)) return false;
+  return true;
+}
+
 /** Limpieza / cambio: encuesta sin firma; al enviarla la cita queda finalizada. */
 export function canManageSurveyWithoutContract(appt: Appointment): boolean {
   if (appointmentRequiresContract(appt)) return false;

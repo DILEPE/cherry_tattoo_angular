@@ -94,8 +94,6 @@ import { inferWorkKindFromAppointment } from '../../models/booking.mapper';
             <app-form-field label="Nota del abono (opcional)" [control]="form.controls.note">
               <input type="text" formControlName="note" placeholder="Ej: abono en efectivo" />
             </app-form-field>
-          } @else {
-            <p class="empty-state">Trabajo cubierto: no hay saldo pendiente para otro abono.</p>
           }
 
           @if (saveError()) {
@@ -258,7 +256,7 @@ export class AppointmentFinancialsDialogComponent {
     this.saving.set(false);
     this.toast.success(
       hadExtra
-        ? 'Montos y abonos actualizados. El recibo quedó listo; envíalo desde Abonos.'
+        ? 'Montos y abonos actualizados. El recibo quedó listo; imprímelo desde Abonos.'
         : 'Montos actualizados.',
     );
     this.apptStore.invalidate();

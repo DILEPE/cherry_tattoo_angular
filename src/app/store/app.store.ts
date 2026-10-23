@@ -8,6 +8,7 @@ import { ToastService } from '../shared/ui/toast/toast.service';
 import { apiErrorMessage } from '../core/services/api.service';
 import { PanelModuleKey, PanelUserSession } from '../features/auth/models/panel-auth.model';
 import {
+  isClientRole,
   mustScopeAppointmentsToOwnStore,
   panelUserStoreId,
 } from '../core/utils/panel-roles';
@@ -100,7 +101,7 @@ export const AppStore = signalStore(
       canAccessModule(key: string): boolean {
         if (!store.isAuthenticated()) return false;
         const u = store.user();
-        if (!u) return false;
+        if (!u || isClientRole(u.role)) return false;
         if (key === 'usuarios_panel' || key === 'tipos_piercing') {
           return u.role === 'administrador';
         }
@@ -124,6 +125,7 @@ export const AppStore = signalStore(
           clearSession();
           return;
         }
+        if (isClientRole(u.role)) return;
         loadModules(u.id);
         if (mustScopeAppointmentsToOwnStore(u.role) && !panelUserStoreId(u)) {
           authApi.getPublicProfile(u.id).subscribe({
@@ -207,6 +209,46 @@ export const AppStore = signalStore(
                     toast.error(message);
                   } else if (status === 401) {
                     toast.error('Usuario o contraseña incorrectos.');
+                  } else {
+                    toast.error(message);
+                  }
+                },
+              }),
+            ),
+          ),
+        ),
+      ),
+      loginOt: rxMethod<string>(
+        pipe(
+          tap(() => patchState(store, { authLoading: true, authError: null })),
+          switchMap((code) =>
+            authApi.loginOt(code).pipe(
+              tapResponse({
+                next: (resp) => {
+                  const session: PanelUserSession = {
+                    ...sessionFromApiUser(resp.user),
+                    effectiveModules: [],
+                  };
+                  patchState(store, {
+                    user: session,
+                    allowedModules: [],
+                    authLoading: false,
+                    authError: null,
+                  });
+                  persist(session);
+                },
+                error: (err: unknown) => {
+                  const status =
+                    err && typeof err === 'object' && 'status' in err
+                      ? Number((err as { status: number }).status)
+                      : 0;
+                  const message = apiErrorMessage(err) || 'No se pudo validar el código OTP';
+                  patchState(store, {
+                    authLoading: false,
+                    authError: message,
+                  });
+                  if (status === 401) {
+                    toast.error('Código OTP inválido o vencido.');
                   } else {
                     toast.error(message);
                   }

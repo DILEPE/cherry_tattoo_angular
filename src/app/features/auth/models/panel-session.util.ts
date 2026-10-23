@@ -32,6 +32,10 @@ export function sessionFromApiUser(
     store_name?: string | null;
     storeName?: string | null;
     session_expires_at?: number;
+    appointment_id?: number | null;
+    appointmentId?: number | null;
+    customer_id?: number | null;
+    customerId?: number | null;
   },
 ): PanelUserSession {
   const apiSec = user.session_expires_at;
@@ -42,6 +46,12 @@ export function sessionFromApiUser(
   const storeIdRaw = Number(user.storeId ?? user.store_id ?? 0);
   const storeId = Number.isFinite(storeIdRaw) && storeIdRaw > 0 ? storeIdRaw : 0;
   const storeName = String(user.storeName ?? user.store_name ?? '').trim();
+  const appointmentRaw = Number(user.appointmentId ?? user.appointment_id ?? 0);
+  const appointmentId =
+    Number.isFinite(appointmentRaw) && appointmentRaw > 0 ? appointmentRaw : undefined;
+  const customerRaw = Number(user.customerId ?? user.customer_id ?? user.id ?? 0);
+  const customerId =
+    Number.isFinite(customerRaw) && customerRaw > 0 ? customerRaw : undefined;
   return {
     id: user.id,
     username: user.username,
@@ -50,6 +60,10 @@ export function sessionFromApiUser(
     storeId: storeId || undefined,
     storeName: storeName || undefined,
     store_name: storeName || undefined,
+    appointmentId,
+    appointment_id: appointmentId,
+    customerId,
+    customer_id: customerId,
     sessionExpiresAt,
   };
 }
