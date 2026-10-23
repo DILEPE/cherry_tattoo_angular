@@ -30,12 +30,16 @@ export interface PanelUserPublic {
   store_id?: number | null;
   store_name?: string | null;
   session_expires_at?: number;
+  appointment_id?: number | null;
+  customer_id?: number | null;
 }
 
 export interface PanelUserSession extends PanelUserPublic {
   effectiveModules?: PanelModuleKey[];
   storeId?: number;
   storeName?: string;
+  appointmentId?: number;
+  customerId?: number;
   /** Unix epoch en ms: se renueva con actividad; expira tras inactividad prolongada. */
   sessionExpiresAt: number;
 }

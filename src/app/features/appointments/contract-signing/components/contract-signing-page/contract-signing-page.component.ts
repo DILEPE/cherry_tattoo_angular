@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   computed,
   inject,
@@ -55,6 +56,8 @@ import {
 } from '../../models/piercing-type-signing.util';
 import { FormsModule } from '@angular/forms';
 import { DocumentType } from '../../../../customers/models/customer.model';
+import { AppStore } from '../../../../../store/app.store';
+import { isClientRole } from '../../../../../core/utils/panel-roles';
 
 @Component({
   selector: 'app-contract-signing-page',
@@ -73,7 +76,11 @@ import { DocumentType } from '../../../../customers/models/customer.model';
   template: `
     <div class="ctsig-page panel-fade-in">
       <header class="ctsig-page__header">
-        <a routerLink="/citas" class="ctsig-page__back">← Volver a citas</a>
+        @if (isClientSession()) {
+          <button type="button" class="ctsig-page__back" (click)="onBack()">Cerrar sesión</button>
+        } @else {
+          <a routerLink="/citas" class="ctsig-page__back">← Volver a citas</a>
+        }
         <h1>{{ surveyOnly() ? 'Cuestionario' : 'Firma de contrato' }}</h1>
         @if (appointment(); as a) {
           <p class="ctsig-page__meta">
@@ -86,14 +93,14 @@ import { DocumentType } from '../../../../customers/models/customer.model';
         <app-skeleton [rows]="8" />
       } @else if (loadError()) {
         <p class="form-field__error">{{ loadError() }}</p>
-        <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+        <app-button variant="ghost" (clicked)="onBack()">{{ backLabel() }}</app-button>
       } @else if (surveyOnly()) {
         <section class="ctsig-step">
           <h2>Cuestionario de la cita</h2>
           @if (!questions().length) {
             <p class="ctsig-page__meta">No hay preguntas activas para este tipo de servicio.</p>
             <div class="ctsig-step-actions">
-              <app-button variant="ghost" routerLink="/citas">Volver a citas</app-button>
+              <app-button variant="ghost" (clicked)="onBack()">{{ backLabel() }}</app-button>
             </div>
           } @else {
             <app-contract-signing-survey-step
@@ -101,8 +108,8 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               [appointmentId]="appointmentId()"
               [serviceType]="appointment()?.serviceType ?? ''"
               [submitting]="saving()"
-              backLabel="← Volver a citas"
-              (back)="goBackToCitas()"
+              [backLabel]="backLabel()"
+              (back)="onBack()"
               (submitted)="onSurveySubmitted($event)"
             />
           }
@@ -120,7 +127,7 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               (valueChange)="artistSig.set($event)"
             />
             <div class="ctsig-step-actions">
-              <app-button variant="ghost" routerLink="/citas">Cancelar</app-button>
+              <app-button variant="ghost" (clicked)="onBack()">Cancelar</app-button>
               <app-button
                 variant="primary"
                 [loading]="saving()"
@@ -156,8 +163,8 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                 @if (customerFichaLocked()) {
                   <app-customer-form [initial]="c" [readonly]="true" />
                   <div class="ctsig-step-actions">
-                    <app-button type="button" variant="ghost" routerLink="/citas">
-                      Cancelar
+                    <app-button type="button" variant="ghost" (clicked)="onBack()">
+                      {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
                     </app-button>
                     <app-button
                       type="button"
@@ -171,8 +178,8 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                 } @else {
                   <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
                     <div actions class="ctsig-step-actions">
-                      <app-button type="button" variant="ghost" routerLink="/citas">
-                        Cancelar
+                      <app-button type="button" variant="ghost" (clicked)="onBack()">
+                        {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
                       </app-button>
                       <app-button type="submit" variant="primary" [loading]="saving()">
                         Guardar y continuar
@@ -309,10 +316,12 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                     (valueChange)="tutorSig.set($event)"
                   />
                 }
-                <app-signature-pad
-                  label="Firma del profesional (opcional aquí)"
-                  (valueChange)="artistSig.set($event)"
-                />
+                @if (!isClientSession()) {
+                  <app-signature-pad
+                    label="Firma del profesional (opcional aquí)"
+                    (valueChange)="artistSig.set($event)"
+                  />
+                }
               </div>
 
               @if (isMinor()) {
@@ -485,10 +494,12 @@ import { DocumentType } from '../../../../customers/models/customer.model';
                   (valueChange)="tutorSig.set($event)"
                 />
               }
-              <app-signature-pad
-                label="Firma del profesional (opcional aquí)"
-                (valueChange)="artistSig.set($event)"
-              />
+              @if (!isClientSession()) {
+                <app-signature-pad
+                  label="Firma del profesional (opcional aquí)"
+                  (valueChange)="artistSig.set($event)"
+                />
+              }
             </div>
             @if (showTutorSection()) {
               <h3 class="ctsig-subsection">Documento del tutor</h3>
@@ -524,7 +535,9 @@ import { DocumentType } from '../../../../customers/models/customer.model';
               </div>
             }
             <div class="ctsig-step-actions">
-              <app-button variant="ghost" routerLink="/citas">Cancelar</app-button>
+              <app-button variant="ghost" (clicked)="onBack()">
+                {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
+              </app-button>
               <app-button variant="primary" [loading]="saving()" (clicked)="submitSingleFlow()">
                 Guardar contrato firmado
               </app-button>
@@ -535,15 +548,16 @@ import { DocumentType } from '../../../../customers/models/customer.model';
     </div>
   `,
 })
-export class ContractSigningPageComponent implements OnInit {
+export class ContractSigningPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly appStore = inject(AppStore);
   private readonly apptApi = inject(AppointmentsApiService);
   private readonly customersApi = inject(CustomersApiService);
   private readonly templatesApi = inject(TemplatesApiService);
   private readonly signedContractsApi = inject(SignedContractsApiService);
   private readonly signingApi = inject(ContractSigningApiService);
-  private readonly apptStore = inject(AppointmentsStore);
+  private readonly apptStore = inject(AppointmentsStore, { optional: true });
   private readonly toast = inject(ToastService);
   private readonly errors = inject(ErrorService);
   private readonly sanitizer = inject(DomSanitizer);
@@ -559,6 +573,8 @@ export class ContractSigningPageComponent implements OnInit {
   readonly step = signal(1);
   readonly artistOnly = signal(false);
   readonly surveyOnly = signal(false);
+  readonly isClientSession = signal(false);
+  private sessionTimer: ReturnType<typeof setInterval> | null = null;
   readonly appointment = signal<Appointment | null>(null);
   readonly payments = signal<AppointmentPayment[]>([]);
   readonly customer = signal<Customer | null>(null);
@@ -642,15 +658,31 @@ export class ContractSigningPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('appointmentId'));
+    const session = this.appStore.user();
+    const clientSession = isClientRole(session?.role ?? '');
+    this.isClientSession.set(clientSession);
+
+    const routeId = Number(this.route.snapshot.paramMap.get('appointmentId'));
+    const id = clientSession ? Number(session?.appointmentId ?? 0) : routeId;
     const artistOnly =
-      this.route.snapshot.queryParamMap.get('artistOnly') === '1' ||
-      this.route.snapshot.queryParamMap.get('artistOnly') === 'true';
+      !clientSession &&
+      (this.route.snapshot.queryParamMap.get('artistOnly') === '1' ||
+        this.route.snapshot.queryParamMap.get('artistOnly') === 'true');
     const surveyOnly =
-      this.route.snapshot.queryParamMap.get('surveyOnly') === '1' ||
-      this.route.snapshot.queryParamMap.get('surveyOnly') === 'true';
+      !clientSession &&
+      (this.route.snapshot.queryParamMap.get('surveyOnly') === '1' ||
+        this.route.snapshot.queryParamMap.get('surveyOnly') === 'true');
     this.artistOnly.set(artistOnly);
     this.surveyOnly.set(surveyOnly);
+
+    if (clientSession) {
+      this.appStore.touchSessionActivity();
+      this.sessionTimer = setInterval(() => {
+        if (this.appStore.ensureSessionValid()) return;
+        this.toast.warn('La sesión del código OTP expiró.');
+        void this.router.navigateByUrl('/login');
+      }, 30_000);
+    }
 
     if (id <= 0) {
       this.loadError.set('Cita no válida.');
@@ -669,8 +701,28 @@ export class ContractSigningPageComponent implements OnInit {
     this.loadFullFlow(id);
   }
 
-  goBackToCitas(): void {
+  ngOnDestroy(): void {
+    if (this.sessionTimer !== null) {
+      clearInterval(this.sessionTimer);
+      this.sessionTimer = null;
+    }
+  }
+
+  backLabel(): string {
+    return this.isClientSession() ? 'Cerrar sesión' : '← Volver a citas';
+  }
+
+  onBack(): void {
+    if (this.isClientSession()) {
+      this.appStore.logout();
+      void this.router.navigateByUrl('/login');
+      return;
+    }
     void this.router.navigateByUrl('/citas');
+  }
+
+  goBackToCitas(): void {
+    this.onBack();
   }
 
   todayLabel(): string {
@@ -1074,7 +1126,7 @@ export class ContractSigningPageComponent implements OnInit {
     const finishOk = (): void => {
       this.saving.set(false);
       this.toast.success('Cuestionario guardado. Cita finalizada.');
-      this.apptStore.invalidate();
+      this.apptStore?.invalidate();
       void this.router.navigateByUrl('/citas');
     };
     if (a.status === 'finalizada') {
@@ -1087,7 +1139,7 @@ export class ContractSigningPageComponent implements OnInit {
         this.saving.set(false);
         this.toast.success('Cuestionario guardado.');
         this.errors.handle(err);
-        this.apptStore.invalidate();
+        this.apptStore?.invalidate();
       },
     });
   }
@@ -1185,7 +1237,7 @@ export class ContractSigningPageComponent implements OnInit {
         health_data: { source: 'angular_panel', template_id: tpl.id },
         signature: client!,
         tutor_signature: tutorSig,
-        artist_signature: this.artistSig(),
+        artist_signature: this.isClientSession() ? null : this.artistSig(),
         tutor_document_front: minor ? this.tutorDocFront() : null,
         tutor_document_back: minor ? this.tutorDocBack() : null,
         minor_document_front: minor ? this.minorDocFront() : null,
@@ -1196,8 +1248,14 @@ export class ContractSigningPageComponent implements OnInit {
       this.signingApi.signContract(payload).subscribe({
         next: () => {
           this.saving.set(false);
+          this.apptStore?.invalidate();
+          if (this.isClientSession()) {
+            this.appStore.logout();
+            this.toast.success('Contrato firmado. Ya puedes devolver la tableta.');
+            void this.router.navigateByUrl('/login');
+            return;
+          }
           this.toast.success('Contrato firmado correctamente.');
-          this.apptStore.invalidate();
           void this.router.navigateByUrl('/citas');
         },
         error: (err) => {
@@ -1277,7 +1335,7 @@ export class ContractSigningPageComponent implements OnInit {
         next: () => {
           this.saving.set(false);
           this.toast.success('Firma del profesional registrada.');
-          this.apptStore.invalidate();
+          this.apptStore?.invalidate();
           void this.router.navigateByUrl('/citas');
         },
         error: (err) => {

@@ -39,6 +39,7 @@ export const BOOKING_FIELD_LABELS: Record<string, string> = {
 export const LOGIN_FIELD_LABELS: Record<string, string> = {
   username: 'Usuario',
   password: 'Contraseña',
+  code: 'Código OTP',
 };
 
 export const RESCHEDULE_FIELD_LABELS: Record<string, string> = {
