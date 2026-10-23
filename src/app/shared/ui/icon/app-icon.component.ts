@@ -5,6 +5,7 @@ export type AppIconName =
   | 'trash'
   | 'document'
   | 'send'
+  | 'printer'
   | 'check'
   | 'userOff'
   | 'userPlus'
@@ -56,6 +57,11 @@ export type AppIconName =
         @case ('send') {
           <path d="m22 2-7 20-4-9-9-4Z" />
           <path d="M22 2 11 13" />
+        }
+        @case ('printer') {
+          <path d="M6 9V2h12v7" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <path d="M6 14h12v8H6z" />
         }
         @case ('check') {
           <path d="M20 6 9 17l-5-5" />

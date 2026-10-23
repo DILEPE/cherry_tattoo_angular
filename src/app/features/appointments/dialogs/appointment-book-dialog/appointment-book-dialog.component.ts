@@ -747,7 +747,7 @@ export class AppointmentBookDialogComponent {
         }
         const msg =
           deposit > 0
-            ? 'Cita creada. El recibo quedó listo; envíalo desde la ficha de la cita.'
+            ? 'Cita creada. El recibo quedó listo; imprímelo desde la ficha de la cita.'
             : 'Cita creada correctamente.';
         this.toast.success(msg);
         this.close();

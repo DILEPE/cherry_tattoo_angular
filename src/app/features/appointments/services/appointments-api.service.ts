@@ -196,6 +196,28 @@ export class AppointmentsApiService {
     );
   }
 
+  getSigningOt(
+    appointmentId: number,
+  ): Observable<{
+    appointment_id: number;
+    customer_id?: number | null;
+    customer_name?: string | null;
+    code?: string | null;
+  }> {
+    return this.api.get(`/api/appointments/${appointmentId}/signing-otp`);
+  }
+
+  generateSigningOt(
+    appointmentId: number,
+  ): Observable<{
+    appointment_id: number;
+    customer_id?: number | null;
+    customer_name?: string | null;
+    code?: string | null;
+  }> {
+    return this.api.post(`/api/appointments/${appointmentId}/signing-otp`, {});
+  }
+
   create(payload: Record<string, unknown>): Observable<{ id?: number; message?: string }> {
     return this.api.post<{ id?: number; message?: string }>('/api/appointments', payload);
   }
