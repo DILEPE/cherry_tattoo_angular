@@ -521,7 +521,7 @@ export class AppointmentAbonosSectionComponent {
     const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
     if (rid == null || aid == null || aid <= 0) return;
     this.printingPayId.set(paymentId);
-    this.api.getReceiptPdf(aid, rid, true).subscribe({
+    this.api.getReceiptPdf(aid, rid, true, 'png').subscribe({
       next: (blob) => {
         this.printingPayId.set(null);
         printPdfBlob(blob);
@@ -534,16 +534,11 @@ export class AppointmentAbonosSectionComponent {
   }
 
   printViewedReceipt(): void {
-    const blob = this.pdfBlob();
-    if (blob) {
-      printPdfBlob(blob);
-      return;
-    }
     const rid = this.viewReceiptId();
     const aid = this.dlg.appointmentId() ?? this.dlg.appointment()?.id ?? null;
     if (rid == null || aid == null || aid <= 0) return;
     this.printingViewed.set(true);
-    this.api.getReceiptPdf(aid, rid, this.previewWithAmounts()).subscribe({
+    this.api.getReceiptPdf(aid, rid, this.previewWithAmounts(), 'png').subscribe({
       next: (pdf) => {
         this.printingViewed.set(false);
         printPdfBlob(pdf);
