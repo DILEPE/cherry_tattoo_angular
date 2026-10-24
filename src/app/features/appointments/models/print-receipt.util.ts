@@ -1,27 +1,72 @@
 /** Imprime el recibo térmico ESC/POS (72 mm imprimibles en rollo de 80 mm). */
 export function printPdfBlob(blob: Blob): void {
   const type = (blob.type || '').toLowerCase();
-  if (type.includes('png') || type.includes('jpeg') || type.includes('webp') || type.includes('gif')) {
+  if (isImageType(type)) {
     printReceiptImage(blob);
     return;
   }
-  printReceiptPdfIframe(blob);
+  void blob
+    .slice(0, 8)
+    .arrayBuffer()
+    .then((buf) => {
+      const bytes = new Uint8Array(buf);
+      const isPng =
+        bytes.length >= 8 &&
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47;
+      if (isPng) printReceiptImage(blob);
+      else printReceiptPdfIframe(blob);
+    })
+    .catch(() => printReceiptPdfIframe(blob));
+}
+
+function isImageType(type: string): boolean {
+  return (
+    type.includes('png') ||
+    type.includes('jpeg') ||
+    type.includes('jpg') ||
+    type.includes('webp') ||
+    type.includes('gif') ||
+    type.startsWith('image/')
+  );
 }
 
 function printReceiptImage(blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = () => {
-    const widthMm = 72;
-    const heightMm = Math.max(80, (img.naturalHeight / Math.max(img.naturalWidth, 1)) * widthMm + 10);
-    const popup = window.open('', '_blank', 'noopener,noreferrer,width=420,height=900');
-    if (!popup) {
-      URL.revokeObjectURL(url);
-      window.open(url, '_blank');
+  const reader = new FileReader();
+  reader.onerror = () => printReceiptPdfIframe(blob);
+  reader.onload = () => {
+    const dataUrl = String(reader.result || '');
+    if (!dataUrl.startsWith('data:')) {
+      printReceiptPdfIframe(blob);
       return;
     }
-    popup.document.open();
-    popup.document.write(`<!DOCTYPE html>
+    const probe = new Image();
+    probe.onerror = () => printReceiptPdfIframe(blob);
+    probe.onload = () => openImagePrintFrame(dataUrl, probe.naturalWidth, probe.naturalHeight);
+    probe.src = dataUrl;
+  };
+  reader.readAsDataURL(blob);
+}
+
+function openImagePrintFrame(dataUrl: string, naturalWidth: number, naturalHeight: number): void {
+  const widthMm = 72;
+  const heightMm = Math.max(80, (naturalHeight / Math.max(naturalWidth, 1)) * widthMm + 10);
+  const iframe = document.createElement('iframe');
+  iframe.title = 'Imprimir recibo';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText =
+    'position:fixed;right:0;bottom:0;width:72mm;height:320mm;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  if (!doc) {
+    iframe.remove();
+    window.open(dataUrl, '_blank');
+    return;
+  }
+  doc.open();
+  doc.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
@@ -36,33 +81,35 @@ function printReceiptImage(blob: Blob): void {
     }
   </style>
 </head>
-<body><img src="${url}" alt="Orden de trabajo"/></body>
+<body><img src="${dataUrl}" alt="Orden de trabajo"/></body>
 </html>`);
-    popup.document.close();
-    const trigger = (): void => {
-      try {
-        popup.focus();
-        popup.print();
-      } catch {
-        window.open(url, '_blank');
-      }
-    };
-    popup.onload = () => window.setTimeout(trigger, 300);
-    window.setTimeout(trigger, 600);
-    window.setTimeout(() => {
-      try {
-        popup.close();
-      } catch {
-        /* ignore */
-      }
-      URL.revokeObjectURL(url);
-    }, 180_000);
+  doc.close();
+
+  let printed = false;
+  const triggerPrint = (): void => {
+    if (printed) return;
+    printed = true;
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      window.open(dataUrl, '_blank');
+    }
   };
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    printReceiptPdfIframe(blob);
-  };
-  img.src = url;
+
+  const img = doc.querySelector('img');
+  if (img) {
+    if (img.complete && img.naturalWidth > 0) {
+      window.setTimeout(triggerPrint, 200);
+    } else {
+      img.onload = () => window.setTimeout(triggerPrint, 200);
+      img.onerror = triggerPrint;
+    }
+  } else {
+    window.setTimeout(triggerPrint, 400);
+  }
+  window.setTimeout(triggerPrint, 1500);
+  window.setTimeout(() => iframe.remove(), 180_000);
 }
 
 function printReceiptPdfIframe(blob: Blob): void {
