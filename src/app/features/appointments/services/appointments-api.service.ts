@@ -178,10 +178,11 @@ export class AppointmentsApiService {
     appointmentId: number,
     receiptId: number,
     includeAbonoAmounts = true,
+    format: 'pdf' | 'png' = 'pdf',
   ): Observable<Blob> {
     return this.api.getBlob(
       `/api/appointments/${appointmentId}/receipts/${receiptId}/pdf`,
-      { include_abono_amounts: includeAbonoAmounts },
+      { include_abono_amounts: includeAbonoAmounts, format },
     );
   }
 
