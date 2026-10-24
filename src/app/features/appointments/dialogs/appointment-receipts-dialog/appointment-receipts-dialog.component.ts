@@ -89,7 +89,7 @@ export class AppointmentReceiptsDialogComponent {
     const a = this.dlg.appointment();
     if (!a) return;
     this.printingId.set(r.id);
-    this.api.getReceiptPdf(a.id, r.id).subscribe({
+    this.api.getReceiptPdf(a.id, r.id, true, 'png').subscribe({
       next: (blob) => {
         this.printingId.set(null);
         printPdfBlob(blob);
