@@ -1,14 +1,6 @@
 .ct-page-title {
-  margin: 0 0 0.35rem;
-  font-size: 1.2rem;
-}
-
-.ct-page-lead {
   margin: 0 0 0.85rem;
-  font-size: 0.86rem;
-  color: var(--text-muted);
-  max-width: 42rem;
-  line-height: 1.45;
+  font-size: 1.2rem;
 }
 
 .ct-toolbar {
@@ -206,9 +198,9 @@
 }
 
 .ct-rich-editor__chip {
-  border: 1px solid var(--brand-border);
-  background: var(--brand-light);
-  color: var(--brand);
+  border: 1px solid var(--border);
+  background: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
   border-radius: var(--radius-pill);
   padding: 0.12rem 0.5rem;
   font-size: 0.72rem;
@@ -217,8 +209,8 @@
   line-height: 1.3;
 
   &:hover:not(:disabled) {
-    background: rgba(217, 0, 100, 0.14);
-    border-color: var(--brand);
+    background: #e5e7eb;
+    border-color: var(--border-hover);
   }
 
   &:disabled {

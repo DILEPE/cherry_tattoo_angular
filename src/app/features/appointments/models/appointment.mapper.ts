@@ -238,17 +238,15 @@ export function filterAppointments(
     if (name && !row.customerName.toLowerCase().includes(name)) return false;
     if (storeId > 0 && (row.assignedStoreId ?? 0) !== storeId) return false;
     if (service !== 'Todos') {
-      if (isPiercingServiceFilter(service)) {
-        const kind = inferWorkKindFromAppointment(row);
-        const piercingFamily =
-          kind === 'piercing' ||
-          kind === 'limpieza_piercing' ||
-          kind === 'cambio_piercing' ||
-          (row.serviceType || '').toLowerCase().includes('pierc') ||
-          (row.serviceType || '').toLowerCase() === 'cambio' ||
-          (row.serviceType || '').toLowerCase() === 'limpieza';
-        if (!piercingFamily) return false;
-      } else if (row.serviceType !== service) {
+      const selected = service.trim().toLowerCase();
+      const svc = (row.serviceType || '').trim().toLowerCase();
+      const subtypeIsWorkKind =
+        isPiercingServiceFilter(service) && isPiercingWorkKindFilter(piercingKind);
+      if (subtypeIsWorkKind) {
+        if (!appointmentMatchesPiercingSubtype(row, piercingKind, piercingTypeLabels)) {
+          return false;
+        }
+      } else if (svc !== selected) {
         return false;
       }
     }

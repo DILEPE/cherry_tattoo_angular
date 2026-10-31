@@ -14,7 +14,7 @@ $env:NODE_OPTIONS="--use-system-ca"   # si npm falla por certificados en Windows
 npm start
 ```
 
-Abre `http://localhost:4200`. El proxy (`proxy.conf.json`) reenvía `/api` al backend.
+Abre `http://localhost:4200`. El proxy (`proxy.conf.cjs`) reenvía `/api` al backend.
 
 ## Ramas
 

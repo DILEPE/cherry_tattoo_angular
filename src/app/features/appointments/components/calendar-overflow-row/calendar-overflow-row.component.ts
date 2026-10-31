@@ -14,7 +14,11 @@ import { CalendarAppointmentSlotView } from '../../models/calendar.model';
           {{ slot().serviceType }}
         </span>
         <span class="cal-overflow-sep">·</span>
-        <span class="cli-pill cli-pill-{{ slot().pillKind }}">{{ slot().customerShort }}</span>
+        @if (slot().pillKind === 'new' || slot().pillKind === 'returning') {
+          <span class="cal-overflow-client">{{ slot().customerShort }}</span>
+        } @else {
+          <span class="cli-pill cli-pill-{{ slot().pillKind }}">{{ slot().customerShort }}</span>
+        }
         @if (slot().artistLabel !== 'Sin asignar') {
           <span class="cal-overflow-artist-dash">· Artista: {{ slot().artistLabel }}</span>
         }

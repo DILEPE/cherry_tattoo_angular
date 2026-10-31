@@ -84,7 +84,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
         <h1>{{ surveyOnly() ? 'Cuestionario' : 'Firma de contrato' }}</h1>
         @if (appointment(); as a) {
           <p class="ctsig-page__meta">
-            Cita #{{ a.id }} · {{ a.customerName }} · {{ a.serviceType }}
+            {{ a.customerName }} · {{ a.serviceType }}
           </p>
         }
       </header>
