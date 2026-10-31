@@ -53,7 +53,7 @@ import { resolveAppointmentModalId } from '../appointment-modal.util';
       <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
     } @else {
       <p class="appt-dialog-caption">
-        Cita #{{ dlg.appointment()?.id }} · {{ dlg.appointment()?.customerName }} · Artista:
+        {{ dlg.appointment()?.customerName }} · Artista:
         <strong>{{ dlg.appointment()?.assignedLabel }}</strong>
       </p>
       <form [formGroup]="form" appFormShowErrors (ngSubmit)="onSubmit()" novalidate>

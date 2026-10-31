@@ -52,13 +52,13 @@
 .cal-cell-today.cal-cell--month {
   position: relative;
   z-index: 1;
-  border-color: var(--brand);
+  border-color: #4e5762;
   border-width: 2px;
-  background: rgba(217, 0, 100, 0.11);
+  background: rgba(78, 87, 98, 0.08);
   box-shadow:
-    inset 0 0 0 1px rgba(217, 0, 100, 0.22),
-    0 0 0 1px rgba(217, 0, 100, 0.12),
-    0 2px 10px var(--brand-glow);
+    inset 0 0 0 1px rgba(78, 87, 98, 0.16),
+    0 0 0 1px rgba(78, 87, 98, 0.08),
+    0 2px 10px rgba(15, 23, 42, 0.08);
 }
 
 .cal-cell--month .cal-cell-head {
@@ -100,8 +100,8 @@
 .cal-cell-today.cal-cell--month .cal-cell-head {
   padding-top: 0.1rem;
   padding-right: 0.22rem;
-  background: linear-gradient(180deg, rgba(217, 0, 100, 0.14) 0%, transparent 100%);
-  border-bottom-color: rgba(217, 0, 100, 0.22);
+  background: linear-gradient(180deg, rgba(78, 87, 98, 0.12) 0%, transparent 100%);
+  border-bottom-color: rgba(78, 87, 98, 0.22);
 }
 
 .cal-cell-today.cal-cell--month .cal-cell-daynum {
@@ -112,9 +112,9 @@
   font-size: 0.88rem;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
-  border-color: rgba(217, 0, 100, 0.55);
-  box-shadow: 0 1px 5px rgba(217, 0, 100, 0.45);
+  background: linear-gradient(180deg, #6d7580 0%, #4e5762 100%);
+  border-color: rgba(78, 87, 98, 0.55);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
 }
 
 .cal-cell-today.cal-cell--month .cal-day-inner {
@@ -122,15 +122,15 @@
 }
 
 .cal-cell-today.cal-cell--month .cal-cell-footer-strip {
-  background: rgba(217, 0, 100, 0.08);
-  border-top-color: rgba(217, 0, 100, 0.28);
+  background: rgba(78, 87, 98, 0.08);
+  border-top-color: rgba(78, 87, 98, 0.22);
 }
 
 .cal-cell-today.cal-cell--month .cal-footer-daynum {
   color: #fff;
-  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
-  border-color: rgba(217, 0, 100, 0.55);
-  box-shadow: 0 1px 4px rgba(217, 0, 100, 0.35);
+  background: linear-gradient(180deg, #6d7580 0%, #4e5762 100%);
+  border-color: rgba(78, 87, 98, 0.55);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
 }
 
 .cal-cell-footer-strip {
@@ -425,6 +425,10 @@
   font-weight: 600;
 }
 
+.cal-overflow-client {
+  font-weight: 700;
+}
+
 .cal-overflow-artist-dash {
   opacity: 0.95;
   font-weight: 600;
@@ -459,8 +463,9 @@
 
 .cal-overflow-fire-pending {
   flex-shrink: 0;
-  background: #f59e0b;
-  color: #111827;
+  background: rgba(78, 87, 98, 0.12);
+  color: #3f4754;
+  border: 1px solid rgba(78, 87, 98, 0.28);
   padding: 0.1rem 0.42rem;
   border-radius: 6px;
   font-size: 0.68rem;
@@ -480,7 +485,7 @@
   gap: 0.65rem 1.15rem;
   padding: 0.6rem 0.9rem;
   background: var(--surface);
-  border: 1px solid var(--brand-border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   margin: 0 0 0.75rem;
 }
@@ -649,8 +654,8 @@
   cursor: pointer;
 
   &--active {
-    background: var(--brand-light);
-    color: var(--brand);
+    background: rgba(78, 87, 98, 0.12);
+    color: #3f4754;
   }
 }
 
@@ -672,8 +677,8 @@
   cursor: pointer;
 
   &--active {
-    background: var(--brand-light);
-    color: var(--brand);
+    background: rgba(78, 87, 98, 0.12);
+    color: #3f4754;
   }
 }
 
@@ -771,7 +776,7 @@
   gap: 0.65rem 0.75rem;
   margin-bottom: 0.85rem;
   padding: 0.65rem 0.75rem;
-  border: 1px solid var(--brand-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
 }
@@ -1076,16 +1081,16 @@
 }
 
 .twg-h-today {
-  border-color: var(--brand);
+  border-color: #4e5762;
   border-width: 2px;
-  background: rgba(217, 0, 100, 0.11);
+  background: rgba(78, 87, 98, 0.08);
   box-shadow:
-    inset 0 0 0 1px rgba(217, 0, 100, 0.2),
-    0 2px 8px var(--brand-glow);
+    inset 0 0 0 1px rgba(78, 87, 98, 0.16),
+    0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .twg-h-today .twg-h-wd {
-  color: var(--brand);
+  color: #3f4754;
   font-weight: 800;
 }
 
@@ -1102,8 +1107,8 @@
   font-size: 1.02rem;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(180deg, var(--brand-bright) 0%, var(--brand) 100%);
-  box-shadow: 0 1px 4px rgba(217, 0, 100, 0.4);
+  background: linear-gradient(180deg, #6d7580 0%, #4e5762 100%);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
 }
 
 .twg-h-wd {
@@ -1190,12 +1195,12 @@
 }
 
 .twg-col-today {
-  border-color: var(--brand);
+  border-color: #4e5762;
   border-width: 2px;
-  background: rgba(217, 0, 100, 0.09);
+  background: rgba(78, 87, 98, 0.06);
   box-shadow:
-    inset 0 0 0 1px rgba(217, 0, 100, 0.18),
-    0 0 8px rgba(255, 0, 127, 0.12);
+    inset 0 0 0 1px rgba(78, 87, 98, 0.14),
+    0 0 8px rgba(15, 23, 42, 0.06);
   z-index: 1;
 }
 
