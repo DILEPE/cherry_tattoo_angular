@@ -5,6 +5,14 @@ export const routes: Routes = [
   {
     path: 'login',
     canActivate: [guestGuard],
+    data: { entry: 'staff' },
+    loadComponent: () =>
+      import('./features/auth/components/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'firmar',
+    canActivate: [guestGuard],
+    data: { entry: 'ot' },
     loadComponent: () =>
       import('./features/auth/components/login/login.component').then((m) => m.LoginComponent),
   },
