@@ -680,7 +680,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
       this.sessionTimer = setInterval(() => {
         if (this.appStore.ensureSessionValid()) return;
         this.toast.warn('La sesión del código OTP expiró.');
-        void this.router.navigateByUrl('/login');
+        void this.router.navigateByUrl('/firmar');
       }, 30_000);
     }
 
@@ -715,7 +715,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
   onBack(): void {
     if (this.isClientSession()) {
       this.appStore.logout();
-      void this.router.navigateByUrl('/login');
+      void this.router.navigateByUrl('/firmar');
       return;
     }
     void this.router.navigateByUrl('/citas');
@@ -1252,7 +1252,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
           if (this.isClientSession()) {
             this.appStore.logout();
             this.toast.success('Contrato firmado. Ya puedes devolver la tableta.');
-            void this.router.navigateByUrl('/login');
+            void this.router.navigateByUrl('/firmar');
             return;
           }
           this.toast.success('Contrato firmado correctamente.');

@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { trimRequiredValidator } from '../../../../shared/forms/form-validators';
 import { LOGIN_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
 import { validateFormBeforeSubmit } from '../../../../shared/forms/form-submit.util';
 import { ToastService } from '../../../../shared/ui/toast/toast.service';
-import { Router } from '@angular/router';
 import { AppStore } from '../../../../store/app.store';
 import { AppButtonComponent } from '../../../../shared/ui/button/app-button.component';
 import { AppFormFieldComponent } from '../../../../shared/ui/form-field/app-form-field.component';
@@ -15,7 +15,13 @@ import { isClientRole } from '../../../../core/utils/panel-roles';
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, AppButtonComponent, AppFormFieldComponent, FormShowErrorsDirective],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    AppButtonComponent,
+    AppFormFieldComponent,
+    FormShowErrorsDirective,
+  ],
   template: `
     <div class="login-page panel-fade-in">
       <img
@@ -29,37 +35,49 @@ import { isClientRole } from '../../../../core/utils/panel-roles';
         @if (appStore.authLoading()) {
           <div class="login-card__overlay" aria-live="polite" aria-busy="true">
             <span class="login-card__spinner" aria-hidden="true"></span>
-            <span class="login-card__loading-text">Iniciando sesión…</span>
+            <span class="login-card__loading-text">
+              {{ isOt ? 'Validando código…' : 'Iniciando sesión…' }}
+            </span>
           </div>
         }
-        <h1>Rock City</h1>
-        <p>{{ mode() === 'ot' ? 'Firma de contrato (cliente)' : 'Panel de operaciones' }}</p>
 
-        <div class="login-card__tabs" role="tablist" aria-label="Tipo de acceso">
-          <button
-            type="button"
-            class="login-card__tab"
-            [class.login-card__tab--active]="mode() === 'staff'"
-            role="tab"
-            [attr.aria-selected]="mode() === 'staff'"
-            (click)="setMode('staff')"
-          >
-            Personal
-          </button>
-          <button
-            type="button"
-            class="login-card__tab"
-            [class.login-card__tab--active]="mode() === 'ot'"
-            role="tab"
-            [attr.aria-selected]="mode() === 'ot'"
-            (click)="setMode('ot')"
-          >
-            Cliente (OTP)
-          </button>
-        </div>
-
-        @if (mode() === 'staff') {
+        @if (isOt) {
+          <h1>Firmar con OTP</h1>
+          <p>Ingresa el código de 6 dígitos que te dio el vendedor.</p>
           <form
+            #formErrors="appFormShowErrors"
+            [formGroup]="otForm"
+            appFormShowErrors
+            (ngSubmit)="onSubmitOt()"
+            novalidate
+            [attr.aria-busy]="appStore.authLoading()"
+          >
+            <app-form-field label="Código OTP" [control]="otForm.controls.code" controlId="otpCode">
+              <input
+                id="otpCode"
+                class="login-ot-code"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                autocomplete="one-time-code"
+                formControlName="code"
+              />
+            </app-form-field>
+
+            @if (appStore.authError()) {
+              <p class="form-field__error">{{ appStore.authError() }}</p>
+            }
+
+            <app-button type="submit" variant="primary" [loading]="appStore.authLoading()">
+              Continuar a firmar
+            </app-button>
+          </form>
+          <a class="login-card__alt" routerLink="/login">Ingreso personal</a>
+        } @else {
+          <h1>Ingreso personal</h1>
+          <p>Panel de operaciones</p>
+          <form
+            #formErrors="appFormShowErrors"
             [formGroup]="form"
             appFormShowErrors
             (ngSubmit)="onSubmit()"
@@ -91,35 +109,7 @@ import { isClientRole } from '../../../../core/utils/panel-roles';
               Iniciar sesión
             </app-button>
           </form>
-        } @else {
-          <form
-            [formGroup]="otForm"
-            appFormShowErrors
-            (ngSubmit)="onSubmitOt()"
-            novalidate
-            [attr.aria-busy]="appStore.authLoading()"
-          >
-            <p class="login-card__hint">Ingresa el código OTP de 6 dígitos que te dio el vendedor.</p>
-            <app-form-field label="Código OTP" [control]="otForm.controls.code" controlId="otpCode">
-              <input
-                id="otpCode"
-                class="login-ot-code"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                autocomplete="one-time-code"
-                formControlName="code"
-              />
-            </app-form-field>
-
-            @if (appStore.authError()) {
-              <p class="form-field__error">{{ appStore.authError() }}</p>
-            }
-
-            <app-button type="submit" variant="primary" [loading]="appStore.authLoading()">
-              Continuar a firmar
-            </app-button>
-          </form>
+          <a class="login-card__alt" routerLink="/firmar">Firmar con OTP</a>
         }
       </div>
     </div>
@@ -130,9 +120,10 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
-  private readonly formShowErrors = viewChild(FormShowErrorsDirective);
+  private readonly formErrors = viewChild<FormShowErrorsDirective>('formErrors');
 
-  readonly mode = signal<'staff' | 'ot'>('staff');
+  /** `true` en `/firmar`; `false` en `/login`. */
+  protected readonly isOt = inject(ActivatedRoute).snapshot.data['entry'] === 'ot';
 
   readonly form = this.fb.nonNullable.group({
     username: ['', trimRequiredValidator()],
@@ -155,16 +146,12 @@ export class LoginComponent {
     }
   });
 
-  setMode(next: 'staff' | 'ot'): void {
-    this.mode.set(next);
-  }
-
   onSubmit(): void {
     if (
       !validateFormBeforeSubmit(this.form, {
         toast: this.toast,
         fieldLabels: LOGIN_FIELD_LABELS,
-        onInvalid: () => this.formShowErrors()?.activate(),
+        onInvalid: () => this.formErrors()?.activate(),
       })
     ) {
       return;
@@ -178,7 +165,7 @@ export class LoginComponent {
       !validateFormBeforeSubmit(this.otForm, {
         toast: this.toast,
         fieldLabels: LOGIN_FIELD_LABELS,
-        onInvalid: () => this.formShowErrors()?.activate(),
+        onInvalid: () => this.formErrors()?.activate(),
       })
     ) {
       return;

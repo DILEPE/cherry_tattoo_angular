@@ -2011,9 +2011,32 @@
   background: var(--surface);
   box-shadow: var(--shadow-panel);
 
+  app-button {
+    display: block;
+    width: 100%;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
   &--busy form {
     pointer-events: none;
     opacity: 0.55;
+  }
+}
+
+.login-card__alt {
+  display: block;
+  margin-top: 1.15rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brand, #d90064);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
   }
 }
 
@@ -2051,39 +2074,10 @@
   font-size: 1.25rem;
 }
 
-.login-card p {
+.login-card > p {
   margin: 0 0 1.25rem;
   color: var(--text-muted);
   font-size: 0.875rem;
-}
-
-.login-card__hint {
-  margin: -0.75rem 0 1rem !important;
-  font-size: 0.8rem !important;
-}
-
-.login-card__tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-  margin: 0 0 1.15rem;
-}
-
-.login-card__tab {
-  border: 1px solid var(--border);
-  background: var(--surface-raised);
-  border-radius: var(--radius-lg);
-  padding: 0.5rem 0.4rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-
-  &--active {
-    background: var(--brand, #d90064);
-    color: #fff;
-    border-color: transparent;
-  }
 }
 
 .login-ot-code {
