@@ -47,7 +47,7 @@ import { inferWorkKindFromAppointment } from '../../models/booking.mapper';
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
       } @else {
         <p class="appt-dialog-caption">
-          Cita #{{ a.id }} · {{ a.statusLabel }} · Artista: <strong>{{ a.assignedLabel }}</strong>
+          {{ a.statusLabel }} · Artista: <strong>{{ a.assignedLabel }}</strong>
         </p>
 
         <h4 class="appt-dialog-subtitle">Historial de abonos</h4>

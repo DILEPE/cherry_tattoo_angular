@@ -23,12 +23,6 @@ import { PiercingTypeModalData, PiercingTypeRow } from '../../models/piercing-ty
     @if (!appStore.canAccessModule('tipos_piercing')) {
       <p class="empty-state">No tienes permiso para gestionar tipos de piercing.</p>
     } @else {
-      <p class="pt-page-caption">
-        Administra los tipos de perforación y su PDF de cuidados (el mismo que se envía al firmar el
-        contrato). Al crear o renombrar un tipo, también se actualiza la pregunta de la encuesta de
-        piercing.
-      </p>
-
       <app-piercing-types-toolbar (create)="openCreate()" />
       <app-piercing-types-list
         (preview)="openPreview($event)"

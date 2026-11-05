@@ -42,18 +42,6 @@ import { AppStore } from '../../../../store/app.store';
 
     } @else {
 
-      <p class="st-page-caption">
-
-        Define las tiendas del negocio (Cherry Tattoo, Rock City, sucursales…). Los usuarios del
-
-        panel eligen una tienda al registrarse o al editarlos en
-
-        <strong>Gestión de usuarios</strong>.
-
-      </p>
-
-
-
       <app-stores-toolbar (create)="openCreate()" />
 
       <app-stores-list (edit)="openEdit($event)" (delete)="openDelete($event)" />

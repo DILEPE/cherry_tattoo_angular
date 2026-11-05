@@ -42,14 +42,14 @@ export const clientGuard: CanActivateFn = () => {
   const store = inject(AppStore);
   const router = inject(Router);
   if (!store.ensureSessionValid()) {
-    return router.createUrlTree(['/login']);
+    return router.createUrlTree(['/firmar']);
   }
   const u = store.user();
   if (u && !isClientRole(u.role)) {
     return router.createUrlTree(['/citas']);
   }
   if (!u || !isClientRole(u.role) || !(u.appointmentId ?? 0)) {
-    return router.createUrlTree(['/login']);
+    return router.createUrlTree(['/firmar']);
   }
   return true;
 };

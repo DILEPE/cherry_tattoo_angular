@@ -36,7 +36,7 @@ function looksLikeHtml(s: string): boolean {
 
     @if (view() === 'read') {
       <p class="appt-dialog-caption">
-        Contrato #{{ selected()?.id }} · Cita #{{ selected()?.appointmentId }}
+        Contrato #{{ selected()?.id }}
       </p>
 
       @if (readLoading()) {

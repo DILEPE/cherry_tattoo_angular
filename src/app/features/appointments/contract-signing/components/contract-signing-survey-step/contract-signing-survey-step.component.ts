@@ -70,7 +70,7 @@ import {
 
       <div class="ctsig-survey-grid">
 
-        @for (q of questions(); track q.id) {
+        @for (q of visibleQuestions(); track q.id) {
 
           <div
             class="ctsig-survey-card"
@@ -434,9 +434,36 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
 
 
+  /** Preguntas iguales (mismo texto, tipo y opciones) se muestran una sola vez. */
+  visibleQuestions(): SurveyQuestion[] {
+    return this.questionGroups().map((group) => group.primary);
+  }
+
+  private questionGroups(): { primary: SurveyQuestion; ids: number[] }[] {
+    const groups: { primary: SurveyQuestion; ids: number[] }[] = [];
+    const index = new Map<string, number>();
+    for (const q of this.questions()) {
+      const key = this.questionIdentity(q);
+      const at = index.get(key);
+      if (at == null) {
+        index.set(key, groups.length);
+        groups.push({ primary: q, ids: [q.id] });
+      } else {
+        groups[at].ids.push(q.id);
+      }
+    }
+    return groups;
+  }
+
+  private questionIdentity(q: SurveyQuestion): string {
+    const label = (q.label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const opts = (q.options ?? []).map((o) => o.trim().toLowerCase()).join('\u0001');
+    return `${q.questionType}\u0000${label}\u0000${opts}`;
+  }
+
   private buildControls(): void {
 
-    for (const q of this.questions()) {
+    for (const q of this.visibleQuestions()) {
 
       const qt = q.questionType;
 
@@ -523,7 +550,7 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
 
 
-    for (const q of this.questions()) {
+    for (const q of this.visibleQuestions()) {
 
       const lbl = this.questionLabel(q);
 
@@ -635,10 +662,20 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
     if (errs.length) return null;
 
+    const byId = new Map(answers.map((answer) => [answer.question_id, answer]));
+    const expanded: SurveyAnswerPayload[] = [];
+    for (const group of this.questionGroups()) {
+      const source = byId.get(group.primary.id);
+      if (!source) continue;
+      for (const id of group.ids) {
+        expanded.push({ ...source, question_id: id });
+      }
+    }
+
     return {
       appointment_id: this.appointmentId(),
       would_recommend: wr === 'Sí',
-      answers,
+      answers: expanded,
     };
   }
 

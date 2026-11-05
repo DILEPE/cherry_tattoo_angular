@@ -17,7 +17,7 @@ import { printPdfBlob } from '../../models/print-receipt.util';
   template: `
     @if (dlg.appointment(); as a) {
       <p class="appt-dialog-caption">
-        <strong>Cita #{{ a.id }}</strong> · {{ a.customerName }}
+        {{ a.customerName }}
       </p>
       <p class="empty-state appt-receipt-hint">
         Cada abono puede generar un recibo PDF en el servidor.

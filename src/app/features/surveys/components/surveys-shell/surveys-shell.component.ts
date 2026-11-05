@@ -19,10 +19,6 @@ import { SurveyQuestion } from '../../models/survey-question.model';
   ],
   template: `
     <h2 class="sq-page-title">Encuesta de satisfacción</h2>
-    <p class="sq-page-lead">
-      Configura las preguntas que verá el cliente al firmar contrato. El orden de las preguntas
-      activas define cómo aparecen en la encuesta.
-    </p>
     <app-surveys-toolbar (create)="openCreate()" />
     <app-surveys-questions-list (edit)="openEdit($event)" (delete)="openDelete($event)" />
     <app-surveys-modals-host />

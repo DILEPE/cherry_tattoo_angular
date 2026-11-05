@@ -92,7 +92,12 @@ import { catchError, of, switchMap } from 'rxjs';
             <div class="ap-ficha-block ap-ficha-block--compact ap-ficha-block--client">
               <div class="ap-ficha-client-stack">
                 <p class="ap-ficha-strong ap-ficha-strong--inline">
-                  <span class="cli-pill cli-pill-{{ clientPillKind(a) }}">{{ customerName() }}</span>
+                  @let kind = clientPillKind(a);
+                  @if (kind === 'new' || kind === 'returning') {
+                    <span>{{ customerName() }}</span>
+                  } @else {
+                    <span class="cli-pill cli-pill-{{ kind }}">{{ customerName() }}</span>
+                  }
                   @if (customer(); as c) {
                     <span class="ap-ficha-client-id">{{ c.documentType }} {{ c.documentNumber }}</span>
                   }
