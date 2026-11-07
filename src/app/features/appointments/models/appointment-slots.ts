@@ -20,8 +20,7 @@ export function parseExistingAppointmentSlot(
 ): { date: Date; slot: string } {
   const d = appointmentRowDate(raw ?? null);
   const hm = appointmentTimeHm(raw ?? null);
-  const slotOpts = timeSlotOptions();
-  const slot = hm !== '—' && slotOpts.includes(hm) ? hm : '09:00';
+  const slot = hm !== '—' ? hm : '09:00';
   return { date: d, slot };
 }
 

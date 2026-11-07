@@ -48,6 +48,25 @@ export function weekSpanLabel(monday: Date): string {
   return `${fmt(monday)} – ${fmt(sunday)}/${y}`;
 }
 
+/** Si la hora no cae en la grilla (p. ej. 21:36), se ancla al bloque más cercano. */
+function nearestSlotIndex(hm: string, slotList: string[]): number {
+  const match = /^(\d{2}):(\d{2})$/.exec(hm);
+  if (!match || slotList.length === 0) return -1;
+  const minutes = Number(match[1]) * 60 + Number(match[2]);
+  let best = 0;
+  let bestDiff = Number.POSITIVE_INFINITY;
+  slotList.forEach((slot, index) => {
+    const parts = slot.split(':');
+    const slotMinutes = Number(parts[0]) * 60 + Number(parts[1]);
+    const diff = Math.abs(slotMinutes - minutes);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = index;
+    }
+  });
+  return best;
+}
+
 function parseSegments(
   dayRows: Appointment[],
   slotList: string[],
@@ -56,7 +75,8 @@ function parseSegments(
   const raw: { row: Appointment; startIdx: number; vis: number }[] = [];
   for (const row of dayRows) {
     const hm = appointmentTimeHm(row.appointmentDateRaw ?? row.appointmentDate);
-    const startIdx = slotList.indexOf(hm);
+    const listed = slotList.indexOf(hm);
+    const startIdx = listed >= 0 ? listed : nearestSlotIndex(hm, slotList);
     if (startIdx < 0) continue;
     const dur = durationSlotsForRow(row);
     const endIdx = Math.min(startIdx + dur, n);

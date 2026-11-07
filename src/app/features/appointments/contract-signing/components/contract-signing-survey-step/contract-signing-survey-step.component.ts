@@ -34,9 +34,27 @@ import {
 
   formatSurveyQuestionLabel,
 
+  isServiceCostQuestionLabel,
+
   surveyQuestionSpansFullWidth,
 
 } from '../../models/survey-question-label.util';
+
+import {
+
+  formatThousandsCopInput,
+
+  parseThousandsCopInput,
+
+} from '../../../models/appointment.mapper';
+
+import {
+
+  PIERCING_TYPE_OPTIONS,
+
+  piercingTypeDisplayLabel,
+
+} from '../../../models/piercing-type-catalog';
 
 
 
@@ -78,7 +96,7 @@ import {
             [class.ctsig-survey-card--wide]="isFullWidth(q)"
             [attr.aria-labelledby]="questionLabelId(q)"
           >
-            <p class="ctsig-survey-q-label" [id]="questionLabelId(q)">{{ questionLabel(q) }}</p>
+            <p class="ctsig-survey-q-label" [id]="questionLabelId(q)">{{ displayLabel(q) }}</p>
             <div class="ctsig-survey-card__body">
             @switch (q.questionType) {
 
@@ -148,17 +166,39 @@ import {
 
               @case ('number') {
 
-                <input
+                @if (isMoneyQuestion(q)) {
 
-                  type="number"
+                  <input
 
-                  class="ctsig-control"
+                    type="text"
 
-                  [formControlName]="controlName(q.id, 'n')"
+                    inputmode="numeric"
 
-                  step="any"
+                    autocomplete="off"
 
-                />
+                    class="ctsig-control"
+
+                    [value]="moneyDisplay(q.id)"
+
+                    (input)="onMoneyInput(q.id, $event)"
+
+                  />
+
+                } @else {
+
+                  <input
+
+                    type="number"
+
+                    class="ctsig-control"
+
+                    [formControlName]="controlName(q.id, 'n')"
+
+                    step="1"
+
+                  />
+
+                }
 
               }
 
@@ -305,6 +345,44 @@ import {
             }
             </div>
           </div>
+          @if (isMoneyQuestion(q) && collectTattooDesign()) {
+            <div class="ctsig-survey-card" role="group" aria-labelledby="ctsig-q-tattoo-design-label">
+              <p class="ctsig-survey-q-label" id="ctsig-q-tattoo-design-label">
+                ¿Qué diseño tendrá tu tatuaje?
+              </p>
+              <div class="ctsig-survey-card__body">
+                <input
+                  type="text"
+                  class="ctsig-control"
+                  maxlength="200"
+                  autocomplete="off"
+                  aria-labelledby="ctsig-q-tattoo-design-label"
+                  [value]="tattooDesign()"
+                  (input)="onTattooDesign($event)"
+                />
+              </div>
+            </div>
+          }
+          @if (isMoneyQuestion(q) && collectPiercingType()) {
+            <div class="ctsig-survey-card" role="group" aria-labelledby="ctsig-q-piercing-type-label">
+              <p class="ctsig-survey-q-label" id="ctsig-q-piercing-type-label">
+                ¿Qué tipo de piercing te harás?
+              </p>
+              <div class="ctsig-survey-card__body">
+                <select
+                  class="ctsig-control"
+                  aria-labelledby="ctsig-q-piercing-type-label"
+                  [value]="piercingChoice()"
+                  (change)="onPiercingChoice($event)"
+                >
+                  <option value="">Selecciona el tipo…</option>
+                  @for (opt of piercingOptions; track opt) {
+                    <option [value]="opt">{{ piercingLabel(opt) }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          }
 
         }
 
@@ -404,7 +482,26 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
 
 
+  /** Solo la cita creada en la tableta pide el valor del trabajo. */
+  readonly collectServiceCost = input(false);
+
+  /** Tatuaje en /firmar: el diseño es otra pregunta de la encuesta y queda en el recibo. */
+  readonly collectTattooDesign = input(false);
+
+  /** Colocación en /firmar: el tipo de piercing queda en el recibo. */
+  readonly collectPiercingType = input(false);
+
+  readonly tattooDesign = signal('');
+
+  readonly piercingChoice = signal('');
+
+  readonly piercingOptions = PIERCING_TYPE_OPTIONS;
+
+  readonly piercingLabel = piercingTypeDisplayLabel;
+
   readonly form: FormGroup = this.fb.group({ wouldRecommend: '' });
+
+  private readonly moneyText = signal<Record<number, string>>({});
 
 
 
@@ -422,6 +519,51 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
   }
 
+  /** El valor y el diseño se muestran como preguntas normales de la encuesta. */
+  displayLabel(q: SurveyQuestion): string {
+    if (this.isMoneyQuestion(q)) return '¿Cuál es el valor de tu procedimiento?';
+    return this.questionLabel(q);
+  }
+
+  isMoneyQuestion(q: SurveyQuestion): boolean {
+    return isServiceCostQuestionLabel(this.questionLabel(q));
+  }
+
+  moneyDisplay(questionId: number): string {
+    return this.moneyText()[questionId] ?? '';
+  }
+
+  onTattooDesign(event: Event): void {
+    this.tattooDesign.set((event.target as HTMLInputElement).value);
+  }
+
+  onPiercingChoice(event: Event): void {
+    this.piercingChoice.set((event.target as HTMLSelectElement).value);
+  }
+
+  /** Texto que el recibo de /firmar muestra en DISEÑO. */
+  receiptDesignLabel(): string {
+    if (this.collectTattooDesign()) return this.tattooDesign().trim();
+    if (this.collectPiercingType()) {
+      const choice = this.piercingChoice().trim();
+      return choice ? piercingTypeDisplayLabel(choice) : '';
+    }
+    return '';
+  }
+
+  selectedPiercingCanonical(): string {
+    return this.collectPiercingType() ? this.piercingChoice().trim() : '';
+  }
+
+  onMoneyInput(questionId: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const amount = parseThousandsCopInput(input.value);
+    const formatted = formatThousandsCopInput(amount);
+    this.moneyText.update((current) => ({ ...current, [questionId]: formatted }));
+    input.value = formatted;
+    this.form.get(this.controlName(questionId, 'n'))?.setValue(amount == null ? '' : String(amount));
+  }
+
   questionLabelId(q: SurveyQuestion): string {
     return `ctsig-q-${q.id}-label`;
   }
@@ -436,7 +578,9 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
   /** Preguntas iguales (mismo texto, tipo y opciones) se muestran una sola vez. */
   visibleQuestions(): SurveyQuestion[] {
-    return this.questionGroups().map((group) => group.primary);
+    return this.questionGroups()
+      .map((group) => group.primary)
+      .filter((q) => this.collectServiceCost() || !this.isMoneyQuestion(q));
   }
 
   private questionGroups(): { primary: SurveyQuestion; ids: number[] }[] {
@@ -552,7 +696,7 @@ export class ContractSigningSurveyStepComponent implements OnInit {
 
     for (const q of this.visibleQuestions()) {
 
-      const lbl = this.questionLabel(q);
+      const lbl = this.displayLabel(q);
 
       const qid = q.id;
 
@@ -657,6 +801,14 @@ export class ContractSigningSurveyStepComponent implements OnInit {
     }
 
 
+
+    const asksWorkValue = this.visibleQuestions().some((q) => this.isMoneyQuestion(q));
+    if (asksWorkValue && this.collectTattooDesign() && !this.tattooDesign().trim()) {
+      errs.push('Completa «¿Qué diseño tendrá tu tatuaje?».');
+    }
+    if (asksWorkValue && this.collectPiercingType() && !this.piercingChoice().trim()) {
+      errs.push('Selecciona el tipo de piercing.');
+    }
 
     this.errors.set(errs);
 

@@ -109,7 +109,7 @@ import { isClientRole } from '../../../../core/utils/panel-roles';
               Iniciar sesión
             </app-button>
           </form>
-          <a class="login-card__alt" routerLink="/firmar">Firmar con OTP</a>
+          <a class="login-card__alt" routerLink="/firmar">Firmar contrato</a>
         }
       </div>
     </div>

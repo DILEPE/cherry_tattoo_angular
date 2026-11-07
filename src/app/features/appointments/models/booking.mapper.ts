@@ -6,7 +6,19 @@ import {
 } from './booking.model';
 
 export function workKindToAssigneeRole(workKind: BookingWorkKind): string {
-  return workKind === 'tatuaje' ? 'tatuador' : 'perforador';
+  if (workKind === 'tatuaje') return 'tatuador';
+  if (workKind === 'limpieza_piercing') return 'vendedor';
+  return 'perforador';
+}
+
+const ASSIGNEE_ROLE_NOUN: Record<string, string> = {
+  tatuador: 'tatuador',
+  perforador: 'perforador',
+  vendedor: 'vendedor',
+};
+
+export function assigneeRoleNoun(role: string): string {
+  return ASSIGNEE_ROLE_NOUN[role] ?? 'profesional';
 }
 
 export function workKindToScheduleKind(workKind: BookingWorkKind): ScheduleKind {
