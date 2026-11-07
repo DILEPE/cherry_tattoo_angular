@@ -10,11 +10,21 @@ export const routes: Routes = [
       import('./features/auth/components/login/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'firmar/cita/:appointmentId',
+    canActivate: [guestGuard],
+    data: { kiosk: true },
+    loadComponent: () =>
+      import(
+        './features/appointments/contract-signing/components/contract-signing-page/contract-signing-page.component'
+      ).then((m) => m.ContractSigningPageComponent),
+  },
+  {
     path: 'firmar',
     canActivate: [guestGuard],
-    data: { entry: 'ot' },
     loadComponent: () =>
-      import('./features/auth/components/login/login.component').then((m) => m.LoginComponent),
+      import(
+        './features/appointments/contract-signing/components/signing-intake/signing-intake.component'
+      ).then((m) => m.SigningIntakeComponent),
   },
   {
     path: 'cliente',

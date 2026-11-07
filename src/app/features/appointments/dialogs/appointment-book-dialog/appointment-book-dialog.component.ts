@@ -58,6 +58,7 @@ import {
   appendAgendaSlotsMarker,
   bookingWorkKindRequiresContract,
   serviceAndDetailForWorkKind,
+  assigneeRoleNoun,
   workKindToAssigneeRole,
 } from '../../models/booking.mapper';
 import {
@@ -418,13 +419,13 @@ export class AppointmentBookDialogComponent {
   }
 
   staffFieldLabel(): string {
-    const wk = this.form.controls.workKind.value as BookingWorkKind;
-    return workKindToAssigneeRole(wk) === 'tatuador' ? 'Tatuador' : 'Perforador';
+    const noun = this.assigneeRoleLabel();
+    return noun.charAt(0).toUpperCase() + noun.slice(1);
   }
 
   assigneeRoleLabel(): string {
     const wk = this.form.controls.workKind.value as BookingWorkKind;
-    return workKindToAssigneeRole(wk) === 'tatuador' ? 'tatuador' : 'perforador';
+    return assigneeRoleNoun(workKindToAssigneeRole(wk));
   }
 
   private durationSlotsForWorkKind(kind: BookingWorkKind): number {

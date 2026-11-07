@@ -422,10 +422,12 @@ export class AppointmentFocusDialogComponent {
   );
 
   readonly startSlotChoices = computed(() => {
+    const current = this.startSlot();
     if (!this.scheduleEditable()) {
-      return this.slotOptions.includes(this.startSlot())
-        ? [this.startSlot()]
-        : this.slotOptions;
+      return current ? [current] : this.slotOptions;
+    }
+    if (current && !this.slotOptions.includes(current)) {
+      return [current, ...this.slotOptions];
     }
     return this.slotOptions;
   });

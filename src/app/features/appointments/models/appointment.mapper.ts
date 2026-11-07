@@ -107,6 +107,20 @@ export function copToMiles(value: number): number {
   return Math.round(Math.max(value, 0) / 1000);
 }
 
+/** Muestra pesos con separador de miles (50000 → 50.000). */
+export function formatThousandsCopInput(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '';
+  return Math.round(value).toLocaleString('es-CO');
+}
+
+/** Lee un monto escrito con separador de miles (50.000 → 50000). */
+export function parseThousandsCopInput(raw: string): number | null {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function normalizeStatus(status: string | null | undefined): AppointmentStatus {
   const key = (status ?? 'agendada').trim().toLowerCase();
   const map: Record<string, AppointmentStatus> = {

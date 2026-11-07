@@ -92,6 +92,13 @@ export class AppointmentsApiService {
     });
   }
 
+  /** Hora de inicio al firmar. No cambia el estado de la cita. */
+  stampClock(appointmentId: number, dateValue: string): Observable<unknown> {
+    return this.api.patch(`/api/appointments/${appointmentId}/clock`, {
+      date: dateValue,
+    });
+  }
+
   patchFinancials(
     appointmentId: number,
     totalAmount: number,

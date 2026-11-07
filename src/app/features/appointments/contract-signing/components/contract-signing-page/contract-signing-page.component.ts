@@ -9,8 +9,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { forkJoin, of, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AppointmentsApiService } from '../../../services/appointments-api.service';
 import { CustomersApiService } from '../../../../customers/services/customers-api.service';
@@ -46,6 +46,12 @@ import {
   isSignatureAcceptable,
 } from '../../models/signature.util';
 import { appointmentToContractKind } from '../../models/contract-kind.util';
+import { serviceCostFromSurvey } from '../../models/survey-question-label.util';
+import {
+  detailWithReceiptDesign,
+  isClientCreatedAppointment,
+  signingAgendaDateTime,
+} from '../../models/kiosk-draft';
 import { appointmentRequiresContract } from '../../../models/booking.mapper';
 import {
   PIERCING_TYPE_OPTIONS,
@@ -76,7 +82,9 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
   template: `
     <div class="ctsig-page panel-fade-in">
       <header class="ctsig-page__header">
-        @if (isClientSession()) {
+        @if (isKiosk()) {
+          <button type="button" class="ctsig-page__back" (click)="onBack()">Volver</button>
+        } @else if (isClientSession()) {
           <button type="button" class="ctsig-page__back" (click)="onBack()">Cerrar sesión</button>
         } @else {
           <a routerLink="/citas" class="ctsig-page__back">← Volver a citas</a>
@@ -145,7 +153,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
           <span [class.ctsig-steps__active]="step() === 3">3. Firma</span>
         </nav>
 
-        @if (paymentBlock() && step() >= 2) {
+        @if (paymentBlock() && step() >= 2 && (!isKiosk() || step() >= 3)) {
           <p class="form-field__error">{{ paymentBlock() }}</p>
         }
 
@@ -164,7 +172,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                   <app-customer-form [initial]="c" [readonly]="true" />
                   <div class="ctsig-step-actions">
                     <app-button type="button" variant="ghost" (clicked)="onBack()">
-                      {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
+                      {{ cancelLabel() }}
                     </app-button>
                     <app-button
                       type="button"
@@ -179,7 +187,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                   <app-customer-form [initial]="c" (submitted)="onCustomerSaved($event)">
                     <div actions class="ctsig-step-actions">
                       <app-button type="button" variant="ghost" (clicked)="onBack()">
-                        {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
+                        {{ cancelLabel() }}
                       </app-button>
                       <app-button type="submit" variant="primary" [loading]="saving()">
                         Guardar y continuar
@@ -202,6 +210,9 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                   [questions]="questions()"
                   [appointmentId]="appointmentId()"
                   [serviceType]="appointment()?.serviceType ?? ''"
+                  [collectServiceCost]="clientCreatedAppointment()"
+                  [collectTattooDesign]="askTattooDesign()"
+                  [collectPiercingType]="askPiercingType()"
                   [submitting]="saving()"
                   (back)="step.set(1)"
                   (submitted)="onSurveySubmitted($event)"
@@ -290,7 +301,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
               }
 
               <h3>Firmas</h3>
-              @if (isPiercingContract()) {
+              @if (isPiercingContract() && !askPiercingType()) {
                 <label class="ctsig-piercing-type">
                   Tipo de piercing *
                   <select
@@ -316,7 +327,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                     (valueChange)="tutorSig.set($event)"
                   />
                 }
-                @if (!isClientSession()) {
+                @if (!isClientSession() && !isKiosk()) {
                   <app-signature-pad
                     label="Firma del profesional (opcional aquí)"
                     (valueChange)="artistSig.set($event)"
@@ -370,7 +381,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
       } @else {
         <section class="ctsig-step ctsig-step--single">
           <h2>Firma de contrato</h2>
-          @if (paymentBlock()) {
+          @if (paymentBlock() && !isKiosk()) {
             <p class="form-field__error">{{ paymentBlock() }}</p>
           }
           @if (customer(); as c) {
@@ -393,6 +404,9 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                 [questions]="questions()"
                 [appointmentId]="appointmentId()"
                 [serviceType]="appointment()?.serviceType ?? ''"
+                [collectServiceCost]="clientCreatedAppointment()"
+                [collectTattooDesign]="askTattooDesign()"
+                [collectPiercingType]="askPiercingType()"
               />
             }
             <h3 class="ctsig-subsection">Contrato y firmas</h3>
@@ -468,7 +482,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
               </div>
             }
             <h3 class="ctsig-subsection">Firmas</h3>
-            @if (isPiercingContract()) {
+            @if (isPiercingContract() && !askPiercingType()) {
               <label class="ctsig-piercing-type">
                 Tipo de piercing *
                 <select
@@ -494,7 +508,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
                   (valueChange)="tutorSig.set($event)"
                 />
               }
-              @if (!isClientSession()) {
+              @if (!isClientSession() && !isKiosk()) {
                 <app-signature-pad
                   label="Firma del profesional (opcional aquí)"
                   (valueChange)="artistSig.set($event)"
@@ -536,7 +550,7 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
             }
             <div class="ctsig-step-actions">
               <app-button variant="ghost" (clicked)="onBack()">
-                {{ isClientSession() ? 'Cerrar sesión' : 'Cancelar' }}
+                        {{ cancelLabel() }}
               </app-button>
               <app-button variant="primary" [loading]="saving()" (clicked)="submitSingleFlow()">
                 Guardar contrato firmado
@@ -563,6 +577,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
   private readonly sanitizer = inject(DomSanitizer);
   readonly customerFormRef = viewChild<CustomerFormComponent>('customerForm');
   readonly surveyStepRef = viewChild<ContractSigningSurveyStepComponent>('surveyStep');
+  readonly kioskSurveyRef = viewChild(ContractSigningSurveyStepComponent);
 
   protected readonly refundNotice = CONTRACT_NO_REFUND_NOTICE;
   protected readonly docTypes: DocumentType[] = ['CC', 'TI', 'CE', 'PAS'];
@@ -574,6 +589,19 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
   readonly artistOnly = signal(false);
   readonly surveyOnly = signal(false);
   readonly isClientSession = signal(false);
+  readonly isKiosk = signal(false);
+  /** Cita creada en esta tableta: pide el valor y fija la hora al firmar. */
+  readonly clientCreatedAppointment = signal(false);
+  /** Texto que el recibo de /firmar escribe en DISEÑO. */
+  readonly kioskReceiptDesign = signal('');
+
+  readonly askTattooDesign = computed(
+    () => this.isKiosk() && this.clientCreatedAppointment() && !this.isPiercingContract(),
+  );
+
+  readonly askPiercingType = computed(
+    () => this.isKiosk() && this.clientCreatedAppointment() && this.isPiercingContract(),
+  );
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
   readonly appointment = signal<Appointment | null>(null);
   readonly payments = signal<AppointmentPayment[]>([]);
@@ -658,12 +686,15 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    const kiosk = this.route.snapshot.data['kiosk'] === true;
+    this.isKiosk.set(kiosk);
     const session = this.appStore.user();
-    const clientSession = isClientRole(session?.role ?? '');
+    const clientSession = !kiosk && isClientRole(session?.role ?? '');
     this.isClientSession.set(clientSession);
 
     const routeId = Number(this.route.snapshot.paramMap.get('appointmentId'));
     const id = clientSession ? Number(session?.appointmentId ?? 0) : routeId;
+    this.clientCreatedAppointment.set(isClientCreatedAppointment(id));
     const artistOnly =
       !clientSession &&
       (this.route.snapshot.queryParamMap.get('artistOnly') === '1' ||
@@ -709,10 +740,20 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
   }
 
   backLabel(): string {
+    if (this.isKiosk()) return 'Volver';
     return this.isClientSession() ? 'Cerrar sesión' : '← Volver a citas';
   }
 
+  cancelLabel(): string {
+    if (this.isKiosk()) return 'Volver';
+    return this.isClientSession() ? 'Cerrar sesión' : 'Cancelar';
+  }
+
   onBack(): void {
+    if (this.isKiosk()) {
+      void this.router.navigateByUrl('/firmar');
+      return;
+    }
     if (this.isClientSession()) {
       this.appStore.logout();
       void this.router.navigateByUrl('/firmar');
@@ -777,6 +818,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
     const c = this.customer();
     const a = this.appointment();
     if (!c || !a) return;
+    this.captureKioskReceiptFields();
 
     const locked = this.customerFichaLocked();
     const payload = locked
@@ -790,7 +832,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
       return;
     }
     const pay = appointmentPaymentReadyForSignature(a, this.payments());
-    if (!pay.ok) {
+    if (!pay.ok && !this.isKiosk()) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
     }
@@ -820,15 +862,23 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
         next: (fresh) => {
           if (fresh) this.customer.set(fresh);
           const afterSurvey = () => {
-            this.apptApi.get(a.id).subscribe({
-              next: (row) => {
-                this.appointment.set(mapAppointment(row));
-                this.saving.set(false);
-                this.saveContract();
+            this.syncKioskServiceCost(surveyPayload).subscribe({
+              next: () => {
+                this.apptApi.get(a.id).subscribe({
+                  next: (row) => {
+                    this.appointment.set(mapAppointment(row));
+                    this.saving.set(false);
+                    this.saveContract();
+                  },
+                  error: (err) => {
+                    this.saving.set(false);
+                    this.errors.handle(err);
+                  },
+                });
               },
               error: (err) => {
                 this.saving.set(false);
-                this.errors.handle(err);
+                this.warnKioskCost(err);
               },
             });
           };
@@ -1035,7 +1085,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
       return;
     }
     const pay = appointmentPaymentReadyForSignature(a, this.payments());
-    if (!pay.ok) {
+    if (!pay.ok && !this.isKiosk()) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
     }
@@ -1053,7 +1103,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
       return;
     }
     const pay = appointmentPaymentReadyForSignature(a, this.payments());
-    if (!pay.ok) {
+    if (!pay.ok && !this.isKiosk()) {
       this.toast.warn(pay.message ?? 'Completa el abono antes de continuar.');
       return;
     }
@@ -1080,7 +1130,84 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * El cliente escribe el valor en pesos (50.000, no 50). Ese monto es el total
+   * del trabajo y, a la vez, el abono del agendamiento: así queda el recibo.
+   */
+  private syncKioskServiceCost(payload: SurveySubmitPayload | null) {
+    const a = this.appointment();
+    if (!this.isKiosk() || !this.clientCreatedAppointment() || !a) return of(undefined);
+    const cost = payload
+      ? serviceCostFromSurvey(this.questions(), payload.answers, a.serviceType)
+      : null;
+    const already = this.payments().reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    if (cost == null || cost <= 0) {
+      if (already > 0.009 && a.financials.pending <= 0.009 && a.financials.total > 0) {
+        return of(undefined);
+      }
+      return throwError(() => ({
+        message:
+          'Indica cuánto costó el servicio en el cuestionario. Ese valor queda como total del trabajo y como abono.',
+      }));
+    }
+    const remainder = Math.round((cost - already) * 100) / 100;
+    if (remainder <= 0.009 && Math.abs(a.financials.total - cost) < 0.5) {
+      return of(undefined);
+    }
+    const depositBefore = Math.max(Math.round(already * 100) / 100, 0);
+    const pendingBefore = Math.max(remainder, 0);
+    const refresh = () =>
+      forkJoin({
+        row: this.apptApi.get(a.id),
+        payments: this.apptApi.getPayments(a.id),
+      }).pipe(
+        tap(({ row, payments }) => {
+          this.appointment.set(mapAppointment(row));
+          this.payments.set(payments);
+        }),
+        map(() => undefined),
+      );
+    const design = this.kioskReceiptDesign().trim();
+    const stampDesign = design
+      ? this.apptApi.patchMeta(a.id, {
+          isPriority: a.isPriority,
+          detail: detailWithReceiptDesign(a.detail, design),
+        })
+      : of(undefined);
+    return stampDesign.pipe(
+      switchMap(() => this.apptApi.patchFinancials(a.id, cost, depositBefore, pendingBefore)),
+      switchMap(() =>
+        remainder > 0.009
+          ? this.apptApi.postPayment(a.id, remainder, 'Abono al agendar')
+          : of(undefined),
+      ),
+      switchMap(() => refresh()),
+    );
+  }
+
+  private warnKioskCost(err: unknown): void {
+    const message =
+      err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+        ? (err as { message: string }).message
+        : '';
+    if (message.startsWith('Indica cuánto')) {
+      this.toast.warn(message);
+      return;
+    }
+    this.errors.handle(err);
+  }
+
+  private captureKioskReceiptFields(): void {
+    const survey = this.kioskSurveyRef() ?? this.surveyStepRef();
+    if (!survey) return;
+    const design = survey.receiptDesignLabel().trim();
+    if (design) this.kioskReceiptDesign.set(design);
+    const piercing = survey.selectedPiercingCanonical().trim();
+    if (piercing) this.piercingType.set(piercing);
+  }
+
   onSurveySubmitted(payload: SurveySubmitPayload): void {
+    this.captureKioskReceiptFields();
     this.lastSurveyPayload = payload;
     const fromSurvey = payload.answers.find(
       (a) =>
@@ -1105,9 +1232,17 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
           this.finalizeAfterSurveyOnly();
           return;
         }
-        this.saving.set(false);
-        this.toast.success('Cuestionario guardado.');
-        this.goToSignStep();
+        this.syncKioskServiceCost(this.lastSurveyPayload).subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.toast.success('Cuestionario guardado.');
+            this.goToSignStep();
+          },
+          error: (err) => {
+            this.saving.set(false);
+            this.warnKioskCost(err);
+          },
+        });
       },
       error: (err) => {
         this.saving.set(false);
@@ -1237,7 +1372,7 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
         health_data: { source: 'angular_panel', template_id: tpl.id },
         signature: client!,
         tutor_signature: tutorSig,
-        artist_signature: this.isClientSession() ? null : this.artistSig(),
+        artist_signature: this.isClientSession() || this.isKiosk() ? null : this.artistSig(),
         tutor_document_front: minor ? this.tutorDocFront() : null,
         tutor_document_back: minor ? this.tutorDocBack() : null,
         minor_document_front: minor ? this.minorDocFront() : null,
@@ -1249,9 +1384,13 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.apptStore?.invalidate();
-          if (this.isClientSession()) {
-            this.appStore.logout();
-            this.toast.success('Contrato firmado. Ya puedes devolver la tableta.');
+          if (this.isKiosk() || this.isClientSession()) {
+            if (this.isClientSession()) this.appStore.logout();
+            this.toast.success(
+              this.isKiosk()
+                ? 'Contrato firmado.'
+                : 'Contrato firmado. Ya puedes devolver la tableta.',
+            );
             void this.router.navigateByUrl('/firmar');
             return;
           }
@@ -1290,15 +1429,29 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
             guardian_document_issue_date: this.tutorDocIssue || null,
           })
           .subscribe({
-            next: () => doSign(),
+            next: () => signAtContractTime(),
             error: (err) => {
               this.saving.set(false);
               this.errors.handle(err);
             },
           });
       } else {
-        doSign();
+        signAtContractTime();
       }
+    };
+
+    const signAtContractTime = (): void => {
+      if (!this.clientCreatedAppointment()) {
+        doSign();
+        return;
+      }
+      this.apptApi.stampClock(a.id, signingAgendaDateTime()).subscribe({
+        next: () => doSign(),
+        error: (err) => {
+          this.saving.set(false);
+          this.errors.handle(err);
+        },
+      });
     };
 
     if (this.isPiercingContract()) {
