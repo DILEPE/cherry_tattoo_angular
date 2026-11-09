@@ -9,13 +9,14 @@ export function appointmentPaymentReadyForSignature(
 } {
   const total = appt.financials.total;
   const pending = appt.financials.pending;
+  const due = Math.round((total - appt.financials.deposit) * 100) / 100;
   if (total <= 0) {
     return {
       ok: false,
       message: 'Define el valor total del trabajo en Montos antes de firmar.',
     };
   }
-  if (pending > 0.009) {
+  if (pending > 0.009 || due > 0.009) {
     return {
       ok: false,
       message:

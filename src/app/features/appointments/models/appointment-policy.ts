@@ -18,8 +18,13 @@ export function canCancelAppointment(appt: Appointment): boolean {
   return appt.status !== 'cancelada' && appt.status !== 'finalizada';
 }
 
+/** Sin valor de trabajo el contrato no se abre. Con saldo pendiente no se firma. */
 export function contractBlockedByBalance(appt: Appointment): boolean {
-  return appt.financials.total > 0 && appt.financials.pending > 0.009;
+  const total = appt.financials.total;
+  if (total <= 0.009) return true;
+  if (appt.financials.pending > 0.009) return true;
+  const due = Math.round((total - appt.financials.deposit) * 100) / 100;
+  return due > 0.009;
 }
 
 /** Verificación admin de abonos (tarea posterior; no se usa para bloquear la firma). */
@@ -50,16 +55,6 @@ export function firmarContratoLabel(appt: Appointment): string {
   if (!appt.hasSignedContract) return 'Firmar contrato';
   if (appt.contractPendingArtistSignature) return 'Pendiente firma profesional';
   return 'Contrato firmado';
-}
-
-/** Admin/vendedor: generar OTP cuando el depósito cubre el total y el cliente aún no firmó. */
-export function canGenerateSigningOt(appt: Appointment): boolean {
-  if (!appointmentRequiresContract(appt)) return false;
-  if (appt.id <= 0 || appt.customerId == null || appt.customerId <= 0) return false;
-  if (appt.status === 'cancelada' || appt.status === 'finalizada') return false;
-  if (appt.hasSignedContract) return false;
-  if (contractBlockedByBalance(appt)) return false;
-  return true;
 }
 
 /** Limpieza / cambio: encuesta sin firma; al enviarla la cita queda finalizada. */
