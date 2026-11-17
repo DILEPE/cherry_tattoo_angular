@@ -103,7 +103,7 @@ export function serviceFlagCssClass(service: string): string {
 
 export function calendarMonthCompactLabel(total: number): string {
   const v = Math.round(Math.max(total, 0));
-  if (v <= 0) return '—';
+  if (v <= 0) return '0';
   if (v < 1000) return String(v);
   const n = Math.trunc(v / 1000);
   if (n < 1000) return String(n);

@@ -86,7 +86,6 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
                   type="number"
                   min="0"
                   step="1"
-                  [max]="pendingMiles()"
                   [ngModel]="newPayAmount()"
                   (ngModelChange)="newPayAmount.set(+$event || 0)"
                   [disabled]="!canAddPay() || adding()"
@@ -269,8 +268,6 @@ function paidOnTableDisplay(p: AppointmentPayment): string {
 })
 export class AppointmentAbonosSectionComponent {
   readonly montosLocked = input(false);
-  /** Total del trabajo en edición (para saldo pendiente al agregar abono). */
-  readonly totalOverride = input<number | null>(null);
 
   protected readonly dlg = inject(AppointmentDialogStore);
   private readonly api = inject(AppointmentsApiService);
@@ -313,20 +310,7 @@ export class AppointmentAbonosSectionComponent {
     mapPaymentsToReceipts(this.dlg.payments(), this.dlg.receipts()),
   );
 
-  readonly pendingForPay = computed(() => {
-    const a = this.dlg.appointment();
-    if (!a) return 0;
-    const tot = this.totalOverride() ?? a.financials.total;
-    const dep = a.financials.deposit;
-    const credit = a.financials.credit;
-    return Math.max(Math.round((tot - dep - credit) * 100) / 100, 0);
-  });
-
-  readonly pendingMiles = computed(() => copToMiles(this.pendingForPay()));
-
-  readonly canAddPay = computed(
-    () => !this.montosLocked() && this.pendingForPay() > 0.009,
-  );
+  readonly canAddPay = computed(() => !this.montosLocked());
 
   receiptIdFor(paymentId: number): number | null {
     const rid = this.receiptByPay().get(paymentId);
@@ -345,13 +329,8 @@ export class AppointmentAbonosSectionComponent {
     const aid = this.dlg.appointmentId();
     if (aid == null || aid <= 0) return;
     const amt = milesToCop(this.newPayAmount());
-    const pend = this.pendingForPay();
     if (amt <= 0) {
       this.toast.warn('El abono debe ser mayor a cero.');
-      return;
-    }
-    if (amt > pend + 0.01) {
-      this.toast.warn('El abono no puede superar el saldo pendiente.');
       return;
     }
     this.adding.set(true);
