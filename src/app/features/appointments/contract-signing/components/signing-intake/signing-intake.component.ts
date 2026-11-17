@@ -502,6 +502,8 @@ export class SigningIntakeComponent {
   readonly staffId = signal(0);
   readonly priceCop = signal<number | null>(null);
   readonly priceDisplay = signal('');
+  /** Evita que otro clic en Confirmar cree una segunda cita si la pantalla no cambió. */
+  private readonly createdAppointmentId = signal(0);
 
   readonly docForm = this.fb.nonNullable.group({
     documentType: ['CC' as DocumentType, Validators.required],
@@ -656,6 +658,7 @@ export class SigningIntakeComponent {
   }
 
   startAnotherAppointment(): void {
+    this.createdAppointmentId.set(0);
     this.family.set(null);
     this.piercingKind.set(null);
     this.customerPayload.set(null);
@@ -707,6 +710,12 @@ export class SigningIntakeComponent {
   }
 
   confirmSchedule(): void {
+    if (this.saving()) return;
+    const already = this.createdAppointmentId();
+    if (already > 0) {
+      this.afterAppointmentCreated(already);
+      return;
+    }
     const kind = this.workKind();
     const payload = this.customerPayload();
     const staffId = this.staffId();
@@ -742,6 +751,10 @@ export class SigningIntakeComponent {
           if (customerId <= 0) {
             throw new Error('No se pudo guardar el cliente.');
           }
+          const current = this.customer();
+          if (current && current.id !== customerId) {
+            this.customer.set({ ...current, id: customerId });
+          }
           const { service, detail } = serviceAndDetailForWorkKind(kind, '');
           const scheduled = appendAgendaSlotsMarker(detail, 1);
           const withDesign =
@@ -771,14 +784,8 @@ export class SigningIntakeComponent {
             this.toast.error('La cita no devolvió un identificador.');
             return;
           }
-          if (requires) {
-            writeKioskDraftId(id);
-            this.toast.success('Cita agendada. Sigue con el cuestionario y el contrato.');
-            void this.router.navigate(['/firmar', 'cita', id]);
-            return;
-          }
-          this.toast.success('Cita agendada');
-          this.step.set('done');
+          this.createdAppointmentId.set(id);
+          this.afterAppointmentCreated(id);
         },
         error: (err) => {
           this.saving.set(false);
@@ -787,7 +794,20 @@ export class SigningIntakeComponent {
       });
   }
 
+  private afterAppointmentCreated(id: number): void {
+    const kind = this.workKind();
+    if (kind && bookingWorkKindRequiresContract(kind)) {
+      writeKioskDraftId(id);
+      this.toast.success('Cita agendada. Sigue con el cuestionario y el contrato.');
+      void this.router.navigate(['/firmar', 'cita', id]);
+      return;
+    }
+    this.toast.success('Cita agendada');
+    this.step.set('done');
+  }
+
   restart(): void {
+    this.createdAppointmentId.set(0);
     this.step.set('document');
     this.customer.set(null);
     this.appointments.set([]);
