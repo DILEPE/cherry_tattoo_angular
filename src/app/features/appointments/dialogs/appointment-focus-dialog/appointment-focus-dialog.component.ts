@@ -21,7 +21,6 @@ import { CustomerSnapshot, PanelStaffOption } from '../../models/booking.model';
 import { copToMiles, mapAppointment, milesToCop } from '../../models/appointment.mapper';
 import {
   canCancelAppointment,
-  canGenerateSigningOt,
   canManageSurveyWithoutContract,
   firmarContratoDisabled,
   firmarContratoLabel,
@@ -255,10 +254,7 @@ import { catchError, of, switchMap } from 'rxjs';
           }
         </section>
 
-        <app-appointment-abonos-section
-          [montosLocked]="montosLocked()"
-          [totalOverride]="totalValueCop()"
-        />
+        <app-appointment-abonos-section [montosLocked]="montosLocked()" />
 
         @if (a.contractPendingArtistSignature) {
           <p class="cal-overflow-fire-pending appt-detail-fire">Firma profesional pendiente</p>
@@ -269,16 +265,6 @@ import { catchError, of, switchMap } from 'rxjs';
             <app-button variant="primary" [loading]="saving()" (clicked)="saveChanges()">
               Guardar cambios
             </app-button>
-            @if (canGenerateOt()) {
-              <app-button
-                variant="ghost"
-                [loading]="generatingOt()"
-                [disabled]="generatingOt()"
-                (clicked)="onGenerarOt()"
-              >
-                {{ signingOt() ? 'Generar nuevo código OTP' : 'Generar código OTP' }}
-              </app-button>
-            }
             @if (canManageSurvey()) {
               <app-button variant="ghost" (clicked)="onGestionarEncuesta()">
                 Encuesta
@@ -300,16 +286,6 @@ import { catchError, of, switchMap } from 'rxjs';
         </div>
       } @else {
         <app-button variant="ghost" (clicked)="close()">Cerrar</app-button>
-      }
-
-      @if (otpPopupCode(); as code) {
-        <div class="ap-otp-popup" role="dialog" aria-modal="true" aria-labelledby="ap-otp-title">
-          <div class="ap-otp-popup__card">
-            <h2 id="ap-otp-title">Código OTP</h2>
-            <p class="ap-otp-popup__code">{{ code }}</p>
-            <app-button variant="primary" (clicked)="closeOtpPopup()">Cerrar</app-button>
-          </div>
-        </div>
       }
     </div>
   `,
@@ -340,13 +316,8 @@ export class AppointmentFocusDialogComponent {
   readonly designText = signal('');
   readonly obsText = signal('');
   readonly totalValue = signal(0);
-  /** Total en COP para validaciones de abonos (input de trabajo está en miles). */
-  readonly totalValueCop = computed(() => milesToCop(this.totalValue()));
   readonly isPriority = signal(false);
   readonly saving = signal(false);
-  readonly generatingOt = signal(false);
-  readonly signingOt = signal<string | null>(null);
-  readonly otpPopupCode = signal<string | null>(null);
   private readonly fetchedPiercingLabels = signal<Record<number, string>>({});
 
   private seededForId: number | null = null;
@@ -506,13 +477,6 @@ export class AppointmentFocusDialogComponent {
     return a ? firmarContratoLabel(a) : 'Firmar contrato';
   });
 
-  readonly canGenerateOt = computed(() => {
-    const a = this.appt();
-    const role = this.appStore.user()?.role ?? '';
-    if (!a || !canManageAppointmentAmounts(role)) return false;
-    return canGenerateSigningOt(a);
-  });
-
   private readonly _load = effect(() => {
     const id = resolveAppointmentModalId(this.ui);
     if (id <= 0 || this.ui.activeModal()?.id !== 'appointment-focus') return;
@@ -521,12 +485,6 @@ export class AppointmentFocusDialogComponent {
     this.dlg.loadAppointment(id);
     this.dlg.loadPayments(id);
     this.dlg.loadReceipts(id);
-    this.signingOt.set(null);
-    this.otpPopupCode.set(null);
-    this.api.getSigningOt(id).subscribe({
-      next: (row) => this.signingOt.set((row.code || '').trim() || null),
-      error: () => this.signingOt.set(null),
-    });
     this.staffApi.listAssignable().subscribe((list) => this.staffList.set(list));
   });
 
@@ -552,7 +510,14 @@ export class AppointmentFocusDialogComponent {
   private readonly _syncForm = effect(() => {
     const a = this.appt();
     if (!a || this.ui.activeModal()?.id !== 'appointment-focus') return;
-    if (this.seededForId === a.id) return;
+    if (this.seededForId === a.id) {
+      const miles = copToMiles(a.financials.total);
+      if (miles !== this.baseTotal) {
+        if (this.totalValue() < miles) this.totalValue.set(miles);
+        this.baseTotal = miles;
+      }
+      return;
+    }
 
     this.seededForId = a.id;
 
@@ -746,28 +711,6 @@ export class AppointmentFocusDialogComponent {
     this.ui.openModal('appointment-cancel', { appointmentId: a.id });
   }
 
-  onGenerarOt(): void {
-    const a = this.appt();
-    if (!a || !this.canGenerateOt()) return;
-    this.generatingOt.set(true);
-    this.api.generateSigningOt(a.id).subscribe({
-      next: (row) => {
-        this.generatingOt.set(false);
-        const code = (row.code || '').trim();
-        this.signingOt.set(code || null);
-        if (code) this.otpPopupCode.set(code);
-      },
-      error: (err) => {
-        this.generatingOt.set(false);
-        this.toast.error(err instanceof Error ? err.message : apiErrorMessage(err));
-      },
-    });
-  }
-
-  closeOtpPopup(): void {
-    this.otpPopupCode.set(null);
-  }
-
   onFirmarContrato(): void {
     const a = this.appt();
     if (!a || !appointmentRequiresContract(a)) {
@@ -802,7 +745,6 @@ export class AppointmentFocusDialogComponent {
   }
 
   close(): void {
-    this.otpPopupCode.set(null);
     this.ui.closeModal();
     this.dlg.reset();
     this.customer.set(null);

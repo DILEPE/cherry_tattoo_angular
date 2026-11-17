@@ -166,9 +166,10 @@ function printReceiptImage(blob: Blob): void {
 
 function openImagePrintFrame(dataUrl: string, naturalWidth: number, naturalHeight: number): void {
   const widthMm = 72;
+  // La tira crece con el nombre y el diseño. Un tope de 208 mm recortaba el final.
   const heightMm = Math.min(
-    208,
-    Math.max(30, (naturalHeight / Math.max(naturalWidth, 1)) * widthMm),
+    500,
+    Math.max(30, (naturalHeight / Math.max(naturalWidth, 1)) * widthMm + 4),
   );
   const iframe = document.createElement('iframe');
   iframe.title = 'Imprimir recibo';
@@ -194,13 +195,13 @@ function openImagePrintFrame(dataUrl: string, naturalWidth: number, naturalHeigh
       padding: 0;
       width: ${widthMm}mm;
       height: ${heightMm}mm;
-      overflow: hidden;
+      overflow: visible;
       background: #fff;
     }
     img { width: ${widthMm}mm; height: auto; display: block; }
     @media print {
-      html, body { width: ${widthMm}mm; height: ${heightMm}mm; margin: 0; overflow: hidden; }
-      img { width: ${widthMm}mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body { width: ${widthMm}mm; height: ${heightMm}mm; margin: 0; overflow: visible; }
+      img { width: ${widthMm}mm; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>

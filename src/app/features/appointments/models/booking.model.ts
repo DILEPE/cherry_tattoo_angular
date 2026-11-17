@@ -1,6 +1,3 @@
-export const MIN_APPOINTMENT_TOTAL_COP = 50_000;
-/** Mínimo COP para limpieza o cambio de piercing (mayor de 10.000 → se exige ≥ 10.000). */
-export const MIN_CLEANING_CHANGE_TOTAL_COP = 10_000;
 export const CUSTOMER_BIRTH_PENDING_ISO = '2001-07-13';
 
 export type BookingWorkKind =
@@ -9,15 +6,9 @@ export type BookingWorkKind =
   | 'cambio_piercing'
   | 'tatuaje';
 
-export function isCleaningOrChangeWorkKind(kind: BookingWorkKind): boolean {
-  return kind === 'limpieza_piercing' || kind === 'cambio_piercing';
-}
-
-/** Mínimo del valor del trabajo según tipo (colocación/tatuaje 50.000; limpieza/cambio 10.000). */
-export function minTotalCopForWorkKind(kind: BookingWorkKind): number {
-  return isCleaningOrChangeWorkKind(kind)
-    ? MIN_CLEANING_CHANGE_TOTAL_COP
-    : MIN_APPOINTMENT_TOTAL_COP;
+/** No hay piso de valor ni de abono: se puede agendar en cero o por debajo de 50.000. */
+export function minTotalCopForWorkKind(_kind: BookingWorkKind): number {
+  return 0;
 }
 
 export type ScheduleKind = 'tattoo' | 'piercing';

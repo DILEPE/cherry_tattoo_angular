@@ -49,10 +49,8 @@ import {
   EXPRESS_BOOKING_WORK_KIND_ORDER,
   BookingWorkKind,
   CUSTOMER_BIRTH_PENDING_ISO,
-  MIN_APPOINTMENT_TOTAL_COP,
   CustomerSnapshot,
   PanelStaffOption,
-  minTotalCopForWorkKind,
 } from '../../models/booking.model';
 import {
   appendAgendaSlotsMarker,
@@ -68,7 +66,7 @@ import {
   endBlockSlotOptions,
   timeSlotOptions,
 } from '../../models/appointment-slots';
-import { copToMiles, formatCopAbono, milesToCop } from '../../models/appointment.mapper';
+import { milesToCop } from '../../models/appointment.mapper';
 import { mergeDesignObsPlain } from '../../models/appointment-detail-text.mapper';
 import { toDocType } from '../../../customers/models/customer.mapper';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
@@ -236,7 +234,6 @@ export class AppointmentBookDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
 
-  private readonly defaultMinMiles = copToMiles(MIN_APPOINTMENT_TOTAL_COP);
   readonly slotOptions = timeSlotOptions();
 
   readonly staffList = signal<PanelStaffOption[]>([]);
@@ -270,8 +267,8 @@ export class AppointmentBookDialogComponent {
       endSlot: ['10:00', Validators.required],
       design: [''],
       observations: [''],
-      total: [this.defaultMinMiles, minCopAmountValidator(this.defaultMinMiles)],
-      deposit: [this.defaultMinMiles, minCopAmountValidator(this.defaultMinMiles)],
+      total: [0, minCopAmountValidator(0)],
+      deposit: [0, Validators.min(0)],
       isPriority: [false],
     },
     { validators: [bookingAmountsValidator()] },
@@ -461,12 +458,10 @@ export class AppointmentBookDialogComponent {
     }
   }
 
-  /** Ajusta validadores y pone el valor mínimo al cambiar tipo (limpieza/cambio → 10; resto → 50). */
-  private syncAmountValidators(kind: BookingWorkKind): void {
-    const minMiles = copToMiles(minTotalCopForWorkKind(kind));
-    this.form.controls.total.setValidators([minCopAmountValidator(minMiles)]);
-    this.form.controls.deposit.setValidators([minCopAmountValidator(minMiles)]);
-    this.form.patchValue({ total: minMiles, deposit: minMiles }, { emitEvent: false });
+  /** El abono puede quedar en cero y el valor puede ser menor a 50.000. */
+  private syncAmountValidators(_kind: BookingWorkKind): void {
+    this.form.controls.total.setValidators([minCopAmountValidator(0)]);
+    this.form.controls.deposit.setValidators([Validators.min(0)]);
     this.form.controls.total.updateValueAndValidity({ emitEvent: false });
     this.form.controls.deposit.updateValueAndValidity({ emitEvent: false });
     this.syncDepositWithoutAbono();
@@ -487,7 +482,6 @@ export class AppointmentBookDialogComponent {
     this.verifyLoading.set(false);
 
     const workKind: BookingWorkKind = 'piercing';
-    const minMiles = copToMiles(minTotalCopForWorkKind(workKind));
     this.form.reset({
       docType: 'CC',
       docNumber: '',
@@ -501,8 +495,8 @@ export class AppointmentBookDialogComponent {
       endSlot: appointmentBlockEndSlot('09:00', this.durationSlotsForWorkKind(workKind), this.slotOptions),
       design: '',
       observations: '',
-      total: minMiles,
-      deposit: minMiles,
+      total: 0,
+      deposit: 0,
       isPriority: false,
     });
     this.syncAmountValidators(workKind);
@@ -650,29 +644,30 @@ export class AppointmentBookDialogComponent {
 
     const total = milesToCop(Number(this.form.controls.total.value));
     this.syncDepositWithoutAbono();
-    const deposit = milesToCop(Number(this.form.controls.deposit.value));
+    const depositRaw = this.form.controls.deposit.value;
+    const deposit = milesToCop(
+      depositRaw == null || String(depositRaw) === '' ? 0 : Number(depositRaw),
+    );
     const wk = this.form.controls.workKind.value as BookingWorkKind;
 
     if (this.isExpress()) {
-      const minCop = minTotalCopForWorkKind(wk);
-      if (total < minCop) {
-        this.toast.error(
-          `Indica un valor total de al menos ${formatCopAbono(minCop)}.`,
-        );
-        return;
-      }
-      if (
-        bookingWorkKindRequiresContract(wk) &&
-        Math.round((total - deposit) * 100) / 100 > 0.009
-      ) {
-        this.toast.error(
-          'En cita express el valor total debe quedar cubierto (saldo pendiente en cero) antes de firmar.',
-        );
-        return;
-      }
       if (wk === 'tatuaje') {
         this.toast.error('La cita express no admite tatuaje.');
         return;
+      }
+      if (bookingWorkKindRequiresContract(wk)) {
+        if (total <= 0.009) {
+          this.toast.error(
+            'La cita express necesita el valor total del trabajo antes de abrir el contrato.',
+          );
+          return;
+        }
+        if (Math.round((total - deposit) * 100) / 100 > 0.009) {
+          this.toast.error(
+            'En cita express el valor total debe quedar cubierto (saldo pendiente en cero) antes de firmar.',
+          );
+          return;
+        }
       }
     }
     const staffId = this.resolveStaffId();

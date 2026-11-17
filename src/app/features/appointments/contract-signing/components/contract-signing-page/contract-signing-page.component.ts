@@ -1096,7 +1096,10 @@ export class ContractSigningPageComponent implements OnInit, OnDestroy {
     const c = this.customer();
     const a = this.appointment();
     if (!c || !a) return;
-    if (!payload.document_issue_date) {
+    if (this.saving()) return;
+    // En la tableta este paso es solo guardar la ficha y pasar al cuestionario.
+    // La fecha de expedición se exige al firmar, no para avanzar.
+    if (!payload.document_issue_date && !this.isKiosk()) {
       this.toast.warn(
         'Para firmar debes registrar la fecha de expedición del documento del cliente.',
       );
