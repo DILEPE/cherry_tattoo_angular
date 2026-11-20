@@ -798,12 +798,20 @@ export class SigningIntakeComponent {
     const kind = this.workKind();
     if (kind && bookingWorkKindRequiresContract(kind)) {
       writeKioskDraftId(id);
-      this.toast.success('Cita agendada. Sigue con el cuestionario y el contrato.');
       void this.router.navigate(['/firmar', 'cita', id]);
+      this.notifyScheduled('Cita agendada. Sigue con el cuestionario y el contrato.');
       return;
     }
-    this.toast.success('Cita agendada');
+    this.notifyScheduled('Cita agendada');
     this.step.set('done');
+  }
+
+  private notifyScheduled(message: string): void {
+    try {
+      this.toast.success(message);
+    } catch {
+      /* Un aviso fallido no debe dejar la pantalla en Confirmar cita. */
+    }
   }
 
   restart(): void {
