@@ -26,7 +26,7 @@ export const BOOKING_WORK_KIND_ORDER: BookingWorkKind[] = [
   'tatuaje',
 ];
 
-/** Tipos permitidos en cita express (sin tatuaje). */
+/** Colocación, limpieza y cambio. El filtro de piercing los usa; la cita express también admite tatuaje. */
 export const EXPRESS_BOOKING_WORK_KIND_ORDER: BookingWorkKind[] = [
   'piercing',
   'limpieza_piercing',
