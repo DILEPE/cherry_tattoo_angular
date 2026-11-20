@@ -46,7 +46,6 @@ import {
 import {
   BOOKING_WORK_KIND_META,
   BOOKING_WORK_KIND_ORDER,
-  EXPRESS_BOOKING_WORK_KIND_ORDER,
   BookingWorkKind,
   CUSTOMER_BIRTH_PENDING_ISO,
   CustomerSnapshot,
@@ -72,6 +71,13 @@ import { toDocType } from '../../../customers/models/customer.mapper';
 import { BookAppointmentModalData } from '../../models/appointment-modal.model';
 import { appointmentRowDate } from '../../models/calendar.mapper';
 
+function todayIsoDate(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 @Component({
   selector: 'app-appointment-book-dialog',
   standalone: true,
@@ -88,7 +94,7 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
       <p class="appt-dialog-caption">
         <strong>Fecha de la cita:</strong> {{ pickedDateLabel() }}
         @if (isExpress()) {
-          (cita express — hoy)
+          (cita express)
         } @else {
           (elegida en el calendario)
         }
@@ -167,6 +173,12 @@ import { appointmentRowDate } from '../../models/calendar.mapper';
           <p class="appt-dialog-caption">La cita quedará asignada a tu usuario del panel.</p>
         }
       </div>
+
+      @if (isExpress()) {
+        <app-form-field label="Fecha de la cita" [control]="form.controls.appointmentDate">
+          <input type="date" formControlName="appointmentDate" />
+        </app-form-field>
+      }
 
       <div class="appt-book-row">
         <app-form-field label="Hora de inicio" [control]="form.controls.startSlot">
@@ -263,6 +275,7 @@ export class AppointmentBookDialogComponent {
       email: [''],
       workKind: ['piercing' as BookingWorkKind],
       staffId: [0, Validators.min(1)],
+      appointmentDate: [todayIsoDate(), Validators.required],
       startSlot: ['09:00', Validators.required],
       endSlot: ['10:00', Validators.required],
       design: [''],
@@ -280,9 +293,13 @@ export class AppointmentBookDialogComponent {
   });
 
   readonly pickedDateLabel = computed(() => {
-    const raw = this.pickedDate();
+    this.formRevision();
+    const raw = this.isExpress()
+      ? this.form.controls.appointmentDate.value || this.pickedDate()
+      : this.pickedDate();
     if (!raw) return '';
     const d = appointmentRowDate(raw);
+    if (d.getFullYear() < 1991) return '';
     return d.toLocaleDateString('es-CO');
   });
 
@@ -291,11 +308,9 @@ export class AppointmentBookDialogComponent {
     return Boolean(data?.express);
   });
 
-  readonly workKinds = computed(() =>
-    this.isExpress() ? EXPRESS_BOOKING_WORK_KIND_ORDER : BOOKING_WORK_KIND_ORDER,
-  );
+  readonly workKinds = computed(() => BOOKING_WORK_KIND_ORDER);
 
-  /** En cita normal siempre; en express solo si hubiera tatuaje (hoy express no lo admite). */
+  /** En cita normal siempre; en express el abono solo se edita en tatuaje. */
   readonly showAbonoField = computed(() => {
     this.formRevision();
     if (!this.isExpress()) return true;
@@ -372,12 +387,6 @@ export class AppointmentBookDialogComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((wk) => {
         const kind = wk as BookingWorkKind;
-        if (this.isExpress() && kind === 'tatuaje') {
-          this.form.patchValue({ workKind: 'piercing' }, { emitEvent: false });
-          this.syncAmountValidators('piercing');
-          this.syncDepositWithoutAbono();
-          return;
-        }
         this.form.patchValue(
           {
             endSlot: appointmentBlockEndSlot(
@@ -482,6 +491,8 @@ export class AppointmentBookDialogComponent {
     this.verifyLoading.set(false);
 
     const workKind: BookingWorkKind = 'piercing';
+    const picked = this.pickedDate();
+    const appointmentDate = /^\d{4}-\d{2}-\d{2}$/.test(picked) ? picked : todayIsoDate();
     this.form.reset({
       docType: 'CC',
       docNumber: '',
@@ -491,6 +502,7 @@ export class AppointmentBookDialogComponent {
       email: '',
       workKind,
       staffId: 0,
+      appointmentDate,
       startSlot: '09:00',
       endSlot: appointmentBlockEndSlot('09:00', this.durationSlotsForWorkKind(workKind), this.slotOptions),
       design: '',
@@ -625,14 +637,14 @@ export class AppointmentBookDialogComponent {
     this.validationSummary.set([]);
     this.formShowErrors()?.reset();
 
-    const raw = this.pickedDate();
-    const picked = appointmentRowDate(raw);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (picked < today) {
-      this.toast.error('La fecha no puede ser anterior a hoy.');
+    const raw = this.isExpress()
+      ? this.form.controls.appointmentDate.value
+      : this.pickedDate();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      this.toast.error('Elige la fecha de la cita.');
       return;
     }
+    const picked = appointmentRowDate(raw);
 
     const start = this.form.controls.startSlot.value;
     const end = this.form.controls.endSlot.value;
@@ -651,10 +663,6 @@ export class AppointmentBookDialogComponent {
     const wk = this.form.controls.workKind.value as BookingWorkKind;
 
     if (this.isExpress()) {
-      if (wk === 'tatuaje') {
-        this.toast.error('La cita express no admite tatuaje.');
-        return;
-      }
       if (bookingWorkKindRequiresContract(wk)) {
         if (total <= 0.009) {
           this.toast.error(

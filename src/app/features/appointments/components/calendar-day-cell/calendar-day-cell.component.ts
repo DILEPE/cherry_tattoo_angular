@@ -52,7 +52,6 @@ import { CalendarAppointmentSlotComponent } from '../calendar-appointment-slot/c
             <button
               type="button"
               class="cal-footer-book btn btn--ghost"
-              [disabled]="cell().isPast"
               (click)="bookDay.emit(cell().date!)"
             >
               + Agendar
