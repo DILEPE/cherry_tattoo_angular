@@ -23,13 +23,11 @@ import { CalendarWeekAppointmentBlockComponent } from '../calendar-week-appointm
                     @if (showBookFooter()) {
                       <div
                         class="cal-cell-footer-strip twg-h-footer-strip"
-                        [class.cal-footer-strip-disabled]="hdr.isPast"
                       >
                         <button
                           type="button"
                           class="cal-footer-book btn btn--ghost"
-                          [disabled]="hdr.isPast"
-                          [title]="bookTitle(hdr.isPast, hdr.date)"
+                          [title]="bookTitle(hdr.date)"
                           (click)="bookDay.emit(hdr.date)"
                         >
                           + Agendar
@@ -102,8 +100,7 @@ export class CalendarWeekGridComponent {
     return v.slotList.map((_, i) => i);
   }
 
-  bookTitle(isPast: boolean, d: Date): string {
-    if (isPast) return 'No se pueden agendar citas en fechas pasadas';
+  bookTitle(d: Date): string {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `Agendar cita · ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
   }

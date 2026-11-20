@@ -6,7 +6,7 @@ export interface AppointmentModalData {
 export interface BookAppointmentModalData {
   /** YYYY-MM-DD */
   pickedDate: string;
-  /** Cita express: solo piercing / limpieza / cambio (sin tatuaje). */
+  /** Cita express: fecha editable (también pasada) y cualquier tipo de trabajo. */
   express?: boolean;
 }
 

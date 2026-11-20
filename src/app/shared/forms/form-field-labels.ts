@@ -28,6 +28,7 @@ export const BOOKING_FIELD_LABELS: Record<string, string> = {
   email: 'Correo electrónico',
   workKind: 'Tipo de trabajo',
   staffId: 'Profesional',
+  appointmentDate: 'Fecha de la cita',
   startSlot: 'Hora de inicio',
   endSlot: 'Hora de fin',
   design: 'Descripción del diseño',
