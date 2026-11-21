@@ -35,7 +35,7 @@ export const EXPRESS_BOOKING_WORK_KIND_ORDER: BookingWorkKind[] = [
 
 export const BOOKING_WORK_KIND_META: Record<BookingWorkKind, BookingWorkKindMeta> = {
   piercing: {
-    label: 'Piercing (colocación)',
+    label: 'Piercing (perforación)',
     serviceToken: 'piercing',
     detailTag: '[Piercing]',
   },

@@ -245,7 +245,7 @@ function blankCustomer(documentType: DocumentType, documentNumber: string): Cust
               <p>¿Qué servicio de piercing?</p>
               <div class="intake-choices">
                 <button type="button" class="btn btn--ghost" [class.intake-choice--on]="piercingKind() === 'piercing'" (click)="piercingKind.set('piercing')">
-                  Colocación
+                  Perforación
                 </button>
                 <button type="button" class="btn btn--ghost" [class.intake-choice--on]="piercingKind() === 'limpieza_piercing'" (click)="piercingKind.set('limpieza_piercing')">
                   Limpieza

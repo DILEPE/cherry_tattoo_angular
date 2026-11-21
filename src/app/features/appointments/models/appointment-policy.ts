@@ -1,6 +1,6 @@
 import { Appointment, AppointmentPayment } from './appointment.model';
 import { canManageAppointmentAmounts } from '../../../core/utils/panel-roles';
-import { appointmentRequiresContract } from './booking.mapper';
+import { appointmentRequiresContract, inferWorkKindFromAppointment } from './booking.mapper';
 
 export function reprogramDisabledForRow(appt: Appointment): boolean {
   if (appt.id <= 0 || appt.status === 'cancelada') return true;
@@ -18,10 +18,15 @@ export function canCancelAppointment(appt: Appointment): boolean {
   return appt.status !== 'cancelada' && appt.status !== 'finalizada';
 }
 
-/** Sin valor de trabajo el contrato no se abre. Con saldo pendiente no se firma. */
+/**
+ * Sin valor de trabajo el contrato no se abre.
+ * En tatuaje, con saldo pendiente no se firma.
+ * En colocación de piercing el abono no bloquea la firma.
+ */
 export function contractBlockedByBalance(appt: Appointment): boolean {
   const total = appt.financials.total;
   if (total <= 0.009) return true;
+  if (inferWorkKindFromAppointment(appt) === 'piercing') return false;
   if (appt.financials.pending > 0.009) return true;
   const due = Math.round((total - appt.financials.deposit) * 100) / 100;
   return due > 0.009;
