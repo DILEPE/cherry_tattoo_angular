@@ -1,4 +1,5 @@
 import { Appointment, AppointmentPayment } from '../../models/appointment.model';
+import { inferWorkKindFromAppointment } from '../../models/booking.mapper';
 
 export function appointmentPaymentReadyForSignature(
   appt: Appointment,
@@ -15,6 +16,9 @@ export function appointmentPaymentReadyForSignature(
       ok: false,
       message: 'Define el valor total del trabajo en Montos antes de firmar.',
     };
+  }
+  if (inferWorkKindFromAppointment(appt) === 'piercing') {
+    return { ok: true, message: null };
   }
   if (pending > 0.009 || due > 0.009) {
     return {
