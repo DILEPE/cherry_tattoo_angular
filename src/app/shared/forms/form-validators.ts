@@ -15,11 +15,26 @@ export function trimRequiredValidator(): ValidatorFn {
   };
 }
 
+/** Solo dígitos. Acepta espacios, guiones y un + inicial. */
+export function phoneDigits(raw: string | null | undefined): string {
+  return String(raw ?? '').replace(/\D/g, '');
+}
+
+/**
+ * Celular de WhatsApp.
+ * Colombia: 10 dígitos que empiezan por 3.
+ * Otro país: indicativo + número, de 11 a 15 dígitos (sin el +).
+ */
+export function isWhatsappPhoneDigits(digits: string): boolean {
+  if (digits.length === 10 && digits.startsWith('3')) return true;
+  return digits.length >= 11 && digits.length <= 15;
+}
+
 export function mobilePhoneCo10Validator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const digits = String(control.value ?? '').replace(/\D/g, '');
+    const digits = phoneDigits(control.value);
     if (!digits) return { required: true };
-    return digits.length === 10 ? null : { mobilePhoneCo10: true };
+    return isWhatsappPhoneDigits(digits) ? null : { mobilePhone: true };
   };
 }
 
@@ -27,8 +42,8 @@ export function optionalMobilePhoneCo10Validator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const raw = String(control.value ?? '').trim();
     if (!raw) return null;
-    const digits = raw.replace(/\D/g, '');
-    return digits.length === 10 ? null : { mobilePhoneCo10: true };
+    const digits = phoneDigits(raw);
+    return isWhatsappPhoneDigits(digits) ? null : { mobilePhone: true };
   };
 }
 

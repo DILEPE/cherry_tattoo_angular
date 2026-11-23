@@ -16,6 +16,7 @@ import {
   documentNumberValidator,
   minCopAmountValidator,
   mobilePhoneCo10Validator,
+  phoneDigits,
   trimRequiredValidator,
 } from '../../../../shared/forms/form-validators';
 import { BOOKING_FIELD_LABELS } from '../../../../shared/forms/form-field-labels';
@@ -141,7 +142,12 @@ function todayIsoDate(): string {
       </div>
       <div class="appt-book-row">
         <app-form-field label="Celular" [control]="form.controls.phone">
-          <input formControlName="phone" />
+          <input
+            formControlName="phone"
+            placeholder="3001234567"
+            inputmode="tel"
+            autocomplete="tel"
+          />
         </app-form-field>
         <app-form-field label="Correo" [control]="form.controls.email">
           <input type="text" formControlName="email" autocomplete="off" />
@@ -700,7 +706,7 @@ export class AppointmentBookDialogComponent {
     const dt = combineAppointmentDatetime(picked, start);
     const fn = this.form.controls.firstName.value.trim();
     const ln = this.form.controls.lastName.value.trim();
-    const phone = this.form.controls.phone.value.trim();
+    const phone = phoneDigits(this.form.controls.phone.value);
     const email = this.form.controls.email.value.trim();
 
     const payload: Record<string, unknown> = {
