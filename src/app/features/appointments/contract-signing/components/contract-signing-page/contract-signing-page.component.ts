@@ -352,8 +352,8 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
 
                 <h3>Documento del menor</h3>
                 <p class="ctsig-doc-hint">
-                  Usa «Abrir cámara» para tomar la foto, o «Elegir archivo» si prefieres una imagen
-                  guardada.
+                  «Abrir cámara» toma la foto con la cámara del celular. «Elegir archivo» usa una
+                  imagen que ya esté guardada.
                 </p>
                 <div class="ctsig-doc-upload">
                   <app-document-capture
@@ -532,8 +532,8 @@ import { isClientRole } from '../../../../../core/utils/panel-roles';
 
               <h3 class="ctsig-subsection">Documento del menor</h3>
               <p class="ctsig-doc-hint">
-                Usa «Abrir cámara» para tomar la foto, o «Elegir archivo» si prefieres una imagen
-                guardada.
+                «Abrir cámara» toma la foto con la cámara del celular. «Elegir archivo» usa una
+                imagen que ya esté guardada.
               </p>
               <div class="ctsig-doc-upload">
                 <app-document-capture

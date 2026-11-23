@@ -1,18 +1,5 @@
+import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal } from '@angular/core';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  OnDestroy,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
-import { AppButtonComponent } from '../../../../../shared/ui/button/app-button.component';
-import {
-  applyDocumentCaptureWatermark,
   isDocumentCaptureAcceptable,
   readDocumentCaptureImage,
 } from '../../models/signature.util';
@@ -22,39 +9,30 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
   selector: 'app-document-capture',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppButtonComponent],
   template: `
     <div class="ctsig-capture">
       <span class="ctsig-capture__label">{{ label() }}</span>
 
-      @if (previewUrl() && !cameraOpen()) {
-        <p class="ctsig-capture__ready">Foto capturada. Se verá al consultar el contrato firmado.</p>
+      @if (previewUrl()) {
+        <img class="ctsig-capture__preview" [src]="previewUrl()" alt="Foto del documento" />
+        <p class="ctsig-capture__ready">Foto lista. Se verá al consultar el contrato firmado.</p>
       }
 
-      @if (cameraOpen()) {
-        <div class="ctsig-capture__camera">
-          <video #videoEl class="ctsig-capture__video" autoplay playsinline muted></video>
-          <canvas #canvasEl class="ctsig-capture__canvas" hidden></canvas>
-          <div class="ctsig-capture__actions">
-            <app-button variant="primary" (clicked)="snap()">Capturar foto</app-button>
-            <app-button variant="ghost" (clicked)="stopCamera()">Cerrar cámara</app-button>
-          </div>
-        </div>
-      } @else {
-        <div class="ctsig-capture__actions">
-          <app-button variant="primary" [loading]="starting()" (clicked)="openCamera()">
-            Abrir cámara
-          </app-button>
-          <label class="ctsig-capture__file-btn">
-            Elegir archivo
-            <input type="file" accept="image/*" (change)="onFile($event)" />
-          </label>
-        </div>
-      }
-
-      @if (cameraError()) {
-        <p class="form-field__error">{{ cameraError() }}</p>
-      }
+      <div class="ctsig-capture__actions">
+        <label class="btn btn--primary ctsig-capture__pick">
+          Abrir cámara
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            (change)="onFile($event)"
+          />
+        </label>
+        <label class="btn btn--ghost ctsig-capture__pick">
+          Elegir archivo
+          <input type="file" accept="image/*" (change)="onFile($event)" />
+        </label>
+      </div>
     </div>
   `,
   styles: `
@@ -81,19 +59,13 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
       color: var(--text-primary);
     }
 
-    .ctsig-capture__video {
+    .ctsig-capture__preview {
       width: 100%;
-      max-height: 220px;
+      max-height: 180px;
       object-fit: contain;
       border-radius: var(--radius-sm);
-      background: #111;
       border: 1px solid var(--border);
-    }
-
-    .ctsig-capture__camera {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+      background: #111;
     }
 
     .ctsig-capture__actions {
@@ -103,134 +75,40 @@ import { ToastService } from '../../../../../shared/ui/toast/toast.service';
       align-items: center;
     }
 
-    .ctsig-capture__file-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.25rem;
-      padding: 0.4rem 0.85rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 0.84rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: #fff;
+    .ctsig-capture__pick {
+      margin: 0;
     }
 
-    .ctsig-capture__file-btn input {
+    .ctsig-capture__pick input {
       display: none;
     }
   `,
 })
-export class DocumentCaptureComponent implements OnDestroy {
+export class DocumentCaptureComponent {
   readonly label = input.required<string>();
   readonly value = input<string | null>(null);
   readonly valueChange = output<string | null>();
 
   private readonly toast = inject(ToastService);
-  private readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
-  private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvasEl');
-
   readonly previewUrl = signal<string | null>(null);
-  readonly cameraOpen = signal(false);
-  readonly starting = signal(false);
-  readonly cameraError = signal<string | null>(null);
-
-  private stream: MediaStream | null = null;
 
   private readonly _syncPreview = effect(() => {
     this.previewUrl.set(this.value());
   });
 
-  private readonly _bindVideo = effect(() => {
-    if (!this.cameraOpen() || !this.stream) return;
-    const video = this.videoRef()?.nativeElement;
-    if (!video) return;
-    if (video.srcObject !== this.stream) {
-      video.srcObject = this.stream;
-      void video.play().catch(() => undefined);
-    }
-  });
-
-  ngOnDestroy(): void {
-    this.stopCamera();
-  }
-
-  async openCamera(): Promise<void> {
-    this.cameraError.set(null);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this.cameraError.set(
-        'Este navegador no permite cámara. Usa «Elegir archivo» o prueba en el celular.',
-      );
-      return;
-    }
-    this.starting.set(true);
-    try {
-      this.stopCamera();
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-      this.cameraOpen.set(true);
-    } catch {
-      this.cameraError.set(
-        'No se pudo abrir la cámara. Revisa permisos del navegador o usa «Elegir archivo».',
-      );
-      this.cameraOpen.set(false);
-    } finally {
-      this.starting.set(false);
-    }
-  }
-
-  snap(): void {
-    const video = this.videoRef()?.nativeElement;
-    const canvas = this.canvasRef()?.nativeElement;
-    if (!video || !canvas || !video.videoWidth) {
-      this.toast.warn('Espera a que la cámara cargue y vuelve a intentar.');
-      return;
-    }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const raw = canvas.toDataURL('image/jpeg', 0.88);
-    void applyDocumentCaptureWatermark(raw).then((dataUrl) => {
-      if (!dataUrl || !isDocumentCaptureAcceptable(dataUrl)) {
-        this.toast.warn('No se pudo capturar la foto. Intenta de nuevo.');
-        return;
-      }
-      this.previewUrl.set(dataUrl);
-      this.valueChange.emit(dataUrl);
-      this.stopCamera();
-      this.toast.success('Foto capturada.');
-    });
-  }
-
-  stopCamera(): void {
-    if (this.stream) {
-      for (const track of this.stream.getTracks()) track.stop();
-      this.stream = null;
-    }
-    const video = this.videoRef()?.nativeElement;
-    if (video) video.srcObject = null;
-    this.cameraOpen.set(false);
-  }
-
   onFile(ev: Event): void {
-    const file = (ev.target as HTMLInputElement).files?.[0];
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
     void readDocumentCaptureImage(file).then((url) => {
-      if (!url) {
-        this.toast.warn('El archivo no es una imagen válida.');
+      if (!url || !isDocumentCaptureAcceptable(url)) {
+        this.toast.warn('No se pudo usar esa imagen. Toma otra foto o elige un archivo de imagen.');
         return;
       }
       this.previewUrl.set(url);
       this.valueChange.emit(url);
+      this.toast.success('Foto lista.');
     });
   }
 }
