@@ -1,4 +1,5 @@
 import { CUSTOMER_BIRTH_PENDING_ISO, DocumentType } from '../../features/customers/models/customer.model';
+import { isWhatsappPhoneDigits, phoneDigits } from './form-validators';
 
 export interface CustomerFormValues {
   birthDate: string;
@@ -79,9 +80,8 @@ export function validateCustomerBusinessRules(v: CustomerFormValues): string | n
   if (sm.length > 50) return 'Redes sociales: como máximo 50 caracteres.';
 
   const eph = (v.emergencyContactPhone ?? '').trim();
-  if (eph) {
-    const digits = eph.replace(/\D/g, '');
-    if (digits.length !== 10) return 'El teléfono de emergencia debe tener 10 dígitos.';
+  if (eph && !isWhatsappPhoneDigits(phoneDigits(eph))) {
+    return 'El teléfono de emergencia debe ser de Colombia (10 dígitos que empiecen por 3) o llevar indicativo de país (11 a 15 dígitos).';
   }
 
   return null;

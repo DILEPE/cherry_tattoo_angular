@@ -19,6 +19,7 @@ import {
   documentNumberValidator,
   mobilePhoneCo10Validator,
   optionalMobilePhoneCo10Validator,
+  phoneDigits,
   socialMediaMaxLenValidator,
   trimRequiredValidator,
 } from '../../../../shared/forms/form-validators';
@@ -137,7 +138,12 @@ function isMinorByBirthIso(iso: string): boolean {
             <input type="email" formControlName="email" autocomplete="off" />
           </app-form-field>
           <app-form-field label="Teléfono *" [control]="form.controls.phoneNumber">
-            <input formControlName="phoneNumber" placeholder="10 dígitos" autocomplete="off" />
+            <input
+              formControlName="phoneNumber"
+              placeholder="3001234567"
+              inputmode="tel"
+              autocomplete="tel"
+            />
           </app-form-field>
         }
         <app-form-field label="Dirección" [control]="form.controls.address">
@@ -166,7 +172,12 @@ function isMinorByBirthIso(iso: string): boolean {
         </app-form-field>
         @if (privacyMode() !== 'hideContact') {
           <app-form-field label="Celular" [control]="form.controls.emergencyContactPhone">
-            <input formControlName="emergencyContactPhone" placeholder="10 dígitos" />
+            <input
+              formControlName="emergencyContactPhone"
+              placeholder="3001234567 o con indicativo"
+              inputmode="tel"
+              autocomplete="tel"
+            />
           </app-form-field>
         }
       </div>
@@ -435,13 +446,13 @@ export class CustomerFormComponent {
           ? v.documentIssueDate
           : null,
       email: v.email.trim(),
-      phoneNumber: v.phoneNumber.trim(),
+      phoneNumber: phoneDigits(v.phoneNumber),
       address: v.address.trim() || null,
       nationality: v.nationality.trim() || null,
       profession: v.profession.trim() || null,
       socialMedia: v.socialMedia.trim() || null,
       emergencyContactName: v.emergencyContactName.trim() || null,
-      emergencyContactPhone: v.emergencyContactPhone.trim() || null,
+      emergencyContactPhone: phoneDigits(v.emergencyContactPhone) || null,
       isMinor: minor,
       guardianName: minor ? v.guardianName.trim() || null : null,
       guardianDocumentType: minor ? v.guardianDocumentType : null,
