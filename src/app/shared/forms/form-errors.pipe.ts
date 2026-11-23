@@ -13,7 +13,8 @@ export function formErrorMessage(
   if (e['futureDate']) return 'La fecha no puede ser futura';
   if (e['invalidDate']) return 'Fecha inválida';
   if (e['birthDateTooOld']) return 'La fecha de nacimiento no puede ser anterior a 100 años';
-  if (e['mobilePhoneCo10']) return 'El celular debe tener exactamente 10 dígitos';
+  if (e['mobilePhone'] || e['mobilePhoneCo10'])
+    return 'Colombia: 10 dígitos que empiecen por 3. Otro país: indicativo y número (11 a 15 dígitos)';
   if (e['invalidPhone']) return 'Teléfono inválido';
   if (e['socialMediaMaxLen']) return `Máximo ${e['socialMediaMaxLen'].max} caracteres`;
   if (e['minCop']) return `Mínimo COP $${Number(e['minCop'].min).toLocaleString('es-CO')}`;
