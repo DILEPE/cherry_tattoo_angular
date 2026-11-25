@@ -25,20 +25,50 @@ export function signatureImageSrc(value: string | null | undefined): string | nu
 
 export const DOCUMENT_CAPTURE_WATERMARK = 'SOLO AUTORIZADO PARA ESTE PROCEDIMIENTO';
 
+/** Lado más largo de la foto que se guarda con el contrato. */
+export const DOCUMENT_CAPTURE_MAX_EDGE = 1280;
+
+const DOCUMENT_CAPTURE_JPEG_QUALITY = 0.65;
+
+/** Reduce la foto de la cámara para que el contrato se pueda enviar. */
+export function documentCapturePixelSize(
+  width: number,
+  height: number,
+  maxEdge = DOCUMENT_CAPTURE_MAX_EDGE,
+): { width: number; height: number } {
+  const w = Math.max(1, Math.round(width) || 1);
+  const h = Math.max(1, Math.round(height) || 1);
+  const longest = Math.max(w, h);
+  if (longest <= maxEdge) {
+    return { width: w, height: h };
+  }
+  const scale = maxEdge / longest;
+  return {
+    width: Math.max(1, Math.round(w * scale)),
+    height: Math.max(1, Math.round(h * scale)),
+  };
+}
+
 /** Superpone la marca de agua de autorización sobre una imagen de documento (data URL). */
 export function applyDocumentCaptureWatermark(dataUrl: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
+      const size = documentCapturePixelSize(
+        img.naturalWidth || img.width,
+        img.naturalHeight || img.height,
+      );
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
+      canvas.width = size.width;
+      canvas.height = size.height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         resolve(null);
         return;
       }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, size.width, size.height);
 
       const minSide = Math.min(canvas.width, canvas.height);
       const fontSize = Math.max(18, Math.min(48, minSide * 0.075));
@@ -56,7 +86,7 @@ export function applyDocumentCaptureWatermark(dataUrl: string): Promise<string |
       ctx.fillText(DOCUMENT_CAPTURE_WATERMARK, 0, 0);
       ctx.restore();
 
-      const result = canvas.toDataURL('image/jpeg', 0.88);
+      const result = canvas.toDataURL('image/jpeg', DOCUMENT_CAPTURE_JPEG_QUALITY);
       resolve(isDocumentCaptureAcceptable(result) ? result : null);
     };
     img.onerror = () => resolve(null);
